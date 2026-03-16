@@ -1,1 +1,1 @@
-# analyzer package
+# analyzer package — Автороведческий анализатор v5
