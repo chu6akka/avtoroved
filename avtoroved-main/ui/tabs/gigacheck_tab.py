@@ -80,8 +80,16 @@ class GigaCheckTab(QWidget):
         self.btn_detect = QPushButton("🔍 Проверить текст на ИИ")
         self.btn_detect.setEnabled(False)
         self.btn_detect.clicked.connect(self._run_detect)
+        btn_install = QPushButton("📦 Установить зависимости")
+        btn_install.setObjectName("secondary")
+        btn_install.setToolTip(
+            "Автоматически установит:\n"
+            "  pip install git+https://github.com/ai-forever/gigacheck\n"
+            "  pip install transformers torch")
+        btn_install.clicked.connect(self._install_deps)
         btn_row.addWidget(self.btn_load)
         btn_row.addWidget(self.btn_detect)
+        btn_row.addWidget(btn_install)
         btn_row.addStretch()
         ctrl_layout.addLayout(btn_row)
 
@@ -135,6 +143,43 @@ class GigaCheckTab(QWidget):
         self.highlighted_text.setPlainText(text)
         self.score_label.setText("—")
         self.verdict_label.setText("Нажмите «Проверить текст на ИИ»")
+
+    def _install_deps(self):
+        """Автоматически установить gigacheck + transformers + torch."""
+        import subprocess, sys
+        self.status_label.setText("Устанавливаются зависимости...")
+        self.progress.setVisible(True)
+
+        class _InstallThread(QThread):
+            done = pyqtSignal(bool, str)
+            def run(self):
+                cmds = [
+                    [sys.executable, "-m", "pip", "install", "--quiet", "transformers", "torch"],
+                    [sys.executable, "-m", "pip", "install", "--quiet",
+                     "git+https://github.com/ai-forever/gigacheck"],
+                ]
+                for cmd in cmds:
+                    r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+                    if r.returncode != 0:
+                        self.done.emit(False, r.stderr[:300])
+                        return
+                self.done.emit(True, "")
+
+        def _on_done(ok, err):
+            self.progress.setVisible(False)
+            if ok:
+                self.status_label.setText("✓ Зависимости установлены. Нажмите «Загрузить модель».")
+            else:
+                self.status_label.setText(f"Ошибка установки: {err}")
+                QMessageBox.critical(self, "Ошибка установки",
+                    f"Не удалось установить зависимости:\n{err}\n\n"
+                    "Попробуйте вручную в терминале:\n"
+                    "  pip install transformers torch\n"
+                    "  pip install git+https://github.com/ai-forever/gigacheck")
+
+        self._install_thread = _InstallThread()
+        self._install_thread.done.connect(_on_done)
+        self._install_thread.start()
 
     def _load_model(self):
         self.btn_load.setEnabled(False)

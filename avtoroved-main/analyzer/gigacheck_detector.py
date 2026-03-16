@@ -2,35 +2,37 @@
 GigaCheck интеграция — определение ИИ-сгенерированных фрагментов текста.
 
 Использует открытую модель iitolstykh/GigaCheck-Detector-Multi с HuggingFace.
-Модель анализирует текст и возвращает интервалы с вероятностью ИИ-генерации.
-
-Установка:
-    pip install transformers torch
+Требуется пакет gigacheck:
     pip install git+https://github.com/ai-forever/gigacheck
+    pip install transformers torch
 """
 from __future__ import annotations
+import subprocess
+import sys
 from dataclasses import dataclass, field
 from typing import List, Callable, Optional
 
 
 MODEL_NAME = "iitolstykh/GigaCheck-Detector-Multi"
 
+_INSTALL_CMD = [
+    sys.executable, "-m", "pip", "install", "--quiet",
+    "git+https://github.com/ai-forever/gigacheck"
+]
+
 
 @dataclass
 class GigaCheckResult:
     """Результат анализа ИИ-генерации."""
-    overall_score: float                     # 0.0–1.0 (вероятность ИИ)
-    ai_intervals: List[tuple] = field(default_factory=list)  # [(start, end, score), ...]
+    overall_score: float
+    ai_intervals: List[tuple] = field(default_factory=list)   # [(start, end, score)]
     text_length: int = 0
     model_name: str = MODEL_NAME
     error: Optional[str] = None
 
 
 class GigaCheckDetector:
-    """
-    Обёртка над GigaCheck-Detector-Multi.
-    Ленивая загрузка модели (~1–4 ГБ).
-    """
+    """Обёртка над GigaCheck-Detector-Multi. Ленивая загрузка."""
 
     def __init__(self):
         self._model = None
@@ -45,26 +47,29 @@ class GigaCheckDetector:
     def load_error(self) -> Optional[str]:
         return self._load_error
 
+    # ─── Загрузка ──────────────────────────────────────────────────────────────
     def load(self, status_callback: Optional[Callable[[str], None]] = None) -> bool:
-        """
-        Загрузить модель. Возвращает True при успехе.
-        status_callback(msg) вызывается с текущим статусом.
-        """
         if self._ready:
             return True
 
-        if status_callback:
-            status_callback(f"Загрузка модели {MODEL_NAME}...")
-            status_callback("Первая загрузка может занять несколько минут (~1–4 ГБ).")
+        cb = status_callback or (lambda _: None)
 
+        # 1. Проверить наличие gigacheck (опционально — не блокирует загрузку)
+        cb("Проверка зависимостей...")
+        if not _gigacheck_installed():
+            cb("Пакет gigacheck не найден — попытка установки из GitHub...")
+            _install_gigacheck(cb)   # не прерываемся при ошибке
+
+        # 2. Загрузить модель
+        cb(f"Загрузка модели {MODEL_NAME}...")
+        cb("Первый запуск: скачивание весов (~1–4 ГБ) — это займёт несколько минут.")
         try:
             from transformers import AutoModel
             import torch
 
-            if status_callback:
-                status_callback("Загрузка весов модели...")
-
             device = "cuda:0" if _cuda_available() else "cpu"
+            cb(f"Устройство: {device}. Загрузка весов...")
+
             self._model = AutoModel.from_pretrained(
                 MODEL_NAME,
                 trust_remote_code=True,
@@ -73,43 +78,20 @@ class GigaCheckDetector:
             )
             self._ready = True
             self._load_error = None
-            if status_callback:
-                status_callback(f"GigaCheck готов (устройство: {device})")
+            cb(f"✓ GigaCheck готов (устройство: {device})")
             return True
 
-        except ImportError as e:
-            msg = (f"Не установлены зависимости: {e}\n"
-                   "Установите: pip install transformers torch\n"
-                   "и: pip install git+https://github.com/ai-forever/gigacheck")
-            self._load_error = msg
-            if status_callback:
-                status_callback(f"Ошибка: {msg}")
-            return False
-
         except Exception as e:
-            msg = f"Ошибка загрузки модели: {e}"
-            self._load_error = msg
-            if status_callback:
-                status_callback(msg)
+            self._load_error = f"Ошибка загрузки модели:\n{e}"
+            cb(self._load_error)
             return False
 
-    def detect(self, text: str,
-               conf_threshold: float = 0.5) -> GigaCheckResult:
-        """
-        Определить ИИ-сгенерированные фрагменты в тексте.
-
-        Args:
-            text: Анализируемый текст.
-            conf_threshold: Порог уверенности для интервалов (0.0–1.0).
-
-        Returns:
-            GigaCheckResult с интервалами и общим score.
-        """
+    # ─── Анализ ────────────────────────────────────────────────────────────────
+    def detect(self, text: str, conf_threshold: float = 0.5) -> GigaCheckResult:
         if not self._ready or self._model is None:
             return GigaCheckResult(
                 overall_score=0.0,
-                error="Модель не загружена. Нажмите «Загрузить модель»."
-            )
+                error="Модель не загружена. Нажмите «Загрузить модель».")
 
         if not text or not text.strip():
             return GigaCheckResult(overall_score=0.0, text_length=0)
@@ -118,29 +100,40 @@ class GigaCheckDetector:
             output = self._model([text], conf_interval_thresh=conf_threshold)
 
             ai_intervals = []
-            if hasattr(output, 'ai_intervals') and output.ai_intervals:
-                raw = output.ai_intervals[0] if isinstance(output.ai_intervals[0], list) else output.ai_intervals
-                for item in raw:
+            # Парсим вывод — формат может варьироваться по версиям модели
+            raw_intervals = None
+            if hasattr(output, 'ai_intervals'):
+                raw_intervals = output.ai_intervals
+            elif isinstance(output, (list, tuple)) and len(output) > 0:
+                raw_intervals = output[0] if isinstance(output[0], list) else output
+
+            if raw_intervals:
+                # Обработка списка списков
+                items = raw_intervals[0] if (
+                    isinstance(raw_intervals, list)
+                    and raw_intervals
+                    and isinstance(raw_intervals[0], list)
+                ) else raw_intervals
+                for item in items:
                     if isinstance(item, (tuple, list)) and len(item) >= 3:
-                        start, end, score = item[0], item[1], item[2]
-                        ai_intervals.append((int(start), int(end), float(score)))
+                        ai_intervals.append(
+                            (int(item[0]), int(item[1]), float(item[2])))
+                    elif isinstance(item, dict):
+                        s = item.get("start", item.get("begin", 0))
+                        e = item.get("end", 0)
+                        sc = item.get("score", item.get("prob", 0.5))
+                        ai_intervals.append((int(s), int(e), float(sc)))
 
-            overall_score = _compute_overall_score(ai_intervals, len(text))
-
+            overall = _compute_overall_score(ai_intervals, len(text))
             return GigaCheckResult(
-                overall_score=overall_score,
+                overall_score=overall,
                 ai_intervals=ai_intervals,
-                text_length=len(text),
-            )
+                text_length=len(text))
 
         except Exception as e:
-            return GigaCheckResult(
-                overall_score=0.0,
-                error=f"Ошибка анализа: {e}"
-            )
+            return GigaCheckResult(overall_score=0.0, error=f"Ошибка анализа: {e}")
 
     def unload(self):
-        """Выгрузить модель из памяти."""
         if self._model is not None:
             try:
                 import torch
@@ -152,6 +145,36 @@ class GigaCheckDetector:
         self._ready = False
 
 
+# ─── Утилиты ───────────────────────────────────────────────────────────────────
+
+def _gigacheck_installed() -> bool:
+    try:
+        import gigacheck  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def _install_gigacheck(cb: Callable[[str], None]) -> bool:
+    """Автоустановка gigacheck из GitHub."""
+    try:
+        proc = subprocess.run(
+            _INSTALL_CMD,
+            capture_output=True, text=True, timeout=300)
+        if proc.returncode == 0:
+            cb("✓ gigacheck установлен")
+            return True
+        else:
+            cb(f"pip вернул код {proc.returncode}: {proc.stderr[:200]}")
+            return False
+    except subprocess.TimeoutExpired:
+        cb("Превышено время ожидания установки (5 мин).")
+        return False
+    except Exception as e:
+        cb(f"Ошибка установки: {e}")
+        return False
+
+
 def _cuda_available() -> bool:
     try:
         import torch
@@ -161,8 +184,7 @@ def _cuda_available() -> bool:
 
 
 def _compute_overall_score(intervals: List[tuple], text_len: int) -> float:
-    """Вычислить общий процент ИИ-контента по интервалам."""
     if not intervals or text_len == 0:
         return 0.0
-    total_ai_chars = sum(max(0, end - start) for start, end, _ in intervals)
-    return min(1.0, total_ai_chars / text_len)
+    total = sum(max(0, end - start) for start, end, _ in intervals)
+    return min(1.0, total / text_len)
