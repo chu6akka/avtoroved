@@ -152,17 +152,50 @@ class GigaCheckTab(QWidget):
 
         class _InstallThread(QThread):
             done = pyqtSignal(bool, str)
+            progress_msg = pyqtSignal(str)
+
             def run(self):
-                cmds = [
-                    [sys.executable, "-m", "pip", "install", "--quiet", "transformers", "torch"],
+                # Проверяем, установлен ли torch
+                try:
+                    import torch as _  # noqa
+                    torch_ok = True
+                except ImportError:
+                    torch_ok = False
+
+                # --- torch: сначала пробуем CPU-wheel с официального индекса PyTorch ---
+                if not torch_ok:
+                    self.progress_msg.emit("Устанавливается torch (CPU-wheel)...")
+                    r = subprocess.run(
+                        [sys.executable, "-m", "pip", "install", "--quiet",
+                         "torch", "--index-url",
+                         "https://download.pytorch.org/whl/cpu"],
+                        capture_output=True, text=True, timeout=600)
+                    if r.returncode != 0:
+                        # Запасной вариант — обычный PyPI (может быть медленнее)
+                        self.progress_msg.emit("Пробуем torch из PyPI...")
+                        r2 = subprocess.run(
+                            [sys.executable, "-m", "pip", "install", "--quiet", "torch"],
+                            capture_output=True, text=True, timeout=600)
+                        if r2.returncode != 0:
+                            self.done.emit(False, r2.stderr[-400:])
+                            return
+
+                # --- transformers ---
+                self.progress_msg.emit("Устанавливается transformers...")
+                r = subprocess.run(
+                    [sys.executable, "-m", "pip", "install", "--quiet", "transformers"],
+                    capture_output=True, text=True, timeout=300)
+                if r.returncode != 0:
+                    self.done.emit(False, r.stderr[-400:])
+                    return
+
+                # --- gigacheck (опционально, не блокирует при ошибке) ---
+                self.progress_msg.emit("Устанавливается gigacheck (опционально)...")
+                subprocess.run(
                     [sys.executable, "-m", "pip", "install", "--quiet",
                      "git+https://github.com/ai-forever/gigacheck"],
-                ]
-                for cmd in cmds:
-                    r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-                    if r.returncode != 0:
-                        self.done.emit(False, r.stderr[:300])
-                        return
+                    capture_output=True, text=True, timeout=300)
+
                 self.done.emit(True, "")
 
         def _on_done(ok, err):
@@ -170,15 +203,16 @@ class GigaCheckTab(QWidget):
             if ok:
                 self.status_label.setText("✓ Зависимости установлены. Нажмите «Загрузить модель».")
             else:
-                self.status_label.setText(f"Ошибка установки: {err}")
+                self.status_label.setText(f"Ошибка установки: {err[:80]}")
                 QMessageBox.critical(self, "Ошибка установки",
-                    f"Не удалось установить зависимости:\n{err}\n\n"
+                    f"Не удалось установить torch/transformers:\n\n{err}\n\n"
                     "Попробуйте вручную в терминале:\n"
-                    "  pip install transformers torch\n"
-                    "  pip install git+https://github.com/ai-forever/gigacheck")
+                    "  pip install torch --index-url https://download.pytorch.org/whl/cpu\n"
+                    "  pip install transformers")
 
         self._install_thread = _InstallThread()
         self._install_thread.done.connect(_on_done)
+        self._install_thread.progress_msg.connect(self.status_label.setText)
         self._install_thread.start()
 
     def _load_model(self):
