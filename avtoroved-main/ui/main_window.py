@@ -840,10 +840,8 @@ class MainWindow(QMainWindow):
         # Обновить вкладку корпуса
         self.tab_learning.refresh()
 
-    def _on_corpus_train_done(self, success: bool, expanded: dict):
+    def _on_corpus_train_done(self, success: bool):
         self._corpus_train_thread = None
-        if success:
-            self.tab_learning.update_dict_table(expanded)
         self.tab_learning.refresh()
 
     # ──── ПЕРЕКЛЮЧЕНИЕ NLP-БЭКЕНДА ────
