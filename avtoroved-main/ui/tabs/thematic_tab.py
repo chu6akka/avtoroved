@@ -12,7 +12,7 @@ ui/tabs/thematic_tab.py — Тематическая атрибуция текс
 from __future__ import annotations
 
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
+    QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QSplitter,
     QTableWidget, QTableWidgetItem, QHeaderView,
     QTextEdit, QLabel, QProgressBar,
 )
@@ -37,7 +37,7 @@ class ThematicTab(QWidget):
         root.setContentsMargins(6, 6, 6, 6)
         root.setSpacing(6)
 
-        # Заголовок
+        # ── Заголовок + сводка ────────────────────────────────────────────
         hdr = QHBoxLayout()
         title = QLabel("Тематическая атрибуция")
         title.setObjectName("subtitle")
@@ -56,51 +56,66 @@ class ThematicTab(QWidget):
         method_lbl.setWordWrap(True)
         root.addWidget(method_lbl)
 
-        # Топ-домены (выделены)
-        self._top_box = QGroupBox("Основная тематическая принадлежность")
-        top_lay = QVBoxLayout(self._top_box)
-        top_lay.setSpacing(4)
+        # ── Топ-3 домена (компактная строка) ─────────────────────────────
+        self._top_box = QGroupBox("Тематическая принадлежность")
+        top_lay = QHBoxLayout(self._top_box)
+        top_lay.setSpacing(16)
         self._top_labels: list[QLabel] = []
         for _ in range(3):
             lbl = QLabel("")
-            lbl.setWordWrap(True)
+            lbl.setWordWrap(False)
             lbl.setObjectName("caption")
-            top_lay.addWidget(lbl)
+            top_lay.addWidget(lbl, stretch=1)
             self._top_labels.append(lbl)
         root.addWidget(self._top_box)
 
-        # Косинусные гистограммы по всем доменам
-        bars_box = QGroupBox("Косинусное сходство по доменам")
+        # ── Горизонтальный сплиттер: бары | таблица ──────────────────────
+        h_splitter = QSplitter(Qt.Orientation.Horizontal)
+
+        # Левая панель — косинусные гистограммы
+        bars_box = QGroupBox("Косинусное сходство")
         bars_lay = QVBoxLayout(bars_box)
-        bars_lay.setSpacing(3)
+        bars_lay.setSpacing(5)
+        bars_lay.setContentsMargins(8, 8, 8, 8)
         self._domain_bars: dict[str, tuple] = {}
         for key, meta in DOMAIN_META.items():
             row = QHBoxLayout()
+            row.setSpacing(6)
             lbl = QLabel(meta["label"])
-            lbl.setFixedWidth(230)
+            lbl.setFixedWidth(200)
             lbl.setObjectName("caption")
             bar = QProgressBar()
             bar.setRange(0, 1000)
             bar.setValue(0)
-            bar.setFixedHeight(14)
+            bar.setFixedHeight(16)
             bar.setTextVisible(False)
             bar.setStyleSheet(
-                f"QProgressBar::chunk {{ background: {meta['color']}; border-radius: 2px; }}"
-                "QProgressBar { border: 1px solid #313244; border-radius: 2px; "
+                f"QProgressBar::chunk {{ background: {meta['color']}; border-radius: 3px; }}"
+                "QProgressBar { border: 1px solid #313244; border-radius: 3px; "
                 "background: #1e1e2e; }"
             )
             cos_lbl = QLabel("0.000")
             cos_lbl.setObjectName("caption")
-            cos_lbl.setFixedWidth(48)
+            cos_lbl.setFixedWidth(46)
             cos_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             row.addWidget(lbl)
-            row.addWidget(bar)
+            row.addWidget(bar, stretch=1)
             row.addWidget(cos_lbl)
             bars_lay.addLayout(row)
             self._domain_bars[key] = (lbl, bar, cos_lbl)
-        root.addWidget(bars_box)
+        bars_lay.addStretch()
+        bars_w = QWidget()
+        bars_w_lay = QVBoxLayout(bars_w)
+        bars_w_lay.setContentsMargins(0, 0, 0, 0)
+        bars_w_lay.addWidget(bars_box)
+        h_splitter.addWidget(bars_w)
 
-        # Детальная таблица
+        # Правая панель — детальная таблица + отчёт
+        right_w = QWidget()
+        right_lay = QVBoxLayout(right_w)
+        right_lay.setContentsMargins(0, 0, 0, 0)
+        right_lay.setSpacing(6)
+
         detail_box = QGroupBox("Детализация по доменам")
         detail_lay = QVBoxLayout(detail_box)
         detail_lay.setContentsMargins(4, 4, 4, 4)
@@ -115,18 +130,26 @@ class ThematicTab(QWidget):
         self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._table.verticalHeader().setVisible(False)
         detail_lay.addWidget(self._table)
-        root.addWidget(detail_box, stretch=1)
+        right_lay.addWidget(detail_box, stretch=1)
 
-        # Текстовый отчёт
         report_box = QGroupBox("Текстовый отчёт")
         report_lay = QVBoxLayout(report_box)
         report_lay.setContentsMargins(4, 4, 4, 4)
         self._report = QTextEdit()
         self._report.setReadOnly(True)
         self._report.setFont(QFont("Consolas", 9))
-        self._report.setMaximumHeight(130)
+        self._report.setMinimumHeight(90)
+        self._report.setMaximumHeight(160)
         report_lay.addWidget(self._report)
-        root.addWidget(report_box)
+        right_lay.addWidget(report_box)
+
+        h_splitter.addWidget(right_w)
+
+        # Соотношение левой и правой панели (40% / 60%)
+        h_splitter.setSizes([420, 580])
+        h_splitter.setChildrenCollapsible(False)
+
+        root.addWidget(h_splitter, stretch=1)
 
         self._show_placeholder()
 
@@ -151,16 +174,16 @@ class ThematicTab(QWidget):
         )
 
     def _fill_top(self, result: ThematicResult) -> None:
+        ranks = ["★ Основная", "◆ Доп.", "◇ Сопутств."]
         for i, lbl in enumerate(self._top_labels):
             if i < len(result.top_domains):
                 s = result.top_domains[i]
-                rank = ["★ Основная тема", "◆ Дополнительная тема", "◇ Сопутствующая тема"][i]
+                rank = ranks[i]
                 lbl.setText(
-                    f"<b style='color:{s.color};'>{rank}:</b> {s.label} "
-                    f"&nbsp;|&nbsp; cos = {s.cosine:.4f} "
-                    f"&nbsp;|&nbsp; слов: {s.match_count}"
+                    f"<b>{rank}:</b> <span style='color:{s.color};'>{s.label}</span>"
+                    f" &nbsp;cos={s.cosine:.4f} &nbsp;слов:{s.match_count}"
                 )
-                lbl.setStyleSheet(f"color: {s.color};")
+                lbl.setStyleSheet("")
             else:
                 lbl.setText("")
                 lbl.setStyleSheet("")
