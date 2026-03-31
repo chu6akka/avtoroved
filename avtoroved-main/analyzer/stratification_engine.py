@@ -31,7 +31,7 @@ except ImportError:
     _MORPH = None
     _MORPHY_AVAILABLE = False
 
-from analyzer.strat_filter import LITERARY_WHITELIST, FILTERABLE_LAYERS
+from analyzer.strat_filter import LITERARY_WHITELIST, FILTERABLE_LAYERS, COLLOQUIAL_KEEPLIST
 
 
 # ── Метаданные слоёв ────────────────────────────────────────────────────────
@@ -84,6 +84,24 @@ LAYER_META: Dict[str, dict] = {
         "color":    "#89dceb",
         "priority": 1,
         "desc":     "Книжно-письменный пласт, терминология, официальный стиль",
+    },
+    "archaic": {
+        "label":    "Архаизмы",
+        "color":    "#f9e2af",
+        "priority": 2,
+        "desc":     "Устаревшая лексика, архаизмы и историзмы",
+    },
+    "dialectal": {
+        "label":    "Диалектизмы",
+        "color":    "#b5e8b0",
+        "priority": 3,
+        "desc":     "Территориальная диалектная лексика",
+    },
+    "euphemistic": {
+        "label":    "Эвфемизмы",
+        "color":    "#f5c2e7",
+        "priority": 4,
+        "desc":     "Смягчённые обозначения запретных или нежелательных понятий",
     },
 }
 
@@ -214,7 +232,12 @@ class StratificationEngine:
         if lm in LITERARY_WHITELIST:
             return True
 
-        # Шаг 2: pymorphy3 — только для слабых слоёв
+        # Шаг 2: подлинно разговорные слова, которые pymorphy3 не помечает Infr/Slng
+        # (OpenCorpora не охватывает всю неформальную лексику — защищаем от ложной фильтрации)
+        if lm in COLLOQUIAL_KEEPLIST:
+            return False
+
+        # Шаг 3: pymorphy3 — только для слабых слоёв
         if check_morph and _MORPHY_AVAILABLE and _MORPH:
             try:
                 if _MORPH.word_is_known(surface):
