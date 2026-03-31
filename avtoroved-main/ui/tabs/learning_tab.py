@@ -96,6 +96,34 @@ class DownloadRusvecThread(QThread):
         self.finished.emit(ok)
 
 
+class LoadNavecThread(QThread):
+    """Фоновый поток загрузки Navec из уже скачанного файла."""
+    status   = pyqtSignal(str)
+    finished = pyqtSignal(bool)
+
+    def __init__(self, rusvec, parent=None):
+        super().__init__(parent)
+        self.rusvec = rusvec
+
+    def run(self):
+        ok = self.rusvec.load_navec(status_cb=self.status.emit)
+        self.finished.emit(ok)
+
+
+class LoadRusvecThread(QThread):
+    """Фоновый поток загрузки RusVectores из уже скачанного файла."""
+    status   = pyqtSignal(str)
+    finished = pyqtSignal(bool)
+
+    def __init__(self, rusvec, parent=None):
+        super().__init__(parent)
+        self.rusvec = rusvec
+
+    def run(self):
+        ok = self.rusvec.load_rusvec(status_cb=self.status.emit)
+        self.finished.emit(ok)
+
+
 class LearningTab(QWidget):
     """Вкладка управления корпусом и моделью самообучения."""
 
@@ -207,14 +235,14 @@ class LearningTab(QWidget):
         desc.setWordWrap(True)
         vec_form.addWidget(desc)
 
-        # Кнопки скачивания
+        # Кнопки: скачать / загрузить / загружено (3 состояния)
         dl_row = QHBoxLayout()
         self.btn_download_navec  = QPushButton("⬇ Navec (~50 МБ)")
         self.btn_download_navec.setObjectName("secondary")
-        self.btn_download_navec.clicked.connect(self._download_navec)
+        self.btn_download_navec.clicked.connect(self._navec_btn_action)
         self.btn_download_rusvec = QPushButton("⬇ RusVectores (~462 МБ)")
         self.btn_download_rusvec.setObjectName("secondary")
-        self.btn_download_rusvec.clicked.connect(self._download_rusvec)
+        self.btn_download_rusvec.clicked.connect(self._rusvec_btn_action)
         dl_row.addWidget(self.btn_download_navec)
         dl_row.addWidget(self.btn_download_rusvec)
         vec_form.addLayout(dl_row)
@@ -269,26 +297,49 @@ class LearningTab(QWidget):
     # ── Обновление ────────────────────────────────────────────────────────
 
     def _update_vec_status_labels(self):
-        # Navec
+        # Navec — статус + кнопка
         if self._rusvec.navec_ready:
             self.lbl_navec_status.setText("Navec: загружен ✓")
             self.lbl_navec_status.setStyleSheet("color: #a6e3a1;")
         elif self._rusvec.navec_downloaded:
-            self.lbl_navec_status.setText("Navec: скачан, не загружен")
+            self.lbl_navec_status.setText("Navec: файл скачан, не загружен в память")
             self.lbl_navec_status.setStyleSheet("color: #fab387;")
         else:
             self.lbl_navec_status.setText("Navec: не скачан")
             self.lbl_navec_status.setStyleSheet("color: #f38ba8;")
-        # RusVectores
+        # RusVectores — статус + кнопка
         if self._rusvec.rusvec_ready:
             self.lbl_rusvec_status.setText("RusVectores (НКРЯ): загружен ✓")
             self.lbl_rusvec_status.setStyleSheet("color: #a6e3a1;")
         elif self._rusvec.rusvec_downloaded:
-            self.lbl_rusvec_status.setText("RusVectores (НКРЯ): скачан, не загружен")
+            self.lbl_rusvec_status.setText("RusVectores (НКРЯ): файл скачан, не загружен в память")
             self.lbl_rusvec_status.setStyleSheet("color: #fab387;")
         else:
             self.lbl_rusvec_status.setText("RusVectores (НКРЯ): не скачан")
             self.lbl_rusvec_status.setStyleSheet("color: #f38ba8;")
+
+    def _sync_model_buttons(self, busy: bool):
+        """Обновить текст и доступность кнопок моделей по их текущему состоянию."""
+        # Navec
+        if self._rusvec.navec_ready:
+            self.btn_download_navec.setText("✓ Navec загружен")
+            self.btn_download_navec.setEnabled(False)
+        elif self._rusvec.navec_downloaded:
+            self.btn_download_navec.setText("▶ Загрузить Navec в память")
+            self.btn_download_navec.setEnabled(not busy)
+        else:
+            self.btn_download_navec.setText("⬇ Navec (~50 МБ)")
+            self.btn_download_navec.setEnabled(not busy)
+        # RusVectores
+        if self._rusvec.rusvec_ready:
+            self.btn_download_rusvec.setText("✓ RusVectores загружен")
+            self.btn_download_rusvec.setEnabled(False)
+        elif self._rusvec.rusvec_downloaded:
+            self.btn_download_rusvec.setText("▶ Загрузить RusVectores в память")
+            self.btn_download_rusvec.setEnabled(not busy)
+        else:
+            self.btn_download_rusvec.setText("⬇ RusVectores (~462 МБ)")
+            self.btn_download_rusvec.setEnabled(not busy)
 
     def refresh(self):
         s = corpus_manager.stats()
@@ -324,10 +375,7 @@ class LearningTab(QWidget):
         self._update_vec_status_labels()
         busy = (self._expand_thread is not None
                 or self._download_thread is not None)
-        self.btn_download_navec.setEnabled(
-            not self._rusvec.navec_downloaded and not busy)
-        self.btn_download_rusvec.setEnabled(
-            not self._rusvec.rusvec_downloaded and not busy)
+        self._sync_model_buttons(busy)
         self.btn_expand.setEnabled(not busy)
 
     def update_dict_table(self, expanded: dict):
@@ -369,7 +417,14 @@ class LearningTab(QWidget):
             self.train_status.setText("Обучение не удалось (мало данных?)")
         self.refresh()
 
-    # ── Скачать Navec ─────────────────────────────────────────────────────
+    # ── Navec: универсальный обработчик кнопки ───────────────────────────
+
+    def _navec_btn_action(self):
+        """Скачать если нет; загрузить если скачан но не в памяти."""
+        if self._rusvec.navec_downloaded and not self._rusvec.navec_ready:
+            self._load_navec()
+        else:
+            self._download_navec()
 
     def _download_navec(self):
         self._set_buttons_busy(True)
@@ -379,7 +434,22 @@ class LearningTab(QWidget):
         self._download_thread.finished.connect(self._on_download_done)
         self._download_thread.start()
 
-    # ── Скачать RusVectores ───────────────────────────────────────────────
+    def _load_navec(self):
+        self._set_buttons_busy(True)
+        self.navec_op_status.setText("Navec: загрузка в память…")
+        self._download_thread = LoadNavecThread(self._rusvec, parent=self)
+        self._download_thread.status.connect(self.navec_op_status.setText)
+        self._download_thread.finished.connect(self._on_download_done)
+        self._download_thread.start()
+
+    # ── RusVectores: универсальный обработчик кнопки ─────────────────────
+
+    def _rusvec_btn_action(self):
+        """Скачать если нет; загрузить если скачан но не в памяти."""
+        if self._rusvec.rusvec_downloaded and not self._rusvec.rusvec_ready:
+            self._load_rusvec()
+        else:
+            self._download_rusvec()
 
     def _download_rusvec(self):
         self._set_buttons_busy(True)
@@ -389,11 +459,19 @@ class LearningTab(QWidget):
         self._download_thread.finished.connect(self._on_download_done)
         self._download_thread.start()
 
+    def _load_rusvec(self):
+        self._set_buttons_busy(True)
+        self.navec_op_status.setText("RusVectores: загрузка в память…")
+        self._download_thread = LoadRusvecThread(self._rusvec, parent=self)
+        self._download_thread.status.connect(self.navec_op_status.setText)
+        self._download_thread.finished.connect(self._on_download_done)
+        self._download_thread.start()
+
     def _on_download_done(self, success: bool):
         self._download_thread = None
         if not success:
             self.navec_op_status.setText(
-                "Ошибка скачивания. Проверьте интернет-соединение.")
+                "Ошибка. Проверьте файл модели или интернет-соединение.")
         self.refresh()
 
     # ── Расширить словари ─────────────────────────────────────────────────
@@ -415,8 +493,7 @@ class LearningTab(QWidget):
         self.refresh()
 
     def _set_buttons_busy(self, busy: bool):
-        self.btn_download_navec.setEnabled(not busy)
-        self.btn_download_rusvec.setEnabled(not busy)
+        self._sync_model_buttons(busy)
         self.btn_expand.setEnabled(not busy)
 
     # ── Очистка корпуса ───────────────────────────────────────────────────
