@@ -5,7 +5,8 @@ from __future__ import annotations
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
     QLabel, QPushButton, QProgressBar, QTableWidget,
-    QTableWidgetItem, QHeaderView, QMessageBox, QSplitter
+    QTableWidgetItem, QHeaderView, QMessageBox, QSplitter,
+    QComboBox,
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QThread
 from PyQt6.QtGui import QColor
@@ -30,31 +31,41 @@ class TrainThread(QThread):
 
 
 class ExpandThread(QThread):
-    """Фоновый поток расширения словарей через Navec."""
+    """Фоновый поток расширения словарей (Navec / RusVectores / оба)."""
     status   = pyqtSignal(str)
-    finished = pyqtSignal(dict)   # {domain: added_count}
+    finished = pyqtSignal(dict)
 
-    def __init__(self, rusvec, parent=None):
+    def __init__(self, rusvec, backend: str = "both", parent=None):
         super().__init__(parent)
-        self.rusvec = rusvec
+        self.rusvec  = rusvec
+        self.backend = backend
 
     def run(self):
-        if not self.rusvec.is_downloaded:
-            ok = self.rusvec.download(status_cb=self.status.emit)
-            if not ok:
-                self.finished.emit({})
-                return
-        if not self.rusvec.is_ready:
-            ok = self.rusvec.load(status_cb=self.status.emit)
-            if not ok:
-                self.finished.emit({})
-                return
-        added = self.rusvec.expand_all_domains(status_cb=self.status.emit)
+        # Загрузить нужные модели если ещё не загружены
+        if self.backend in ("navec", "both") and not self.rusvec.navec_ready:
+            if self.rusvec.navec_downloaded:
+                self.rusvec.load_navec(status_cb=self.status.emit)
+            else:
+                ok = self.rusvec.download_navec(status_cb=self.status.emit)
+                if ok:
+                    self.rusvec.load_navec(status_cb=self.status.emit)
+
+        if self.backend in ("rusvec", "both") and not self.rusvec.rusvec_ready:
+            if self.rusvec.rusvec_downloaded:
+                self.rusvec.load_rusvec(status_cb=self.status.emit)
+            else:
+                ok = self.rusvec.download_rusvec(status_cb=self.status.emit)
+                if ok:
+                    self.rusvec.load_rusvec(status_cb=self.status.emit)
+
+        added = self.rusvec.expand_all_domains(
+            backend=self.backend, status_cb=self.status.emit
+        )
         self.finished.emit(added)
 
 
 class DownloadNavecThread(QThread):
-    """Фоновый поток скачивания модели Navec."""
+    """Фоновый поток скачивания + загрузки Navec."""
     status   = pyqtSignal(str)
     finished = pyqtSignal(bool)
 
@@ -63,9 +74,25 @@ class DownloadNavecThread(QThread):
         self.rusvec = rusvec
 
     def run(self):
-        ok = self.rusvec.download(status_cb=self.status.emit)
+        ok = self.rusvec.download_navec(status_cb=self.status.emit)
         if ok:
-            ok = self.rusvec.load(status_cb=self.status.emit)
+            ok = self.rusvec.load_navec(status_cb=self.status.emit)
+        self.finished.emit(ok)
+
+
+class DownloadRusvecThread(QThread):
+    """Фоновый поток скачивания + загрузки RusVectores."""
+    status   = pyqtSignal(str)
+    finished = pyqtSignal(bool)
+
+    def __init__(self, rusvec, parent=None):
+        super().__init__(parent)
+        self.rusvec = rusvec
+
+    def run(self):
+        ok = self.rusvec.download_rusvec(status_cb=self.status.emit)
+        if ok:
+            ok = self.rusvec.load_rusvec(status_cb=self.status.emit)
         self.finished.emit(ok)
 
 
@@ -160,40 +187,61 @@ class LearningTab(QWidget):
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(6)
 
-        # Navec статус
-        navec_group = QGroupBox("Navec — расширение тематических словарей")
-        navec_form  = QVBoxLayout(navec_group)
-        self.lbl_navec_status = QLabel()
-        self._update_navec_status_label()
-        self.lbl_navec_status.setWordWrap(True)
-        navec_desc = QLabel(
-            "Предобученные векторы (Natasha / Яндекс).\n"
-            "12 млрд токенов · 500 тыс. слов · ~50 МБ.\n"
-            "Скачивается один раз, хранится локально."
+        # Векторные модели
+        vec_group  = QGroupBox("Векторные модели — расширение тематических словарей")
+        vec_form   = QVBoxLayout(vec_group)
+
+        # Статусы
+        self.lbl_navec_status  = QLabel()
+        self.lbl_rusvec_status = QLabel()
+        self._update_vec_status_labels()
+        for lbl in (self.lbl_navec_status, self.lbl_rusvec_status):
+            lbl.setWordWrap(True)
+            vec_form.addWidget(lbl)
+
+        desc = QLabel(
+            "Navec (Natasha/Яндекс): ~50 МБ · без POS · художественная литература\n"
+            "RusVectores (НКРЯ ИРЯ РАН): ~462 МБ · UPOS-теги · авторитетный корпус"
         )
-        navec_desc.setObjectName("caption")
-        navec_desc.setWordWrap(True)
+        desc.setObjectName("caption")
+        desc.setWordWrap(True)
+        vec_form.addWidget(desc)
+
+        # Кнопки скачивания
+        dl_row = QHBoxLayout()
+        self.btn_download_navec  = QPushButton("⬇ Navec (~50 МБ)")
+        self.btn_download_navec.setObjectName("secondary")
+        self.btn_download_navec.clicked.connect(self._download_navec)
+        self.btn_download_rusvec = QPushButton("⬇ RusVectores (~462 МБ)")
+        self.btn_download_rusvec.setObjectName("secondary")
+        self.btn_download_rusvec.clicked.connect(self._download_rusvec)
+        dl_row.addWidget(self.btn_download_navec)
+        dl_row.addWidget(self.btn_download_rusvec)
+        vec_form.addLayout(dl_row)
+
+        # Расширение
+        expand_row = QHBoxLayout()
+        expand_lbl = QLabel("Источник:")
+        expand_lbl.setObjectName("caption")
+        self.combo_backend = QComboBox()
+        self.combo_backend.addItems(["Оба", "Navec", "RusVectores"])
+        self.combo_backend.setFixedWidth(130)
+        self.btn_expand = QPushButton("✨ Расширить словари")
+        self.btn_expand.clicked.connect(self._run_expand)
+        self.btn_expand.setToolTip(
+            "Найти семантически близкие слова и добавить\n"
+            "в тематические JSON-файлы."
+        )
+        expand_row.addWidget(expand_lbl)
+        expand_row.addWidget(self.combo_backend)
+        expand_row.addWidget(self.btn_expand, stretch=1)
+        vec_form.addLayout(expand_row)
+
         self.navec_op_status = QLabel("")
         self.navec_op_status.setWordWrap(True)
         self.navec_op_status.setObjectName("subtitle")
-        for w in [self.lbl_navec_status, navec_desc, self.navec_op_status]:
-            navec_form.addWidget(w)
-
-        navec_btn_row = QHBoxLayout()
-        self.btn_download_navec = QPushButton("⬇ Скачать Navec (~50 МБ)")
-        self.btn_download_navec.setObjectName("primary")
-        self.btn_download_navec.clicked.connect(self._download_navec)
-        navec_btn_row.addWidget(self.btn_download_navec)
-        self.btn_expand = QPushButton("✨ Расширить словари")
-        self.btn_expand.setObjectName("secondary")
-        self.btn_expand.clicked.connect(self._run_expand)
-        self.btn_expand.setToolTip(
-            "Найти слова, семантически близкие к словам словарей,\n"
-            "и добавить их в тематические JSON-файлы."
-        )
-        navec_btn_row.addWidget(self.btn_expand)
-        navec_form.addLayout(navec_btn_row)
-        right_layout.addWidget(navec_group)
+        vec_form.addWidget(self.navec_op_status)
+        right_layout.addWidget(vec_group)
 
         # Таблица результатов расширения
         result_group = QGroupBox("Результат расширения")
@@ -220,16 +268,27 @@ class LearningTab(QWidget):
 
     # ── Обновление ────────────────────────────────────────────────────────
 
-    def _update_navec_status_label(self):
-        if self._rusvec.is_ready:
+    def _update_vec_status_labels(self):
+        # Navec
+        if self._rusvec.navec_ready:
             self.lbl_navec_status.setText("Navec: загружен ✓")
             self.lbl_navec_status.setStyleSheet("color: #a6e3a1;")
-        elif self._rusvec.is_downloaded:
-            self.lbl_navec_status.setText("Navec: скачан, не загружен в память")
+        elif self._rusvec.navec_downloaded:
+            self.lbl_navec_status.setText("Navec: скачан, не загружен")
             self.lbl_navec_status.setStyleSheet("color: #fab387;")
         else:
             self.lbl_navec_status.setText("Navec: не скачан")
             self.lbl_navec_status.setStyleSheet("color: #f38ba8;")
+        # RusVectores
+        if self._rusvec.rusvec_ready:
+            self.lbl_rusvec_status.setText("RusVectores (НКРЯ): загружен ✓")
+            self.lbl_rusvec_status.setStyleSheet("color: #a6e3a1;")
+        elif self._rusvec.rusvec_downloaded:
+            self.lbl_rusvec_status.setText("RusVectores (НКРЯ): скачан, не загружен")
+            self.lbl_rusvec_status.setStyleSheet("color: #fab387;")
+        else:
+            self.lbl_rusvec_status.setText("RusVectores (НКРЯ): не скачан")
+            self.lbl_rusvec_status.setStyleSheet("color: #f38ba8;")
 
     def refresh(self):
         s = corpus_manager.stats()
@@ -262,9 +321,13 @@ class LearningTab(QWidget):
             self.btn_train.setToolTip(
                 f"Нужно минимум {corpus_manager.MIN_WORDS_FOR_TRAINING:,} слов".replace(",", " "))
 
-        self._update_navec_status_label()
-        busy = self._expand_thread is not None or self._download_thread is not None
-        self.btn_download_navec.setEnabled(not self._rusvec.is_downloaded and not busy)
+        self._update_vec_status_labels()
+        busy = (self._expand_thread is not None
+                or self._download_thread is not None)
+        self.btn_download_navec.setEnabled(
+            not self._rusvec.navec_downloaded and not busy)
+        self.btn_download_rusvec.setEnabled(
+            not self._rusvec.rusvec_downloaded and not busy)
         self.btn_expand.setEnabled(not busy)
 
     def update_dict_table(self, expanded: dict):
@@ -306,32 +369,42 @@ class LearningTab(QWidget):
             self.train_status.setText("Обучение не удалось (мало данных?)")
         self.refresh()
 
-    # ── Navec: скачать ────────────────────────────────────────────────────
+    # ── Скачать Navec ─────────────────────────────────────────────────────
 
     def _download_navec(self):
-        self.btn_download_navec.setEnabled(False)
-        self.btn_expand.setEnabled(False)
-        self.navec_op_status.setText("Скачивание…")
+        self._set_buttons_busy(True)
+        self.navec_op_status.setText("Navec: скачивание…")
         self._download_thread = DownloadNavecThread(self._rusvec, parent=self)
+        self._download_thread.status.connect(self.navec_op_status.setText)
+        self._download_thread.finished.connect(self._on_download_done)
+        self._download_thread.start()
+
+    # ── Скачать RusVectores ───────────────────────────────────────────────
+
+    def _download_rusvec(self):
+        self._set_buttons_busy(True)
+        self.navec_op_status.setText("RusVectores: скачивание (~462 МБ)…")
+        self._download_thread = DownloadRusvecThread(self._rusvec, parent=self)
         self._download_thread.status.connect(self.navec_op_status.setText)
         self._download_thread.finished.connect(self._on_download_done)
         self._download_thread.start()
 
     def _on_download_done(self, success: bool):
         self._download_thread = None
-        if success:
-            self.navec_op_status.setText("Navec скачан и загружен ✓")
-        else:
-            self.navec_op_status.setText("Ошибка скачивания. Проверьте интернет-соединение.")
+        if not success:
+            self.navec_op_status.setText(
+                "Ошибка скачивания. Проверьте интернет-соединение.")
         self.refresh()
 
-    # ── Navec: расширить словари ──────────────────────────────────────────
+    # ── Расширить словари ─────────────────────────────────────────────────
 
     def _run_expand(self):
-        self.btn_expand.setEnabled(False)
-        self.btn_download_navec.setEnabled(False)
+        backend_map = {"Оба": "both", "Navec": "navec", "RusVectores": "rusvec"}
+        backend = backend_map.get(self.combo_backend.currentText(), "both")
+        self._set_buttons_busy(True)
         self.navec_op_status.setText("Запуск расширения словарей…")
-        self._expand_thread = ExpandThread(self._rusvec, parent=self)
+        self._expand_thread = ExpandThread(
+            self._rusvec, backend=backend, parent=self)
         self._expand_thread.status.connect(self.navec_op_status.setText)
         self._expand_thread.finished.connect(self._on_expand_done)
         self._expand_thread.start()
@@ -340,6 +413,11 @@ class LearningTab(QWidget):
         self._expand_thread = None
         self.update_dict_table(expanded)
         self.refresh()
+
+    def _set_buttons_busy(self, busy: bool):
+        self.btn_download_navec.setEnabled(not busy)
+        self.btn_download_rusvec.setEnabled(not busy)
+        self.btn_expand.setEnabled(not busy)
 
     # ── Очистка корпуса ───────────────────────────────────────────────────
 

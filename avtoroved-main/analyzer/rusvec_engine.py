@@ -1,21 +1,25 @@
 """
 analyzer/rusvec_engine.py — Семантическое расширение тематических словарей.
 
-Бэкенд: Navec (Natasha / Yandex Cloud)
-  Модель: navec_hudlit_v1_12B_500K_300d_100q
-  Обучена на 12 миллиардах токенов художественной литературы на русском языке.
-  Размер: ~50 МБ (квантованные векторы, 500K слов).
-  Лицензия: MIT
+Два бэкенда (можно использовать оба):
+
+  Navec (Natasha / Yandex Cloud)
+    Модель: navec_hudlit_v1_12B_500K_300d_100q
+    ~50 МБ · 500K слов · без POS-тегов · MIT
+    Ссылка: github.com/natasha/navec
+
+  RusVectores (НКРЯ, ИРЯ РАН)
+    Модель: ruscorpora_upos_cbow_300_20_2019
+    ~462 МБ · НКРЯ 2019 · слова в формате лемма_UPOS · CC-BY
+    Ссылка: rusvectores.org
 
 Использование:
     engine = get()
-    engine.download(status_cb)      # скачать модель (один раз)
-    engine.load()                   # загрузить в память
-    words = engine.most_similar("лечение", topn=20, threshold=0.65)
-    added = engine.expand_domain_file("data/thematic/medicine.json", topn=20, threshold=0.65)
-
-Ref: Kuznetsov I., Tikhonov A. Navec: Compact Embeddings for Russian.
-     github.com/natasha/navec
+    engine.download_navec(cb)          # скачать Navec (~50 МБ)
+    engine.load_navec(cb)
+    engine.download_rusvec(cb)         # скачать RusVectores (~462 МБ)
+    engine.load_rusvec(cb)
+    added = engine.expand_all_domains(backend="both", cb)
 """
 from __future__ import annotations
 
@@ -24,169 +28,259 @@ import logging
 import os
 import tarfile
 import urllib.request
+import zipfile
 from typing import Callable, Dict, List, Optional, Tuple
 
 log = logging.getLogger(__name__)
 
 _MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
-_NAVEC_PATH = os.path.join(_MODELS_DIR, "navec_hudlit.tar")
 _DATA_DIR   = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "thematic")
 
-_NAVEC_URL = (
+# ── Navec ─────────────────────────────────────────────────────────────────────
+_NAVEC_PATH = os.path.join(_MODELS_DIR, "navec_hudlit.tar")
+_NAVEC_URL  = (
     "https://storage.yandexcloud.net/natasha-navec/packs/"
     "navec_hudlit_v1_12B_500K_300d_100q.tar"
 )
 
-SIMILARITY_THRESHOLD = 0.65   # ниже — слишком далёкие слова
+# ── RusVectores (НКРЯ 2019, UPOS, CBOW 300d) ─────────────────────────────────
+_RUSVEC_ZIP  = os.path.join(_MODELS_DIR, "rusvec_2019.zip")
+_RUSVEC_BIN  = os.path.join(_MODELS_DIR, "rusvec_2019.bin")
+_RUSVEC_URL  = "https://vectors.nlpl.eu/repository/20/180.zip"
+
+# POS-теги, которые пробуем при поиске в RusVectores
+_UPOS_VARIANTS = ("NOUN", "VERB", "ADJ", "ADV")
+
+SIMILARITY_THRESHOLD = 0.65
+
 os.makedirs(_MODELS_DIR, exist_ok=True)
 
 
+# ── Вспомогательные функции ───────────────────────────────────────────────────
+
+def _download_file(url: str, dest: str,
+                   status_cb: Optional[Callable] = None) -> bool:
+    """Скачать файл с прогрессом. Возвращает True при успехе."""
+    try:
+        def _report(block, bsize, total):
+            if total > 0 and status_cb:
+                pct = min(100, int(block * bsize / total * 100))
+                mb  = total // (1024 * 1024)
+                status_cb(f"Скачивание… {pct}%  ({mb} МБ)")
+
+        urllib.request.urlretrieve(url, dest, _report)
+        return True
+    except Exception as exc:
+        log.error("download %s → %s: %s", url, dest, exc)
+        if os.path.exists(dest):
+            os.remove(dest)
+        if status_cb:
+            status_cb(f"Ошибка скачивания: {exc}")
+        return False
+
+
 class RusVecEngine:
-    """Семантическое расширение словарей через предобученные векторы Navec."""
+    """Два семантических бэкенда для расширения словарей."""
 
     def __init__(self):
-        self._kv   = None      # gensim KeyedVectors
-        self._ready = False
+        self._kv_navec:  Optional[object] = None
+        self._kv_rusvec: Optional[object] = None
 
-    # ── Загрузка ──────────────────────────────────────────────────────────
+    # ── Navec: состояние ─────────────────────────────────────────────────────
 
     @property
-    def is_downloaded(self) -> bool:
+    def navec_downloaded(self) -> bool:
         return os.path.exists(_NAVEC_PATH)
 
     @property
-    def is_ready(self) -> bool:
-        return self._ready
+    def navec_ready(self) -> bool:
+        return self._kv_navec is not None
 
-    def download(self, status_cb: Optional[Callable[[str], None]] = None) -> bool:
-        """
-        Скачать модель Navec (~50 МБ) с Yandex Cloud.
-        Возвращает True при успехе.
-        """
-        if self.is_downloaded:
+    # ── Navec: скачать + загрузить ────────────────────────────────────────────
+
+    def download_navec(self, status_cb=None) -> bool:
+        if self.navec_downloaded:
             if status_cb:
-                status_cb("Navec: модель уже скачана.")
+                status_cb("Navec: уже скачан.")
             return True
+        if status_cb:
+            status_cb("Navec: скачивание (~50 МБ)…")
+        return _download_file(_NAVEC_URL, _NAVEC_PATH, status_cb)
 
+    def load_navec(self, status_cb=None) -> bool:
+        if self.navec_ready:
+            return True
+        if not self.navec_downloaded:
+            if status_cb:
+                status_cb("Navec: не скачан.")
+            return False
         try:
             if status_cb:
-                status_cb("Navec: скачивание модели (~50 МБ)…")
-
-            def _report(block, block_size, total):
-                if total > 0 and status_cb:
-                    pct = min(100, int(block * block_size / total * 100))
-                    status_cb(f"Navec: скачивание… {pct}%")
-
-            urllib.request.urlretrieve(_NAVEC_URL, _NAVEC_PATH, _report)
-
-            if status_cb:
-                status_cb("Navec: скачивание завершено.")
-            return True
-
-        except Exception as exc:
-            log.error("Navec download failed: %s", exc)
-            if os.path.exists(_NAVEC_PATH):
-                os.remove(_NAVEC_PATH)
-            if status_cb:
-                status_cb(f"Navec: ошибка скачивания — {exc}")
-            return False
-
-    def load(self, status_cb: Optional[Callable[[str], None]] = None) -> bool:
-        """Загрузить модель в память."""
-        if self._ready:
-            return True
-        if not self.is_downloaded:
-            if status_cb:
-                status_cb("Navec: модель не скачана.")
-            return False
-
-        try:
-            if status_cb:
-                status_cb("Navec: загрузка модели…")
+                status_cb("Navec: загрузка…")
             from navec import Navec
             navec = Navec.load(_NAVEC_PATH)
-            self._kv = navec.as_gensim
-            self._ready = True
+            self._kv_navec = navec.as_gensim
             if status_cb:
-                vocab = len(self._kv)
-                status_cb(f"Navec готов: {vocab:,} слов в словаре".replace(",", " "))
+                status_cb(f"Navec готов: {len(self._kv_navec):,} слов".replace(",", " "))
             return True
-
         except ImportError:
             if status_cb:
-                status_cb("Navec: установите пакет navec (pip install navec)")
+                status_cb("Navec: установите пакет  pip install navec")
             return False
         except Exception as exc:
-            log.error("Navec load failed: %s", exc)
             if status_cb:
                 status_cb(f"Navec: ошибка загрузки — {exc}")
             return False
 
-    # ── Семантический поиск ───────────────────────────────────────────────
+    # ── RusVectores: состояние ────────────────────────────────────────────────
 
-    def most_similar(
-        self,
-        word: str,
-        topn: int = 20,
-        threshold: float = SIMILARITY_THRESHOLD,
-    ) -> List[Tuple[str, float]]:
-        """
-        Вернуть список (слово, сходство) — только слова выше порога.
-        Навек не использует POS-теги, работает с леммами напрямую.
-        """
-        if not self._ready or self._kv is None:
-            return []
-        if word not in self._kv:
+    @property
+    def rusvec_downloaded(self) -> bool:
+        return os.path.exists(_RUSVEC_BIN) or os.path.exists(_RUSVEC_ZIP)
+
+    @property
+    def rusvec_ready(self) -> bool:
+        return self._kv_rusvec is not None
+
+    # ── RusVectores: скачать + загрузить ─────────────────────────────────────
+
+    def download_rusvec(self, status_cb=None) -> bool:
+        if os.path.exists(_RUSVEC_BIN):
+            if status_cb:
+                status_cb("RusVectores: уже скачан.")
+            return True
+        if not os.path.exists(_RUSVEC_ZIP):
+            if status_cb:
+                status_cb("RusVectores: скачивание (~462 МБ)…")
+            if not _download_file(_RUSVEC_URL, _RUSVEC_ZIP, status_cb):
+                return False
+        # Извлечь model.bin из ZIP
+        if status_cb:
+            status_cb("RusVectores: распаковка…")
+        try:
+            with zipfile.ZipFile(_RUSVEC_ZIP) as zf:
+                names = zf.namelist()
+                bin_name = next((n for n in names if n.endswith(".bin")), None)
+                if bin_name is None:
+                    # Попробовать .txt / .vec
+                    bin_name = next(
+                        (n for n in names if n.endswith((".txt", ".vec"))), None
+                    )
+                if bin_name is None:
+                    if status_cb:
+                        status_cb(f"RusVectores: не найден model.bin в архиве. Файлы: {names}")
+                    return False
+                zf.extract(bin_name, _MODELS_DIR)
+                extracted = os.path.join(_MODELS_DIR, bin_name)
+                if extracted != _RUSVEC_BIN:
+                    os.rename(extracted, _RUSVEC_BIN)
+            # Удалить ZIP (он больше не нужен)
+            os.remove(_RUSVEC_ZIP)
+            if status_cb:
+                status_cb("RusVectores: распаковка завершена.")
+            return True
+        except Exception as exc:
+            if status_cb:
+                status_cb(f"RusVectores: ошибка распаковки — {exc}")
+            return False
+
+    def load_rusvec(self, status_cb=None) -> bool:
+        if self.rusvec_ready:
+            return True
+        if not os.path.exists(_RUSVEC_BIN):
+            if status_cb:
+                status_cb("RusVectores: модель не скачана.")
+            return False
+        try:
+            if status_cb:
+                status_cb("RusVectores: загрузка (~1-2 мин.)…")
+            from gensim.models import KeyedVectors
+            # Пробуем бинарный формат; если не сработает — текстовый
+            try:
+                self._kv_rusvec = KeyedVectors.load_word2vec_format(
+                    _RUSVEC_BIN, binary=True
+                )
+            except Exception:
+                self._kv_rusvec = KeyedVectors.load_word2vec_format(
+                    _RUSVEC_BIN, binary=False
+                )
+            if status_cb:
+                status_cb(
+                    f"RusVectores готов: "
+                    f"{len(self._kv_rusvec):,} слов".replace(",", " ")
+                )
+            return True
+        except Exception as exc:
+            if status_cb:
+                status_cb(f"RusVectores: ошибка загрузки — {exc}")
+            return False
+
+    # ── Поиск похожих слов ────────────────────────────────────────────────────
+
+    def _similar_navec(self, word: str, topn: int,
+                       threshold: float) -> List[str]:
+        if self._kv_navec is None or word not in self._kv_navec:
             return []
         try:
-            results = self._kv.most_similar(word, topn=topn)
-            return [(w, s) for w, s in results if s >= threshold]
-        except Exception as exc:
-            log.debug("most_similar('%s'): %s", word, exc)
+            results = self._kv_navec.most_similar(word, topn=topn)
+            return [w for w, s in results if s >= threshold]
+        except Exception:
             return []
 
-    # ── Расширение словарей ───────────────────────────────────────────────
+    def _similar_rusvec(self, word: str, topn: int,
+                        threshold: float) -> List[str]:
+        """Пробуем word_NOUN, word_VERB, word_ADJ, word_ADV."""
+        if self._kv_rusvec is None:
+            return []
+        found: List[str] = []
+        for pos in _UPOS_VARIANTS:
+            key = f"{word}_{pos}"
+            if key not in self._kv_rusvec:
+                continue
+            try:
+                results = self._kv_rusvec.most_similar(key, topn=topn)
+                for w, s in results:
+                    if s >= threshold:
+                        # Снять POS-тег: "лечение_NOUN" → "лечение"
+                        clean = w.rsplit("_", 1)[0]
+                        found.append(clean)
+            except Exception:
+                continue
+            break   # взяли первый подходящий POS
+        return found
+
+    # ── Расширение словарей ───────────────────────────────────────────────────
 
     def expand_domain_file(
         self,
         json_path: str,
+        backend: str = "both",          # "navec" | "rusvec" | "both"
         topn: int = 20,
         threshold: float = SIMILARITY_THRESHOLD,
         seed_limit: int = 40,
-        status_cb: Optional[Callable[[str], None]] = None,
     ) -> int:
-        """
-        Расширить один JSON-словарь через семантическое сходство.
-        Возвращает количество добавленных слов.
-        """
-        if not self._ready:
-            return 0
-
         try:
             with open(json_path, encoding="utf-8") as f:
                 data = json.load(f)
-        except Exception as exc:
-            log.error("expand_domain_file read %s: %s", json_path, exc)
+        except Exception:
             return 0
 
-        existing: set
-        if isinstance(data, list):
-            existing = set(data)
-        else:
-            existing = set(data.keys())
-
-        # Берём первые seed_limit слов которые есть в словаре Navec
-        seeds = [w for w in list(existing)[:seed_limit] if w in self._kv]
-        if not seeds:
-            return 0
+        existing = set(data) if isinstance(data, list) else set(data.keys())
+        seeds = [w for w in list(existing)[:seed_limit]
+                 if len(w) >= 3 and w.isalpha()]
 
         new_words: set = set()
         for seed in seeds:
-            for word, score in self.most_similar(seed, topn=topn, threshold=threshold):
-                # Только кириллица, минимум 3 буквы, не служебное
-                if len(word) >= 3 and word.isalpha() and word not in existing:
-                    new_words.add(word)
+            if backend in ("navec", "both"):
+                new_words.update(self._similar_navec(seed, topn, threshold))
+            if backend in ("rusvec", "both"):
+                new_words.update(self._similar_rusvec(seed, topn, threshold))
 
+        # Оставить только новые кириллические слова длиной ≥ 3
+        new_words = {
+            w for w in new_words
+            if len(w) >= 3 and w.isalpha() and w not in existing
+        }
         if not new_words:
             return 0
 
@@ -199,23 +293,20 @@ class RusVecEngine:
         try:
             with open(json_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
-        except Exception as exc:
-            log.error("expand_domain_file write %s: %s", json_path, exc)
+        except Exception:
             return 0
-
         return len(new_words)
 
     def expand_all_domains(
         self,
+        backend: str = "both",
         topn: int = 20,
         threshold: float = SIMILARITY_THRESHOLD,
-        status_cb: Optional[Callable[[str], None]] = None,
+        status_cb=None,
     ) -> Dict[str, int]:
-        """
-        Расширить все тематические словари в data/thematic/.
-        Возвращает {domain: добавлено_слов}.
-        """
-        if not self._ready:
+        if not self.navec_ready and not self.rusvec_ready:
+            if status_cb:
+                status_cb("Нет загруженных моделей.")
             return {}
 
         added: Dict[str, int] = {}
@@ -224,22 +315,40 @@ class RusVecEngine:
                 continue
             domain = fname[:-5]
             path   = os.path.join(_DATA_DIR, fname)
-
             if status_cb:
-                status_cb(f"Navec: расширяю «{domain}»…")
-
-            count = self.expand_domain_file(path, topn=topn, threshold=threshold)
+                status_cb(f"Расширяю «{domain}»…")
+            count = self.expand_domain_file(
+                path, backend=backend, topn=topn, threshold=threshold
+            )
             if count:
                 added[domain] = count
 
         if status_cb:
             total = sum(added.values())
             if total:
-                status_cb(f"Navec: добавлено {total} слов по {len(added)} доменам.")
+                status_cb(
+                    f"Готово: +{total} слов по {len(added)} доменам.")
             else:
-                status_cb("Navec: новых слов не найдено (порог не преодолён).")
-
+                status_cb("Новых слов не найдено (порог не преодолён).")
         return added
+
+    # ── Статус ────────────────────────────────────────────────────────────────
+
+    def status_text(self) -> str:
+        parts = []
+        if self.navec_ready:
+            parts.append("Navec ✓")
+        elif self.navec_downloaded:
+            parts.append("Navec (скачан)")
+        else:
+            parts.append("Navec ✗")
+        if self.rusvec_ready:
+            parts.append("RusVectores ✓")
+        elif self.rusvec_downloaded:
+            parts.append("RusVectores (скачан)")
+        else:
+            parts.append("RusVectores ✗")
+        return "  |  ".join(parts)
 
 
 # ── Синглтон ─────────────────────────────────────────────────────────────────
