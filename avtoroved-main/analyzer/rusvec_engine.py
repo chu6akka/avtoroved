@@ -56,6 +56,48 @@ SIMILARITY_THRESHOLD = 0.65
 os.makedirs(_MODELS_DIR, exist_ok=True)
 
 
+# ── Navec-совместимая обёртка (без gensim) ────────────────────────────────────
+
+class _NavecKV:
+    """
+    Лёгкая обёртка над navec, реализующая most_similar через numpy.
+
+    Не зависит от gensim API (as_gensim сломан в gensim ≥ 4.0).
+    При создании распаковывает все PQ-векторы (~600 МБ RAM) один раз —
+    это необходимо для быстрого поиска ближайших соседей.
+    """
+
+    def __init__(self, navec_model):
+        import numpy as np
+        words = list(navec_model.vocab.words)
+        self._words = words
+        self._stoi: dict = {w: i for i, w in enumerate(words)}
+        # Распаковать все PQ-сжатые векторы в float32-матрицу (N × 300)
+        vecs = navec_model.pq.unpack().astype(np.float32)
+        # Нормализовать для косинусного сходства
+        norms = np.linalg.norm(vecs, axis=1, keepdims=True)
+        norms[norms == 0] = 1.0
+        self._vecs_norm = vecs / norms
+
+    def __contains__(self, word: str) -> bool:
+        return word in self._stoi
+
+    def __len__(self) -> int:
+        return len(self._words)
+
+    def most_similar(self, word: str, topn: int = 10):
+        """Вернуть список (word, score) — аналог gensim most_similar."""
+        import numpy as np
+        if word not in self._stoi:
+            return []
+        idx = self._stoi[word]
+        sims = self._vecs_norm @ self._vecs_norm[idx]
+        sims[idx] = -1.0  # исключить само слово
+        top_k = np.argpartition(sims, -topn)[-topn:]
+        top_k = top_k[np.argsort(sims[top_k])[::-1]]
+        return [(self._words[i], float(sims[i])) for i in top_k]
+
+
 # ── Вспомогательные функции ───────────────────────────────────────────────────
 
 def _download_file(url: str, dest: str,
@@ -116,10 +158,12 @@ class RusVecEngine:
             return False
         try:
             if status_cb:
-                status_cb("Navec: загрузка…")
+                status_cb("Navec: загрузка файла…")
             from navec import Navec
-            navec = Navec.load(_NAVEC_PATH)
-            self._kv_navec = navec.as_gensim
+            navec_model = Navec.load(_NAVEC_PATH)
+            if status_cb:
+                status_cb("Navec: распаковка векторов (~30 сек.)…")
+            self._kv_navec = _NavecKV(navec_model)
             if status_cb:
                 status_cb(f"Navec готов: {len(self._kv_navec):,} слов".replace(",", " "))
             return True
@@ -136,7 +180,21 @@ class RusVecEngine:
 
     @property
     def rusvec_downloaded(self) -> bool:
-        return os.path.exists(_RUSVEC_BIN) or os.path.exists(_RUSVEC_ZIP)
+        if os.path.exists(_RUSVEC_BIN):
+            return True
+        # ZIP считается скачанным только если он валидный
+        if os.path.exists(_RUSVEC_ZIP):
+            try:
+                with zipfile.ZipFile(_RUSVEC_ZIP) as zf:
+                    return bool(zf.namelist())
+            except Exception:
+                # Повреждённый ZIP — удаляем
+                try:
+                    os.remove(_RUSVEC_ZIP)
+                except Exception:
+                    pass
+                return False
+        return False
 
     @property
     def rusvec_ready(self) -> bool:
