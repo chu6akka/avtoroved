@@ -163,7 +163,7 @@ class ErrorAnalyzer:
 
     def _dedup_by_span(self, errors: List[TextError]) -> List[TextError]:
         """Удалить дублирующиеся ошибки по пересечению позиций. LT имеет приоритет."""
-        PRIO = {"LT": 5, "MORPH": 4, "TAUT": 2, "LEX": 1, "REGEX": 0}
+        PRIO = {"LT": 5, "MORPH": 4, "PUNCT": 3, "TAUT": 2, "LEX": 1, "REGEX": 0}
 
         with_pos = [e for e in errors if e.position != (0, 0)]
         no_pos   = [e for e in errors if e.position == (0, 0)]

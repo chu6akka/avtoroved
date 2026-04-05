@@ -23,6 +23,7 @@ from analyzer.metrics import calculate_metrics
 from analyzer.export import load_text_from_file, export_report_docx, export_comparison_docx
 from analyzer import cache_manager, config as app_config
 from analyzer import lt_checker as lt_module
+from analyzer import punct_checker as punct_module
 from analyzer import corpus_manager, learning_backend as lb_module
 from analyzer import yandex_speller as yaspell_module
 from analyzer import stratification_engine as strat_module
@@ -140,7 +141,15 @@ class AnalysisThread(QThread):
                         error_result.errors)
                     error_result.errors.sort(key=lambda e: e.position[0])
 
-            # Пересчитать навыки после добавления всех внешних ошибок (LT + Ya)
+            # ── Шаг 2.5: Правила пунктуации ─────────────────────────────────
+            punct_errors = punct_module.check(self.text)
+            if punct_errors and error_result is not None:
+                error_result.errors.extend(punct_errors)
+                error_result.errors = self.error_analyzer._dedup_by_span(
+                    error_result.errors)
+                error_result.errors.sort(key=lambda e: e.position[0])
+
+            # Пересчитать навыки после добавления всех внешних ошибок (LT + Ya + Punct)
             if error_result is not None:
                 error_result.skill_levels = self.error_analyzer._assess_skills(
                     error_result.errors, error_result.total_words

@@ -35,6 +35,7 @@ _SOURCE_ROW_COLORS = {
     "LEX":   "#1e2a1e",   # тёмно-зелёный — словарная орфография
     "GRAM":  "#2a1e2a",   # тёмно-фиолетовый — грамматика
     "REGEX": "#2a2020",   # тёмно-серый — прочее
+    "PUNCT": "#2a1e10",   # тёмно-янтарный — пунктуация
 }
 
 _SOURCE_LABELS = {
@@ -44,6 +45,7 @@ _SOURCE_LABELS = {
     "LEX":   "Словарь",
     "GRAM":  "Грамматика",
     "REGEX": "Правила",
+    "PUNCT": "Пунктуация",
 }
 
 _SOURCE_COLORS = {
@@ -53,6 +55,7 @@ _SOURCE_COLORS = {
     "LEX":   "#a6e3a1",
     "GRAM":  "#f9e2af",
     "REGEX": "#cdd6f4",
+    "PUNCT": "#f9e2af",
 }
 
 # Цвета подсветки в тексте
@@ -128,6 +131,7 @@ class ErrorsTab(QWidget):
         self.source_filter = QComboBox()
         self.source_filter.addItem("Все источники", "all")
         self.source_filter.addItem("LanguageTool",   "LT")
+        self.source_filter.addItem("Пунктуация",     "PUNCT")
         self.source_filter.addItem("Морфословарь",   "MORPH")
         self.source_filter.addItem("Тавтология",     "TAUT")
         self.source_filter.addItem("Словарь",        "LEX")
