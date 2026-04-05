@@ -140,6 +140,12 @@ class AnalysisThread(QThread):
                         error_result.errors)
                     error_result.errors.sort(key=lambda e: e.position[0])
 
+            # Пересчитать навыки после добавления всех внешних ошибок (LT + Ya)
+            if error_result is not None:
+                error_result.skill_levels = self.error_analyzer._assess_skills(
+                    error_result.errors, error_result.total_words
+                )
+
             # ── Шаг 3: Стратификация ──────────────────────────────────────
             strat_result = None
             if self.strat_engine is not None:
