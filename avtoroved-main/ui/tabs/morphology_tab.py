@@ -43,8 +43,7 @@ class MorphologyTab(QWidget):
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.verticalHeader().setVisible(False)
-        self.table.setMouseTracking(True)
-        self.table.cellEntered.connect(self._on_cell_entered)
+        self.table.cellClicked.connect(self._on_cell_clicked)
         layout.addWidget(self.table)
 
         self.count_label = QLabel("Токенов: 0")
@@ -64,12 +63,15 @@ class MorphologyTab(QWidget):
         word_count = 0
 
         for row, tok in enumerate(words):
-            found = lower.find(tok.text.lower(), cursor)
-            if found == -1:
-                found = lower.find(tok.text.lower())
-            if found != -1:
-                self._row_to_span[row] = (found, found + len(tok.text))
-                cursor = found + len(tok.text)
+            if tok.char_start > 0 or tok.char_end > 0:
+                self._row_to_span[row] = (tok.char_start, tok.char_end)
+            else:
+                found = lower.find(tok.text.lower(), cursor)
+                if found == -1:
+                    found = lower.find(tok.text.lower())
+                if found != -1:
+                    self._row_to_span[row] = (found, found + len(tok.text))
+                    cursor = found + len(tok.text)
 
             items = [tok.text, tok.lemma, tok.pos_label, tok.feats]
             for col, val in enumerate(items):
@@ -82,7 +84,7 @@ class MorphologyTab(QWidget):
 
         self.count_label.setText(f"Токенов: {len(words)} | Слов (без пунктуации): {word_count}")
 
-    def _on_cell_entered(self, row: int, col: int):
+    def _on_cell_clicked(self, row: int, col: int):
         if row in self._row_to_span:
             start, end = self._row_to_span[row]
             self.token_hovered.emit(start, end)

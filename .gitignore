@@ -1,4 +1,4 @@
-# Python
+# ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *.pyo
@@ -9,26 +9,41 @@ build/
 *.egg
 .eggs/
 
-# Virtual environments
+# ── Виртуальные окружения ─────────────────────────────────────────────────────
 venv/
 .venv/
 env/
 .env/
 
-# Stanza models (downloaded automatically, ~100 MB)
-stanza_resources/
+# ── Модели (скачиваются автоматически, сотни МБ) ──────────────────────────────
+avtoroved-main/models/
+avtoroved-main/stanza_resources/
 
-# IDE / editors
+# ── Пользовательские базы данных (создаются при первом запуске) ───────────────
+avtoroved-main/corpus.db
+avtoroved-main/query_history.db
+
+# ── Пользовательский конфиг ───────────────────────────────────────────────────
+avtoroved-main/config.json
+
+# ── Кэш ──────────────────────────────────────────────────────────────────────
+avtoroved-main/.cache/
+.cache/
+
+# ── IDE / редакторы ───────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.sublime-project
 *.sublime-workspace
 
-# OS
+# ── Claude Code ───────────────────────────────────────────────────────────────
+.claude/
+
+# ── ОС ───────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Logs & temp
+# ── Логи и временные файлы ────────────────────────────────────────────────────
 *.log
 *.tmp

@@ -140,7 +140,7 @@ class ComparisonTab(QWidget):
             vi.setFlags(vi.flags() & ~Qt.ItemFlag.ItemIsEditable)
             if i == 0:
                 sim = comp["overall"]
-                color = "#a6e3a1" if sim >= 0.7 else "#fab387" if sim >= 0.5 else "#f38ba8"
+                color = "#6abf69" if sim >= 0.7 else "#e8a030" if sim >= 0.5 else "#e06c6c"
                 vi.setForeground(QColor(color))
                 font = vi.font()
                 font.setBold(True)

@@ -158,9 +158,23 @@ class LTChecker:
             return []
 
         if self._mode == "local":
-            return self._check_local(text)
+            errors = self._check_local(text)
         else:
-            return self._check_http(text)
+            errors = self._check_http(text)
+
+        # Фильтрация по пользовательскому словарю
+        try:
+            from analyzer import corpus_manager
+            user_words = corpus_manager.get_user_dict_words()
+            if user_words:
+                errors = [
+                    e for e in errors
+                    if e.fragment.strip().lower() not in user_words
+                ]
+        except Exception:
+            pass
+
+        return errors
 
     def _check_local(self, text: str) -> List[TextError]:
         """Проверка через language_tool_python (локальный сервер)."""

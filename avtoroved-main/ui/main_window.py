@@ -55,6 +55,15 @@ except ImportError:
     _MPL_AVAILABLE = False
 
 
+class _PlainPasteEdit(QTextEdit):
+    """QTextEdit с вставкой plain-text — убирает HTML-фон из буфера обмена."""
+    def insertFromMimeData(self, source):
+        if source.hasText():
+            self.insertPlainText(source.text())
+        else:
+            super().insertFromMimeData(source)
+
+
 class LTPrewarmThread(QThread):
     """Фоновый поток предзагрузки LanguageTool при старте приложения."""
     status  = pyqtSignal(str)
@@ -141,8 +150,8 @@ class AnalysisThread(QThread):
                         error_result.errors)
                     error_result.errors.sort(key=lambda e: e.position[0])
 
-            # ── Шаг 2.5: Правила пунктуации ─────────────────────────────────
-            punct_errors = punct_module.check(self.text)
+            # ── Шаг 2.5: Правила пунктуации (regex + depparse) ───────────────
+            punct_errors = punct_module.check_with_tokens(self.text, tokens)
             if punct_errors and error_result is not None:
                 error_result.errors.extend(punct_errors)
                 error_result.errors = self.error_analyzer._dedup_by_span(
@@ -581,7 +590,7 @@ class MainWindow(QMainWindow):
 
         content_layout.addLayout(input_header)
 
-        self.text_input = QTextEdit()
+        self.text_input = _PlainPasteEdit()
         self.text_input.setObjectName("text_input")
         self.text_input.setPlaceholderText(
             "Вставьте или введите текст для анализа…\n"
@@ -661,7 +670,7 @@ class MainWindow(QMainWindow):
         vsplit.addWidget(self.text_input)
         vsplit.addWidget(self.stack)
         # Начальные пропорции: ~200px текст, остальное — страница
-        vsplit.setSizes([200, 600])
+        vsplit.setSizes([130, 900])
         vsplit.setHandleWidth(6)
         self._vsplit = vsplit
         content_layout.addWidget(vsplit)
@@ -741,8 +750,8 @@ class MainWindow(QMainWindow):
             self._vsplit.setSizes([int(total * 0.6), int(total * 0.4)])
             self._text_expanded = True
         else:
-            # Свернуть: текст ~200px
-            self._vsplit.setSizes([200, total - 200])
+            # Свернуть: текст ~130px
+            self._vsplit.setSizes([130, total - 130])
             self._text_expanded = False
 
     def _setup_status_bar(self):
@@ -930,7 +939,9 @@ class MainWindow(QMainWindow):
 
         # Стратификация
         if strat_result is not None:
-            self.tab_strat.populate(strat_result)
+            import hashlib as _hl
+            _text_hash = _hl.sha256(text.encode("utf-8", errors="ignore")).hexdigest()[:16]
+            self.tab_strat.populate(strat_result, _text_hash)
 
         # Тематика
         if thematic_result is not None:

@@ -52,8 +52,8 @@ class BalanceBar(QWidget):
         self._neg_bar.setFixedHeight(18)
         self._neg_bar.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self._neg_bar.setStyleSheet(
-            "QProgressBar::chunk { background: #f38ba8; border-radius: 3px; }"
-            "QProgressBar { background: #313244; border-radius: 3px; }"
+            "QProgressBar::chunk { background: #e06c6c; border-radius: 3px; }"
+            "QProgressBar { background: #0d1117; border: 1px solid #3d4555; border-radius: 3px; }"
         )
         self._neg_bar.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
@@ -69,8 +69,8 @@ class BalanceBar(QWidget):
         self._pos_bar.setTextVisible(False)
         self._pos_bar.setFixedHeight(18)
         self._pos_bar.setStyleSheet(
-            "QProgressBar::chunk { background: #a6e3a1; border-radius: 3px; }"
-            "QProgressBar { background: #313244; border-radius: 3px; }"
+            "QProgressBar::chunk { background: #6abf69; border-radius: 3px; }"
+            "QProgressBar { background: #0d1117; border: 1px solid #3d4555; border-radius: 3px; }"
         )
         self._pos_bar.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
@@ -264,7 +264,7 @@ class SentiTab(QWidget):
             bar.setTextVisible(True)
             bar.setStyleSheet(
                 "QProgressBar::chunk { background: #89dceb; border-radius: 2px; }"
-                "QProgressBar { background: #313244; border-radius: 2px; font-size: 10px; }"
+                "QProgressBar { background: #0d1117; border: 1px solid #3d4555; border-radius: 2px; font-size: 10px; }"
             )
             r2.addWidget(bar)
             setattr(self, f"_type_bar_{key}", bar)
@@ -341,9 +341,9 @@ class SentiTab(QWidget):
         self._m["balance"].setText(f"{sign}{bal:.3f}")
         bal_lbl = self._m["balance"]
         if bal > 0.1:
-            bal_lbl.setStyleSheet("color: #a6e3a1;")
+            bal_lbl.setStyleSheet("color: #6abf69;")
         elif bal < -0.1:
-            bal_lbl.setStyleSheet("color: #f38ba8;")
+            bal_lbl.setStyleSheet("color: #e06c6c;")
         else:
             bal_lbl.setStyleSheet("")
 

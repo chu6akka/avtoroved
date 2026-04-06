@@ -91,8 +91,8 @@ class ThematicTab(QWidget):
             bar.setTextVisible(False)
             bar.setStyleSheet(
                 f"QProgressBar::chunk {{ background: {meta['color']}; border-radius: 3px; }}"
-                "QProgressBar { border: 1px solid #313244; border-radius: 3px; "
-                "background: #1e1e2e; }"
+                "QProgressBar { border: 1px solid #3d4555; border-radius: 3px; "
+                "background: #0d1117; }"
             )
             cos_lbl = QLabel("0.000")
             cos_lbl.setObjectName("caption")

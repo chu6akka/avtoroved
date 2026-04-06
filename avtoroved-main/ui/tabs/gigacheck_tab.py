@@ -67,7 +67,7 @@ class GigaCheckTab(QWidget):
         )
         warn.setWordWrap(True)
         warn.setStyleSheet(
-            "background: #45475a; color: #fab387; padding: 8px; border-radius: 4px; font-size: 11px;")
+            "background: #2d2209; color: #d29922; border: 1px solid #484f58; padding: 8px; border-radius: 4px; font-size: 11px;")
         layout.addWidget(warn)
 
         # Панель управления

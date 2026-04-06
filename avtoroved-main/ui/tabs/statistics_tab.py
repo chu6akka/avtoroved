@@ -198,7 +198,7 @@ class StatisticsTab(QWidget):
                 bar.setTextVisible(False)
                 bar.setStyleSheet(
                     f"QProgressBar::chunk {{ background: {color}; border-radius: 2px; }}"
-                    "QProgressBar { background: #313244; border-radius: 2px; }"
+                    "QProgressBar { background: #0d1117; border: 1px solid #3d4555; border-radius: 2px; }"
                 )
                 row.addWidget(bar, stretch=1)
 

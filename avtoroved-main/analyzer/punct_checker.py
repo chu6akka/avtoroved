@@ -271,7 +271,7 @@ def _check_introductory(text: str) -> List[TextError]:
 
 def check(text: str) -> List[TextError]:
     """
-    Проверить текст на пунктуационные ошибки.
+    Проверить текст на пунктуационные ошибки (regex-правила).
     Возвращает список TextError с source='PUNCT'.
     """
     errors: List[TextError] = []
@@ -279,4 +279,221 @@ def check(text: str) -> List[TextError]:
     errors.extend(_check_adverse(text))
     errors.extend(_check_compound_conj(text))
     errors.extend(_check_introductory(text))
+    return errors
+
+
+# ── Depparse-правила ───────────────────────────────────────────────────────────
+
+def _get_sentence_groups(tokens) -> dict:
+    sents: dict = {}
+    for t in tokens:
+        sents.setdefault(t.sent_id, []).append(t)
+    return sents
+
+
+def _build_subtree(token_id: int, tid_map: dict, visited: set | None = None) -> set:
+    """Возвращает множество token_id всего поддерева, включая сам токен."""
+    if visited is None:
+        visited = set()
+    if token_id in visited:
+        return visited
+    visited.add(token_id)
+    for tid, tok in tid_map.items():
+        if tok.head == token_id and tid != token_id:
+            _build_subtree(tid, tid_map, visited)
+    return visited
+
+
+def _comma_before(text: str, pos: int) -> bool:
+    """True если непосредственно перед pos (игнорируя пробелы) стоит знак препинания."""
+    i = pos - 1
+    while i >= 0 and text[i] in ' \t\xa0':
+        i -= 1
+    return i < 0 or text[i] in ',;:.!?\n\u2014–-('
+
+
+def _comma_after(text: str, pos: int) -> bool:
+    """True если непосредственно после pos (игнорируя пробелы) стоит знак препинания."""
+    i = pos
+    while i < len(text) and text[i] in ' \t\xa0':
+        i += 1
+    return i >= len(text) or text[i] in ',;:.!?\n\u2014–-)'
+
+
+def _check_deeprichastie_oborot(text: str, tokens) -> List[TextError]:
+    """
+    Запятая при деепричастном обороте.
+    Правило: деепричастие (VerbForm=Conv) и его зависимые должны выделяться запятыми.
+    """
+    errors: List[TextError] = []
+    sent_groups = _get_sentence_groups(tokens)
+
+    for sent_id, sent_toks in sent_groups.items():
+        tid_map = {t.token_id: t for t in sent_toks if t.token_id > 0}
+
+        # Все токены с валидными позициями в этом предложении
+        valid_sent = [t for t in sent_toks if t.char_start < t.char_end]
+        if not valid_sent:
+            continue
+        sent_cs = min(t.char_start for t in valid_sent)
+        sent_ce = max(t.char_end for t in valid_sent)
+
+        deeps = [t for t in sent_toks if t.pos_label == "Деепричастие"
+                 and t.char_start < t.char_end and t.token_id > 0]
+
+        for deep in deeps:
+            subtree_ids = _build_subtree(deep.token_id, tid_map)
+            subtree_toks = [tid_map[i] for i in subtree_ids if i in tid_map
+                            and tid_map[i].char_start < tid_map[i].char_end]
+            if not subtree_toks:
+                continue
+
+            span_cs = min(t.char_start for t in subtree_toks)
+            span_ce = max(t.char_end for t in subtree_toks)
+
+            # Оборот в начале/конце предложения?
+            at_start = text[sent_cs:span_cs].strip() == ""
+            tail = text[span_ce:sent_ce].strip().lstrip('.,;:!?')
+            at_end = tail == ""
+
+            frag = text[span_cs:span_ce].strip()
+            if len(frag) > 50:
+                frag = "…" + frag[-48:]
+
+            if not at_start and not _comma_before(text, span_cs):
+                errors.append(TextError(
+                    error_type="Пунктуационная",
+                    subtype="Пропущена запятая перед деепричастным оборотом",
+                    fragment=frag,
+                    description=(
+                        f"Деепричастный оборот «{frag}» нужно выделить запятой "
+                        f"(запятая перед оборотом)."
+                    ),
+                    suggestion="Поставьте запятую перед деепричастным оборотом",
+                    position=(span_cs, span_ce),
+                    rule_ref="PUNCT:DEEPR_BEFORE",
+                    source="PUNCT",
+                    context=_ctx(text, span_cs, span_ce),
+                ))
+
+            if not at_end and not _comma_after(text, span_ce):
+                errors.append(TextError(
+                    error_type="Пунктуационная",
+                    subtype="Пропущена запятая после деепричастного оборота",
+                    fragment=frag,
+                    description=(
+                        f"Деепричастный оборот «{frag}» нужно выделить запятой "
+                        f"(запятая после оборота)."
+                    ),
+                    suggestion="Поставьте запятую после деепричастного оборота",
+                    position=(span_cs, span_ce),
+                    rule_ref="PUNCT:DEEPR_AFTER",
+                    source="PUNCT",
+                    context=_ctx(text, span_cs, span_ce),
+                ))
+
+    return errors
+
+
+def _check_prichastnyi_oborot(text: str, tokens) -> List[TextError]:
+    """
+    Запятая при постпозитивном причастном обороте.
+    Правило: причастный оборот ПОСЛЕ определяемого слова выделяется запятыми.
+    Оборот должен содержать хотя бы одно зависимое слово (иначе не оборот, а одиночное причастие).
+    """
+    errors: List[TextError] = []
+    sent_groups = _get_sentence_groups(tokens)
+
+    for sent_id, sent_toks in sent_groups.items():
+        tid_map = {t.token_id: t for t in sent_toks if t.token_id > 0}
+
+        valid_sent = [t for t in sent_toks if t.char_start < t.char_end]
+        if not valid_sent:
+            continue
+        sent_cs = min(t.char_start for t in valid_sent)
+        sent_ce = max(t.char_end for t in valid_sent)
+
+        parts = [t for t in sent_toks if t.pos_label == "Причастие"
+                 and t.char_start < t.char_end and t.token_id > 0]
+
+        for part in parts:
+            head = tid_map.get(part.head)
+            if head is None or head.char_end == 0:
+                continue
+
+            # Нас интересует только постпозиция: голова (существительное) стоит ДО причастия
+            if head.char_end > part.char_start:
+                continue
+
+            subtree_ids = _build_subtree(part.token_id, tid_map)
+            subtree_toks = [tid_map[i] for i in subtree_ids if i in tid_map
+                            and tid_map[i].char_start < tid_map[i].char_end]
+
+            # Нужен хотя бы один зависимый (оборот, а не одиночное причастие)
+            non_punct_deps = [t for t in subtree_toks
+                              if t.token_id != part.token_id and t.pos != "PUNCT"]
+            if not non_punct_deps:
+                continue
+
+            span_cs = min(t.char_start for t in subtree_toks)
+            span_ce = max(t.char_end for t in subtree_toks)
+
+            # Убедиться, что причастие действительно идёт ПОСЛЕ головы
+            if span_cs <= head.char_end:
+                continue
+
+            frag = text[span_cs:span_ce].strip()
+            if len(frag) > 50:
+                frag = "…" + frag[-48:]
+
+            at_start = text[sent_cs:span_cs].strip() == ""
+            tail = text[span_ce:sent_ce].strip().lstrip('.,;:!?')
+            at_end = tail == ""
+
+            if not at_start and not _comma_before(text, span_cs):
+                errors.append(TextError(
+                    error_type="Пунктуационная",
+                    subtype="Пропущена запятая перед причастным оборотом",
+                    fragment=frag,
+                    description=(
+                        f"Причастный оборот «{frag}» стоит после определяемого слова "
+                        f"«{head.text}» и должен выделяться запятыми (запятая перед оборотом)."
+                    ),
+                    suggestion="Поставьте запятую перед причастным оборотом",
+                    position=(span_cs, span_ce),
+                    rule_ref="PUNCT:PART_BEFORE",
+                    source="PUNCT",
+                    context=_ctx(text, span_cs, span_ce),
+                ))
+
+            if not at_end and not _comma_after(text, span_ce):
+                errors.append(TextError(
+                    error_type="Пунктуационная",
+                    subtype="Пропущена запятая после причастного оборота",
+                    fragment=frag,
+                    description=(
+                        f"Причастный оборот «{frag}» стоит после определяемого слова "
+                        f"«{head.text}» и должен выделяться запятыми (запятая после оборота)."
+                    ),
+                    suggestion="Поставьте запятую после причастного оборота",
+                    position=(span_cs, span_ce),
+                    rule_ref="PUNCT:PART_AFTER",
+                    source="PUNCT",
+                    context=_ctx(text, span_cs, span_ce),
+                ))
+
+    return errors
+
+
+def check_with_tokens(text: str, tokens) -> List[TextError]:
+    """
+    Полная проверка пунктуации: regex-правила + depparse-правила.
+    tokens — список TokenInfo из StanzaBackend.analyze() (с depparse).
+    """
+    errors: List[TextError] = check(text)
+    try:
+        errors.extend(_check_deeprichastie_oborot(text, tokens))
+        errors.extend(_check_prichastnyi_oborot(text, tokens))
+    except Exception:
+        pass  # депарсинг опционален — не ломаем весь анализ
     return errors

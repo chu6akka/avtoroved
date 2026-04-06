@@ -120,6 +120,19 @@ class ThematicEngine:
             else:
                 raw[domain] = [w.lower().strip() for w in data.keys()]
 
+        # Инъекция слов из пользовательского словаря
+        try:
+            from analyzer import corpus_manager
+            for dom_key, uwords in corpus_manager.get_user_domain_words().items():
+                if dom_key in raw:
+                    existing = set(raw[dom_key])
+                    for w in uwords:
+                        if w and w not in existing:
+                            raw[dom_key].append(w)
+                            existing.add(w)
+        except Exception:
+            pass
+
         # Заморозить словари доменов
         self._domain_vocab = {d: frozenset(words) for d, words in raw.items()}
 

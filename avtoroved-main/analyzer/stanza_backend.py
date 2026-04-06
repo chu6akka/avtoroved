@@ -54,7 +54,13 @@ class TokenInfo:
     lemma: str
     pos: str         # UPOS tag
     pos_label: str   # русское название
-    feats: str       # морфологические признаки
+    feats: str       # морфологические признаки (переведённые)
+    deprel: str = ""      # синтаксическая роль (Universal Dependencies)
+    head: int = 0         # id головного слова в предложении (0 = root)
+    char_start: int = 0   # начальная позиция в тексте
+    char_end: int = 0     # конечная позиция в тексте
+    sent_id: int = 0      # индекс предложения
+    token_id: int = 0     # id слова внутри предложения (1-indexed)
 
 
 class StanzaBackend:
@@ -81,12 +87,12 @@ class StanzaBackend:
         if status_callback:
             status_callback("Загрузка модели Stanza (при первом запуске скачивается ~100 МБ)...")
         try:
-            self.nlp = stanza.Pipeline('ru', processors='tokenize,pos,lemma', verbose=False)
+            self.nlp = stanza.Pipeline('ru', processors='tokenize,pos,lemma,depparse', verbose=False)
         except Exception:
             if status_callback:
                 status_callback("Скачивание модели русского языка...")
             stanza.download('ru', verbose=False)
-            self.nlp = stanza.Pipeline('ru', processors='tokenize,pos,lemma', verbose=False)
+            self.nlp = stanza.Pipeline('ru', processors='tokenize,pos,lemma,depparse', verbose=False)
         self._ready = True
         if status_callback:
             status_callback("Stanza готова")
@@ -96,10 +102,22 @@ class StanzaBackend:
             self.ensure_loaded()
         doc = self.nlp(text)
         tokens = []
-        for sent in doc.sentences:
+        for sent_idx, sent in enumerate(doc.sentences):
             for word in sent.words:
+                tok_id = word.id if isinstance(word.id, int) else (
+                    word.id[0] if isinstance(word.id, (list, tuple)) else 0
+                )
+                head = word.head if isinstance(word.head, int) else 0
+                deprel = word.deprel or ""
+                cs = getattr(word, 'start_char', None) or 0
+                ce = getattr(word, 'end_char', None) or 0
                 if not WORD_RE.search(word.text):
-                    tokens.append(TokenInfo(word.text, word.text, "PUNCT", "Пунктуация", "—"))
+                    tokens.append(TokenInfo(
+                        word.text, word.text, "PUNCT", "Пунктуация", "—",
+                        deprel=deprel, head=head,
+                        char_start=cs, char_end=ce,
+                        sent_id=sent_idx, token_id=tok_id,
+                    ))
                     continue
                 upos = word.upos or "X"
                 feats_str = word.feats if word.feats else "—"
@@ -110,8 +128,13 @@ class StanzaBackend:
                         pos_label = "Причастие"
                     elif "VerbForm=Conv" in feats_str:
                         pos_label = "Деепричастие"
-                tokens.append(TokenInfo(word.text, word.lemma or word.text.lower(),
-                                       upos, pos_label, feats_ru))
+                tokens.append(TokenInfo(
+                    word.text, word.lemma or word.text.lower(),
+                    upos, pos_label, feats_ru,
+                    deprel=deprel, head=head,
+                    char_start=cs, char_end=ce,
+                    sent_id=sent_idx, token_id=tok_id,
+                ))
         return tokens
 
     @staticmethod

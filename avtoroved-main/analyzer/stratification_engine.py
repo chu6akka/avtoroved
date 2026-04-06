@@ -209,7 +209,32 @@ class StratificationEngine:
                     ):
                         self._phrase_to_layer[norm_phrase] = layer
 
+        # Инъекция слов из пользовательского словаря
+        try:
+            from analyzer import corpus_manager
+            for layer_key, uwords in corpus_manager.get_user_strat_words().items():
+                if layer_key not in LAYER_META:
+                    continue
+                for w in uwords:
+                    if not w:
+                        continue
+                    lemma = self._lemmatize(w)
+                    if lemma and (
+                        lemma not in self._lemma_to_layer
+                        or LAYER_META[layer_key]["priority"]
+                        > LAYER_META[self._lemma_to_layer[lemma]]["priority"]
+                    ):
+                        self._lemma_to_layer[lemma] = layer_key
+        except Exception:
+            pass
+
         self._loaded = True
+
+    def reload(self) -> None:
+        """Сбросить кэш для перезагрузки с новыми пользовательскими словами."""
+        self._loaded = False
+        self._lemma_to_layer.clear()
+        self._phrase_to_layer.clear()
 
     @staticmethod
     def _is_false_positive(surface: str, lemma: str, check_morph: bool = True) -> bool:

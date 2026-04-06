@@ -6,7 +6,7 @@ from __future__ import annotations
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
     QLabel, QTableWidget, QTableWidgetItem, QHeaderView,
-    QGridLayout, QFrame, QPushButton, QComboBox,
+    QFrame, QPushButton, QComboBox,
     QSplitter, QTextEdit, QMenu
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QPoint
@@ -14,10 +14,10 @@ from PyQt6.QtGui import QColor, QFont
 
 
 SKILL_COLORS = {
-    "высокая":  "#a6e3a1",
-    "средняя":  "#fab387",
-    "низкая":   "#f38ba8",
-    "нулевая":  "#cba6f7",
+    "высокая":  "#6abf69",
+    "средняя":  "#e8a030",
+    "низкая":   "#e06c6c",
+    "нулевая":  "#b888e8",
 }
 
 SKILL_NAMES = [
@@ -27,15 +27,15 @@ SKILL_NAMES = [
     "Лексико-фразеологические навыки",
 ]
 
-# Цвета фона строки по источнику
+# Цвета фона строки по источнику — насыщеннее оригинала, чтобы различались на тёмном фоне
 _SOURCE_ROW_COLORS = {
-    "LT":    "#3d2d1e",   # тёмно-оранжевый — LanguageTool
-    "MORPH": "#2a2040",   # тёмно-синий — морфословарь
-    "TAUT":  "#1e3040",   # тёмно-голубой — тавтология
-    "LEX":   "#1e2a1e",   # тёмно-зелёный — словарная орфография
-    "GRAM":  "#2a1e2a",   # тёмно-фиолетовый — грамматика
-    "REGEX": "#2a2020",   # тёмно-серый — прочее
-    "PUNCT": "#2a1e10",   # тёмно-янтарный — пунктуация
+    "LT":    "#3d2810",   # оранжево-коричневый — LanguageTool
+    "MORPH": "#221848",   # тёмно-фиолетовый — морфословарь
+    "TAUT":  "#0f2d42",   # тёмно-голубой — тавтология
+    "LEX":   "#102a18",   # тёмно-зелёный — словарная орфография
+    "GRAM":  "#28153a",   # насыщенный фиолетовый — грамматика
+    "REGEX": "#252525",   # нейтральный тёмный — прочее
+    "PUNCT": "#382008",   # янтарный — пунктуация
 }
 
 _SOURCE_LABELS = {
@@ -49,50 +49,59 @@ _SOURCE_LABELS = {
 }
 
 _SOURCE_COLORS = {
-    "LT":    "#fab387",
-    "MORPH": "#cba6f7",
-    "TAUT":  "#89dceb",
-    "LEX":   "#a6e3a1",
-    "GRAM":  "#f9e2af",
-    "REGEX": "#cdd6f4",
-    "PUNCT": "#f9e2af",
+    "LT":    "#d4883a",
+    "MORPH": "#b888e8",
+    "TAUT":  "#4db8b8",
+    "LEX":   "#6abf69",
+    "GRAM":  "#e8a030",
+    "REGEX": "#a09080",
+    "PUNCT": "#e8a030",
 }
 
 # Цвета подсветки в тексте
 HIGHLIGHT_COLORS = {
-    "Пунктуационная": "#f9e2af",
-    "Орфографическая": "#f38ba8",
-    "Грамматическая":  "#cba6f7",
-    "Лексическая":     "#89dceb",
-    "Стилистическая":  "#a6e3a1",
+    "Пунктуационная": "#e8a030",
+    "Орфографическая": "#e06c6c",
+    "Грамматическая":  "#b888e8",
+    "Лексическая":     "#4db8b8",
+    "Стилистическая":  "#6abf69",
 }
 
 
 class SkillBadge(QFrame):
-    """Карточка уровня навыка."""
+    """Компактная карточка уровня навыка (горизонтальная)."""
 
     def __init__(self, skill_name: str, parent=None):
         super().__init__(parent)
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setFrameShadow(QFrame.Shadow.Raised)
+        self.setMaximumHeight(66)
+
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 6, 8, 6)
-        layout.setSpacing(2)
+        layout.setContentsMargins(10, 7, 10, 7)
+        layout.setSpacing(3)
+
+        top = QHBoxLayout()
+        top.setSpacing(4)
         self.name_label = QLabel(skill_name.replace(" навыки", ""))
-        self.name_label.setStyleSheet("font-weight: bold; font-size: 12px;")
+        self.name_label.setStyleSheet("font-weight: 600; font-size: 11px;")
         self.level_label = QLabel("—")
-        self.level_label.setStyleSheet("font-size: 13px;")
+        self.level_label.setStyleSheet("font-size: 12px; font-weight: bold;")
+        self.level_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        top.addWidget(self.name_label, 1)
+        top.addWidget(self.level_label, 0)
+
         self.desc_label = QLabel("")
-        self.desc_label.setStyleSheet("font-size: 11px; color: #a6adc8;")
-        self.desc_label.setWordWrap(True)
-        layout.addWidget(self.name_label)
-        layout.addWidget(self.level_label)
+        self.desc_label.setStyleSheet("font-size: 10px; color: #8b949e;")
+        self.desc_label.setWordWrap(False)
+
+        layout.addLayout(top)
         layout.addWidget(self.desc_label)
 
     def update_skill(self, level: str, description: str):
         color = SKILL_COLORS.get(level.lower(), "#cdd6f4")
         self.level_label.setText(level.upper())
-        self.level_label.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {color};")
+        self.level_label.setStyleSheet(f"font-size: 12px; font-weight: bold; color: {color};")
         self.desc_label.setText(description)
 
 
@@ -113,15 +122,16 @@ class ErrorsTab(QWidget):
         layout.setContentsMargins(6, 6, 6, 6)
         layout.setSpacing(6)
 
-        # ── Навыки ───────────────────────────────────────────────────────
+        # ── Навыки (горизонтальный ряд из 4 компактных карточек) ─────────
         skills_group = QGroupBox("Степени развития языковых навыков (по С.М. Вул, 2007)")
-        skills_layout = QGridLayout(skills_group)
+        skills_layout = QHBoxLayout(skills_group)
         skills_layout.setSpacing(8)
+        skills_layout.setContentsMargins(8, 8, 8, 8)
         self.skill_badges = {}
-        for i, name in enumerate(SKILL_NAMES):
+        for name in SKILL_NAMES:
             badge = SkillBadge(name)
             self.skill_badges[name] = badge
-            skills_layout.addWidget(badge, i // 2, i % 2)
+            skills_layout.addWidget(badge)
         layout.addWidget(skills_group)
 
         # ── Панель управления ────────────────────────────────────────────
@@ -209,7 +219,7 @@ class ErrorsTab(QWidget):
         detail_layout = QVBoxLayout(detail_group)
         self.detail_text = QTextEdit()
         self.detail_text.setReadOnly(True)
-        self.detail_text.setMaximumHeight(150)
+        self.detail_text.setMinimumHeight(80)
         mono = QFont("Consolas", 10)
         self.detail_text.setFont(mono)
         self.detail_text.setPlaceholderText(
@@ -219,7 +229,7 @@ class ErrorsTab(QWidget):
         detail_layout.addWidget(self.detail_text)
         splitter.addWidget(detail_group)
 
-        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(0, 4)
         splitter.setStretchFactor(1, 1)
         layout.addWidget(splitter)
 
@@ -426,6 +436,36 @@ class ErrorsTab(QWidget):
             goto_action.triggered.connect(
                 lambda: self.error_selected.emit(err.position[0], err.position[1])
             )
+
+        # ── Добавить в словарь (только LT-ошибки) ──
+        if src == "LT" and err.fragment.strip():
+            from analyzer import corpus_manager as _cm
+            word = err.fragment.strip()
+            dict_menu = menu.addMenu(f"📖  «{word}» → отнести к пласту/теме")
+
+            strat_sub = dict_menu.addMenu("Стилистический пласт")
+            for cat_key, cat_label in _cm.STRAT_LAYER_LABELS.items():
+                act = strat_sub.addAction(cat_label)
+                def _add_strat(checked=False, w=word, c=cat_key):
+                    _cm.add_to_user_dict(w, c)
+                    try:
+                        from analyzer import stratification_engine
+                        stratification_engine.get().reload()
+                    except Exception:
+                        pass
+                act.triggered.connect(_add_strat)
+
+            theme_sub = dict_menu.addMenu("Тематический пласт")
+            for cat_key, cat_label in _cm.THEMATIC_DOMAIN_LABELS.items():
+                act = theme_sub.addAction(cat_label)
+                def _add_theme(checked=False, w=word, c=cat_key):
+                    _cm.add_to_user_dict(w, c)
+                    try:
+                        from analyzer import thematic_engine
+                        thematic_engine.get().invalidate()
+                    except Exception:
+                        pass
+                act.triggered.connect(_add_theme)
 
         copy_action = menu.addAction("📋  Скопировать описание")
         copy_action.triggered.connect(lambda: self._copy_error_to_clipboard(err))

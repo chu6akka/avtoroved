@@ -63,7 +63,7 @@ class BandBar(QWidget):
         self._bar.setTextVisible(False)
         self._bar.setStyleSheet(
             f"QProgressBar::chunk {{ background: {color}; border-radius: 3px; }}"
-            "QProgressBar { background: #313244; border-radius: 3px; }"
+            "QProgressBar { background: #0d1117; border: 1px solid #3d4555; border-radius: 3px; }"
         )
         lay.addWidget(self._bar, stretch=1)
 
