@@ -1,13 +1,16 @@
 """
 analyzer/errors.py — Анализ ошибок письменной речи
 ====================================================
-Текущая версия: только LanguageTool (внешняя проверка).
-Все regex-детекторы удалены — раздел ошибок переразрабатывается.
+Методическая основа: «Комплексная методика производства автороведческих
+экспертиз» / Рубцова И.И., Ермолова Е.И., Безрукова А.И. и др.
+М.: ЭКЦ МВД России, 2007. — 192 с.
 
-Сохранены:
-  - Датаклассы (TextError, SkillLevel, InternetProfile, ErrorAnalysisResult)
-  - Профиль интернет-коммуникации (по Колокольцевой Т.Н.)
-  - Оценка навыков по С.М. Вул (работает на LT-ошибках)
+Шкала степеней развития языкового навыка (с. 13):
+  высокая — менее 4 ошибок на ~200 словоформ
+  средняя  — от 4 до 6 ошибок
+  низкая   — свыше 6 ошибок
+
+Дедупликация (с. 14): повторяющиеся ошибки одного типа считаются как одна.
 """
 from __future__ import annotations
 import re
@@ -22,7 +25,7 @@ from typing import List, Tuple, Dict, Optional
 @dataclass
 class TextError:
     """Единичная ошибка в тексте."""
-    error_type: str       # Пунктуационная / Орфографическая / Грамматическая / Лексическая
+    error_type: str       # Пунктуационная / Орфографическая / Грамматическая / Лексическая / Стилистическая
     subtype: str
     fragment: str
     description: str
@@ -31,16 +34,17 @@ class TextError:
     rule_ref: str = ""
     source: str = "LT"
     context: str = ""
+    significance: str = "средняя"   # "высокая" / "средняя" / "низкая" (ЭКЦ МВД, с. 35)
 
 
 @dataclass
 class SkillLevel:
-    """Степень развития языкового навыка (по С.М. Вул)."""
+    """Степень развития языкового навыка (по методике ЭКЦ МВД России, 2007)."""
     skill_name: str
     level: str            # высокая / средняя / низкая / нулевая
     description: str
-    error_count: int = 0
-    error_rate: float = 0.0
+    error_count: int = 0        # уникальных ошибок этой категории
+    error_rate: float = 0.0     # нормированных на 200 словоформ
 
 
 @dataclass
@@ -68,6 +72,87 @@ class ErrorAnalysisResult:
     internet_profile: InternetProfile
     total_words: int = 0
     total_sentences: int = 0
+    # Общий признак письменной речи (ЭКЦ МВД, с. 13)
+    general_skill_level: str = ""     # "высокая" / "средняя" / "низкая"
+    general_skill_desc: str = ""      # текстовое описание для отчёта
+    total_unique_errors: int = 0      # после дедупликации по всем категориям
+
+
+# ============================================================================
+# ШКАЛА ЯЗЫКОВОГО НАВЫКА (ЭКЦ МВД России, 2007, с. 13)
+# ============================================================================
+
+# Пять категорий навыков по методике
+SKILL_CATEGORIES = [
+    "Орфографический навык",
+    "Пунктуационный навык",
+    "Грамматический навык",
+    "Лексико-фразеологический навык",
+    "Стилистический навык",
+]
+
+# Маппинг error_type → навык
+_ERROR_TYPE_TO_SKILL = {
+    "Орфографическая":  "Орфографический навык",
+    "Пунктуационная":   "Пунктуационный навык",
+    "Грамматическая":   "Грамматический навык",
+    "Лексическая":      "Лексико-фразеологический навык",
+    "Стилистическая":   "Стилистический навык",
+}
+
+
+def get_skill_level(error_count: int, total_words: int) -> tuple:
+    """
+    Возвращает (степень, описание).
+    Нормирует на 200 словоформ.
+    Шкала: высокая <4, средняя 4-6, низкая >6 (ЭКЦ МВД, с. 13).
+    """
+    norm = 200 / max(total_words, 1)
+    normalized = round(error_count * norm, 1)
+    if normalized < 4:
+        level = "высокая"
+    elif normalized <= 6:
+        level = "средняя"
+    else:
+        level = "низкая"
+    desc = f"{error_count} ош. (≈{normalized:.1f} на 200 словоформ)"
+    return level, desc
+
+
+def deduplicate_errors(errors: List[TextError]) -> List[TextError]:
+    """
+    Дедупликация ошибок для расчёта шкалы навыков.
+    Одна и та же ошибочная форма = одна ошибка.
+    Ключ: (error_type, subtype, canonical_fragment).
+    (ЭКЦ МВД, с. 14)
+    """
+    seen: set = set()
+    unique: List[TextError] = []
+    for e in errors:
+        key = (e.error_type, e.subtype, e.fragment.lower().strip())
+        if key not in seen:
+            seen.add(key)
+            unique.append(e)
+    return unique
+
+
+def calculate_general_skill(errors: List[TextError], total_words: int) -> tuple:
+    """
+    Общий признак = суммарное кол-во уникальных ошибок всех категорий
+    на ~200 словоформ. (ЭКЦ МВД, с. 13)
+    Возвращает (level, full_desc, total_unique).
+    """
+    unique = deduplicate_errors(errors)
+    total_unique = len(unique)
+    level, desc = get_skill_level(total_unique, total_words)
+
+    level_text = {
+        "высокая": "Автор исследуемого текста владеет литературным языком на высоком уровне",
+        "средняя": "Автор исследуемого текста владеет литературным языком на среднем уровне",
+        "низкая":  "Автор исследуемого текста владеет литературным языком на низком уровне",
+    }[level]
+    full_desc = f"{level_text}. {desc}."
+    return level, full_desc, total_unique
 
 
 # ============================================================================
@@ -128,9 +213,9 @@ REPEATED_PUNCT   = re.compile(r'[!?]{2,}|\.{4,}')
 
 class ErrorAnalyzer:
     """
-    Анализатор ошибок — скелет.
+    Анализатор ошибок.
     Сейчас возвращает пустой список ошибок; LT-ошибки добавляются в AnalysisThread.
-    Раздел переразрабатывается.
+    Шкала навыков — по методике ЭКЦ МВД России (2007).
     """
 
     def analyze(self, text: str, tokens=None) -> ErrorAnalysisResult:
@@ -141,6 +226,7 @@ class ErrorAnalyzer:
 
         errors: List[TextError] = []
         skill_levels = self._assess_skills(errors, total_words)
+        general_level, general_desc, total_unique = calculate_general_skill(errors, total_words)
         internet_profile = analyze_internet_communication(text)
 
         return ErrorAnalysisResult(
@@ -149,6 +235,9 @@ class ErrorAnalyzer:
             internet_profile=internet_profile,
             total_words=total_words,
             total_sentences=total_sentences,
+            general_skill_level=general_level,
+            general_skill_desc=general_desc,
+            total_unique_errors=total_unique,
         )
 
     def _get_context(self, text: str, start: int, end: int, window: int = 45) -> str:
@@ -183,41 +272,35 @@ class ErrorAnalyzer:
         return kept + no_pos
 
     def _assess_skills(self, errors: List[TextError], total_words: int) -> List[SkillLevel]:
-        """Оценка навыков по С.М. Вул (на основе LT-ошибок)."""
+        """
+        Оценка навыков по 5 категориям (методика ЭКЦ МВД России, 2007, с. 13).
+        Дедупликация применяется перед подсчётом (с. 14).
+        """
         if total_words == 0:
             return [
                 SkillLevel(n, "нулевая", "Нет текста для анализа")
-                for n in ["Пунктуационные навыки", "Орфографические навыки",
-                          "Грамматические навыки", "Лексические навыки"]
+                for n in SKILL_CATEGORIES
             ]
 
-        norm = 200 / max(total_words, 1)
+        # Дедуплицировать по каждой категории отдельно
+        groups: Dict[str, List[TextError]] = {cat: [] for cat in SKILL_CATEGORIES}
+        for e in errors:
+            skill = _ERROR_TYPE_TO_SKILL.get(e.error_type)
+            if skill:
+                groups[skill].append(e)
 
-        def _rate(count, thresholds=(1, 3, 7)):
-            normed = count * norm
-            if normed <= thresholds[0]:  return "высокая", f"{count} ош. (≈{normed:.1f} на 200 слов)"
-            if normed <= thresholds[1]:  return "средняя", f"{count} ош. (≈{normed:.1f} на 200 слов)"
-            if normed <= thresholds[2]:  return "низкая",  f"{count} ош. (≈{normed:.1f} на 200 слов)"
-            return "нулевая", f"{count} ош. (≈{normed:.1f} на 200 слов)"
-
-        groups = {
-            "Пунктуационные навыки":          [e for e in errors if e.error_type == "Пунктуационная"],
-            "Орфографические навыки":         [e for e in errors if e.error_type == "Орфографическая"],
-            "Грамматические навыки":          [e for e in errors if e.error_type == "Грамматическая"],
-            "Лексико-фразеологические навыки":[e for e in errors if e.error_type in ("Лексическая", "Стилистическая")],
-        }
-        thresholds_map = {
-            "Пунктуационные навыки":          (2, 5, 10),
-            "Орфографические навыки":         (1, 3, 6),
-            "Грамматические навыки":          (1, 3, 7),
-            "Лексико-фразеологические навыки":(2, 5, 10),
-        }
         levels = []
-        for name, errs in groups.items():
-            lv, desc = _rate(len(errs), thresholds_map[name])
+        for cat in SKILL_CATEGORIES:
+            unique_errs = deduplicate_errors(groups[cat])
+            count = len(unique_errs)
+            lv, desc = get_skill_level(count, total_words)
+            norm = 200 / max(total_words, 1)
             levels.append(SkillLevel(
-                skill_name=name, level=lv, description=desc,
-                error_count=len(errs), error_rate=len(errs) * norm,
+                skill_name=cat,
+                level=lv,
+                description=desc,
+                error_count=count,
+                error_rate=round(count * norm, 1),
             ))
         return levels
 
@@ -281,22 +364,39 @@ def analyze_internet_communication(text: str) -> InternetProfile:
 
 def format_error_report(result: ErrorAnalysisResult) -> str:
     lines = ["=" * 60, "АНАЛИЗ ОШИБОК ПИСЬМЕННОЙ РЕЧИ", "=" * 60, ""]
-    lines.append("СТЕПЕНИ РАЗВИТИЯ НАВЫКОВ (по С.М. Вул)")
+
+    # Общий признак
+    lines.append("ЯЗЫКОВЫЕ НАВЫКИ АВТОРА ТЕКСТА")
+    lines.append("(по методике ЭКЦ МВД России, 2007)")
+    lines.append("-" * 40)
+    if result.general_skill_level:
+        lines.append(f"  Общая степень: {result.general_skill_level.upper()}")
+        lines.append(f"  {result.general_skill_desc}")
+        lines.append(f"  Уникальных ошибок (после дедупликации): {result.total_unique_errors}")
+    lines.append("")
+
+    # Частные навыки
+    lines.append("ЧАСТНЫЕ ПРИЗНАКИ — НАВЫКИ ПО КАТЕГОРИЯМ")
     lines.append("-" * 40)
     for skill in result.skill_levels:
         lines.append(f"  {skill.skill_name}: {skill.level.upper()}")
         lines.append(f"    {skill.description}")
+    lines.append("  [!] Повторяющиеся ошибки одного типа учитываются один раз")
+    lines.append("      (ЭКЦ МВД России, 2007, с. 14)")
     lines.append("")
 
     by_type: Dict[str, List[TextError]] = {}
     for e in result.errors:
         by_type.setdefault(e.error_type, []).append(e)
 
-    lines.append(f"ВСЕГО ОШИБОК: {len(result.errors)}")
+    lines.append(f"ВСЕГО ОШИБОК (полный список): {len(result.errors)}")
     lines.append("-" * 40)
 
-    for etype in ["Пунктуационная", "Орфографическая", "Грамматическая", "Лексическая"]:
+    for etype in ["Пунктуационная", "Орфографическая", "Грамматическая",
+                  "Лексическая", "Стилистическая"]:
         errs = by_type.get(etype, [])
+        if not errs:
+            continue
         lines.append(f"\n{etype.upper()} ОШИБКИ: {len(errs)}")
         for i, e in enumerate(errs[:15], 1):
             lines.append(f"  {i}. «{e.fragment}»")

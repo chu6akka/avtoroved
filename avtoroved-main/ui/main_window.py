@@ -158,9 +158,15 @@ class AnalysisThread(QThread):
                     error_result.errors)
                 error_result.errors.sort(key=lambda e: e.position[0])
 
-            # Пересчитать навыки после добавления всех внешних ошибок (LT + Ya + Punct)
+            # Пересчитать навыки и общий признак после добавления всех внешних ошибок
             if error_result is not None:
+                from analyzer.errors import calculate_general_skill
                 error_result.skill_levels = self.error_analyzer._assess_skills(
+                    error_result.errors, error_result.total_words
+                )
+                (error_result.general_skill_level,
+                 error_result.general_skill_desc,
+                 error_result.total_unique_errors) = calculate_general_skill(
                     error_result.errors, error_result.total_words
                 )
 
@@ -418,7 +424,7 @@ class MainWindow(QMainWindow):
         # Группа АНАЛИЗ
         _section("АНАЛИЗ ТЕКСТА")
         _nav("📊", "Статистика",         0)
-        _nav("📝", "Ошибки и навыки",    1)
+        _nav("📝", "Языковые навыки",     1)
         _nav("🔤", "Морфология",          2)
         _nav("🎨", "Стратификация",       3)
         _nav("🗂", "Тематика",            4)
@@ -924,9 +930,18 @@ class MainWindow(QMainWindow):
         word_count = metrics["дополнительно"].get("Всего слов", 0)
         cs = cache_manager.stats()
         backend_name = "spaCy ⚡" if isinstance(self._nlp_backend, SpacyBackend) else "Stanza"
+
+        # Трёхуровневая проверка объёма текста (ЭКЦ МВД, с. 31)
+        if word_count < 100:
+            vol_status = f"⛔ {word_count} сл. — недостаточно для экспертизы (мин. 100)"
+        elif word_count < 500:
+            vol_status = f"⚠ {word_count} сл. — только диагностическая экспертиза (идент. мин. 500)"
+        else:
+            vol_status = f"✓ {word_count} сл. — пригоден для идентификационной экспертизы"
+
         self.status_label.setText(
             f"Анализ завершён  |  NLP: {backend_name}  |  Кэш: {cs['entries']} текстов")
-        self.word_count_label.setText(f"Слов: {word_count}")
+        self.word_count_label.setText(vol_status)
 
         # Морфология
         self.tab_morph.populate(tokens, text)
@@ -1219,6 +1234,8 @@ class MainWindow(QMainWindow):
             "Автороведческий анализатор v5\n\n"
             "Инструмент судебно-автороведческой экспертизы текста\n\n"
             "Методики:\n"
+            "• Рубцова И.И., Ермолова Е.И., Безрукова А.И. «Комплексная методика производства\n"
+            "  автороведческих экспертиз» — М.: ЭКЦ МВД России, 2007. — 192 с.\n"
             "• С.М. Вул «Судебно-автороведческая идентификационная экспертиза» (2007)\n"
             "• Litvinova et al. (2015–2016) — POS-биграммы\n"
             "• ЭКЦ МВД России — лексическая стратификация (2021)\n"

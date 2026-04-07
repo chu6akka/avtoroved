@@ -1,5 +1,5 @@
 """
-Вкладка 3: Ошибки и навыки (по методике С.М. Вул).
+Вкладка 3: Языковые навыки (по методике ЭКЦ МВД России, 2007).
 Включает результаты собственного анализатора, pymorphy2 и LanguageTool.
 """
 from __future__ import annotations
@@ -21,10 +21,11 @@ SKILL_COLORS = {
 }
 
 SKILL_NAMES = [
-    "Пунктуационные навыки",
-    "Орфографические навыки",
-    "Грамматические навыки",
-    "Лексико-фразеологические навыки",
+    "Орфографический навык",
+    "Пунктуационный навык",
+    "Грамматический навык",
+    "Лексико-фразеологический навык",
+    "Стилистический навык",
 ]
 
 # Цвета фона строки по источнику — насыщеннее оригинала, чтобы различались на тёмном фоне
@@ -122,16 +123,44 @@ class ErrorsTab(QWidget):
         layout.setContentsMargins(6, 6, 6, 6)
         layout.setSpacing(6)
 
-        # ── Навыки (горизонтальный ряд из 4 компактных карточек) ─────────
-        skills_group = QGroupBox("Степени развития языковых навыков (по С.М. Вул, 2007)")
+        # ── Общий признак письменной речи ────────────────────────────────
+        general_group = QGroupBox("Общий признак письменной речи  (ЭКЦ МВД России, 2007, с. 13)")
+        general_layout = QHBoxLayout(general_group)
+        general_layout.setContentsMargins(10, 6, 10, 6)
+        general_layout.setSpacing(16)
+
+        self.general_level_label = QLabel("—")
+        self.general_level_label.setStyleSheet(
+            "font-size: 20px; font-weight: bold; color: #8b949e; min-width: 90px;")
+        general_layout.addWidget(self.general_level_label)
+
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.VLine)
+        sep.setFrameShadow(QFrame.Shadow.Sunken)
+        general_layout.addWidget(sep)
+
+        self.general_desc_label = QLabel("Загрузите текст для анализа")
+        self.general_desc_label.setWordWrap(True)
+        self.general_desc_label.setStyleSheet("font-size: 11px; color: #8b949e;")
+        general_layout.addWidget(self.general_desc_label, 1)
+
+        layout.addWidget(general_group)
+
+        # ── Частные навыки (горизонтальный ряд из 5 компактных карточек) ─
+        skills_group = QGroupBox("Частные признаки — языковые навыки по категориям")
         skills_layout = QHBoxLayout(skills_group)
-        skills_layout.setSpacing(8)
+        skills_layout.setSpacing(6)
         skills_layout.setContentsMargins(8, 8, 8, 8)
         self.skill_badges = {}
         for name in SKILL_NAMES:
             badge = SkillBadge(name)
             self.skill_badges[name] = badge
             skills_layout.addWidget(badge)
+
+        note = QLabel("[i] Повторяющиеся ошибки одного типа учитываются один раз (с. 14)")
+        note.setStyleSheet("font-size: 10px; color: #6b7280; margin-left: 4px;")
+        skills_layout.addWidget(note, 0)
+
         layout.addWidget(skills_group)
 
         # ── Панель управления ────────────────────────────────────────────
@@ -175,15 +204,16 @@ class ErrorsTab(QWidget):
         table_layout = QVBoxLayout(table_group)
 
         self.errors_table = QTableWidget()
-        self.errors_table.setColumnCount(5)
+        self.errors_table.setColumnCount(6)
         self.errors_table.setHorizontalHeaderLabels(
-            ["Источник", "Тип", "Подтип", "Фрагмент", "Описание"])
+            ["Источник", "Тип", "Подтип", "Фрагмент", "Описание", "Значимость"])
         hdr = self.errors_table.horizontalHeader()
         hdr.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         hdr.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         hdr.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         hdr.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
         hdr.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
+        hdr.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
         self.errors_table.setAlternatingRowColors(False)
         self.errors_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.errors_table.verticalHeader().setVisible(False)
@@ -240,6 +270,19 @@ class ErrorsTab(QWidget):
         self._all_errors = error_result.errors if error_result else []
 
         if error_result:
+            # Общий признак
+            gen_level = getattr(error_result, 'general_skill_level', '')
+            gen_desc  = getattr(error_result, 'general_skill_desc', '')
+            n_unique  = getattr(error_result, 'total_unique_errors', 0)
+            if gen_level:
+                color = SKILL_COLORS.get(gen_level.lower(), "#8b949e")
+                self.general_level_label.setText(gen_level.upper())
+                self.general_level_label.setStyleSheet(
+                    f"font-size: 20px; font-weight: bold; color: {color}; min-width: 90px;")
+                self.general_desc_label.setText(
+                    f"{gen_desc}\n({n_unique} уникальных ошибок после дедупликации)")
+
+            # Частные навыки
             for skill in error_result.skill_levels:
                 if skill.skill_name in self.skill_badges:
                     self.skill_badges[skill.skill_name].update_skill(
@@ -286,13 +329,17 @@ class ErrorsTab(QWidget):
             if len(desc) > 70:
                 desc = desc[:68] + "…"
 
-            vals = [src_label, err.error_type, err.subtype, frag, desc]
+            significance = getattr(err, 'significance', 'средняя')
+            sig_colors = {"высокая": "#6abf69", "средняя": "#e8a030", "низкая": "#8b949e"}
+            vals = [src_label, err.error_type, err.subtype, frag, desc, significance]
             for col, val in enumerate(vals):
                 item = QTableWidgetItem(val)
                 item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 item.setBackground(QColor(row_bg))
                 if col == 0:
                     item.setForeground(QColor(src_color))
+                elif col == 5:
+                    item.setForeground(QColor(sig_colors.get(significance, "#8b949e")))
                 self.errors_table.setItem(row, col, item)
 
         # Счётчик по источникам
@@ -507,6 +554,10 @@ class ErrorsTab(QWidget):
         self._all_errors = []
         self.count_label.setText("Ошибок не обнаружено")
         self.detail_text.clear()
+        self.general_level_label.setText("—")
+        self.general_level_label.setStyleSheet(
+            "font-size: 20px; font-weight: bold; color: #8b949e; min-width: 90px;")
+        self.general_desc_label.setText("Загрузите текст для анализа")
         for badge in self.skill_badges.values():
             badge.level_label.setText("—")
             badge.desc_label.setText("")
