@@ -164,6 +164,7 @@ def calculate_metrics(tokens: List[TokenInfo], text: str) -> dict:
 
     pos_bigrams = calculate_pos_bigrams(tokens)
     morph_stats = calculate_morph_stats(tokens)
+    morph_indices = calculate_morphological_indices(tokens, text)
 
     return {
         "частоты": freq,
@@ -171,6 +172,118 @@ def calculate_metrics(tokens: List[TokenInfo], text: str) -> dict:
         "профиль_служебных_слов": style_markers,
         "pos_bigrams": pos_bigrams,
         "morph_stats": morph_stats,
+        "morph_indices": morph_indices,
+    }
+
+
+def calculate_morphological_indices(tokens: List[TokenInfo], text: str) -> dict:
+    """
+    20 морфологических индексов идиостиля автора.
+    Источник: Лабораторная работа № 11, СФЭ / Соколова Т.П. (МГЮА).
+    Возвращает список кортежей (название, числитель, знаменатель, значение|None).
+    """
+    words = [t for t in tokens if WORD_RE.search(t.text) and t.pos not in ("PUNCT", "SYM")]
+    total = len(words)
+    if total == 0:
+        return {"indices": [], "total_words": 0, "sent_count": 0}
+
+    sent_lens = [len(WORD_RE.findall(s)) for s in re.split(r"[.!?]+", text) if WORD_RE.findall(s)]
+    sent_count = max(len(sent_lens), 1)
+
+    def pc(*tags):
+        return sum(1 for t in words if t.pos in tags)
+
+    def feat_count(key_ru: str, val_ru: str) -> int:
+        needle = f"{key_ru}: {val_ru}"
+        return sum(1 for t in words if needle in (t.feats or ""))
+
+    noun        = pc("NOUN")
+    propn       = pc("PROPN")
+    noun_all    = noun + propn
+    pron        = pc("PRON")
+    verb        = pc("VERB", "AUX")
+    adj         = pc("ADJ")
+    adv         = pc("ADV")
+    num         = pc("NUM")
+    adp         = pc("ADP")
+    conj        = pc("CCONJ", "SCONJ")
+    part_pos    = pc("PART")
+    det         = pc("DET")
+
+    func_words    = sum(1 for t in words if t.pos in ("ADP", "CCONJ", "SCONJ", "PART", "DET", "INTJ"))
+    service_words = sum(1 for t in words if t.pos in ("ADP", "CCONJ", "SCONJ", "PART"))
+
+    PERS_LEMMAS = {"я", "ты", "он", "она", "оно", "мы", "вы", "они"}
+    personal_pron = sum(1 for t in words if t.pos == "PRON" and t.lemma.lower() in PERS_LEMMAS)
+
+    verb_pres  = feat_count("Время", "настоящее")
+    verb_fut   = feat_count("Время", "будущее")
+    verb_past  = feat_count("Время", "прошедшее")
+    participles = feat_count("Форма глагола", "причастие")
+    gerunds     = feat_count("Форма глагола", "деепричастие")
+
+    case_nom   = feat_count("Падеж", "именительный")
+    case_gen   = feat_count("Падеж", "родительный")
+    case_words = sum(1 for t in words
+                     if t.pos in ("NOUN", "PROPN", "PRON", "ADJ", "DET", "NUM")
+                     and "Падеж:" in (t.feats or ""))
+
+    def r(a, b):
+        if b == 0 or a is None or b is None:
+            return None
+        return round(a / b, 3)
+
+    adj_det_part = adj + det + part_pos
+    nominal      = noun_all + adj + adv + num + pron
+    verb_pf      = verb_pres + verb_fut
+
+    indices = [
+        ("1. Существительные / объём текста",
+         noun, total, r(noun, total)),
+        ("2. Местоимения / объём текста",
+         pron, total, r(pron, total)),
+        ("3. Глаголы / объём текста",
+         verb, total, r(verb, total)),
+        ("4. Местоимения / незнаменательные слова",
+         pron, func_words, r(pron, func_words)),
+        ("5. Личные местоимения / все местоимения",
+         personal_pron, pron, r(personal_pron, pron)),
+        ("6. Собственные сущ. / все существительные",
+         propn, noun_all, r(propn, noun_all)),
+        ("7. Абстрактные / конкретные сущ.",
+         None, None, None),          # требует семантич. разметки
+        ("8. Глаголы наст.+буд. / прошедшее время",
+         verb_pf, verb_past, r(verb_pf, verb_past)),
+        ("9. Существительные / (прил. + опред. + частицы)",
+         noun_all, adj_det_part, r(noun_all, adj_det_part)),
+        ("10. Существительные / местоимения",
+         noun_all, pron, r(noun_all, pron)),
+        ("11. Прилагательные / объём текста",
+         adj, total, r(adj, total)),
+        ("12. Причастия / объём текста",
+         participles, total, r(participles, total)),
+        ("13. Деепричастия / объём текста",
+         gerunds, total, r(gerunds, total)),
+        ("14. Наречия / объём текста",
+         adv, total, r(adv, total)),
+        ("15. Незнаменательные слова / предложения",
+         func_words, sent_count, r(func_words, sent_count)),
+        ("16. Именные ЧР / глаголы",
+         nominal, verb, r(nominal, verb)),
+        ("17. Служебные слова / объём текста",
+         service_words, total, r(service_words, total)),
+        ("18. Союзы / предлоги",
+         conj, adp, r(conj, adp)),
+        ("19. (Им. + Род. пад.) / все падежные формы",
+         case_nom + case_gen, case_words, r(case_nom + case_gen, case_words)),
+        ("20. (Глаголы + существительные) / объём текста",
+         verb + noun_all, total, r(verb + noun_all, total)),
+    ]
+
+    return {
+        "indices": indices,
+        "total_words": total,
+        "sent_count": sent_count,
     }
 
 

@@ -231,3 +231,129 @@ def export_comparison_docx(filepath: str, comp: dict, text1: str, text2: str):
         conclusion = "Существенные различия. Вероятно, разные авторы."
     doc.add_paragraph(conclusion)
     doc.save(filepath)
+
+
+def export_morphology_docx(filepath: str, tokens: List[TokenInfo], morph_indices: dict):
+    """
+    Экспорт морфологической разметки + 20 индексов идиостиля в DOCX.
+    Структура:
+      1. Таблица морфологического разбора (Словоформа | Лемма | ЧР | Морф. признаки)
+      2. Таблица морфологических индексов (20 позиций)
+    """
+    from docx import Document
+    from docx.shared import Pt, RGBColor, Cm
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+
+    doc = Document()
+    style = doc.styles['Normal']
+    style.font.name = 'Times New Roman'
+    style.font.size = Pt(12)
+
+    # ── Заголовок ──────────────────────────────────────────────────────
+    h = doc.add_heading('МОРФОЛОГИЧЕСКИЙ РАЗБОР ТЕКСТА', level=1)
+    h.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph(
+        f'Дата: {datetime.now().strftime("%d.%m.%Y %H:%M")}  |  '
+        f'Токенов: {len(tokens)}'
+    )
+
+    # ── Раздел 1: Морфологическая таблица ─────────────────────────────
+    doc.add_heading('1. Морфологический разбор', level=2)
+
+    headers = ['Словоформа', 'Лемма', 'Часть речи', 'Морфологические признаки']
+    col_widths_cm = [3.0, 3.0, 3.5, 8.5]
+
+    tbl = doc.add_table(rows=1, cols=4)
+    tbl.style = 'Table Grid'
+
+    # Заголовочная строка
+    hdr_row = tbl.rows[0]
+    for i, (h_text, w) in enumerate(zip(headers, col_widths_cm)):
+        cell = hdr_row.cells[i]
+        cell.width = int(Cm(w))
+        p = cell.paragraphs[0]
+        run = p.add_run(h_text)
+        run.bold = True
+        run.font.size = Pt(10)
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        # Серый фон
+        tc_pr = cell._tc.get_or_add_tcPr()
+        shd = OxmlElement('w:shd')
+        shd.set(qn('w:val'), 'clear')
+        shd.set(qn('w:color'), 'auto')
+        shd.set(qn('w:fill'), 'D9D9D9')
+        tc_pr.append(shd)
+
+    # Строки данных
+    for tok in tokens:
+        row_cells = tbl.add_row().cells
+        vals = [tok.text, tok.lemma, tok.pos_label, tok.feats or '—']
+        for i, (cell, val) in enumerate(zip(row_cells, vals)):
+            cell.width = int(Cm(col_widths_cm[i]))
+            p = cell.paragraphs[0]
+            run = p.add_run(val)
+            run.font.size = Pt(9)
+            if i == 2:  # Часть речи — курсив
+                run.italic = True
+
+    doc.add_paragraph('')
+
+    # ── Раздел 2: Морфологические индексы ─────────────────────────────
+    doc.add_heading('2. Морфологические индексы идиостиля', level=2)
+    doc.add_paragraph(
+        'Источник: Лабораторная работа № 11, судебно-фоноскопическая экспертиза / '
+        'Соколова Т.П. (МГЮА). Индекс #7 (абстрактные/конкретные существительные) '
+        'требует семантической разметки и в автоматическом режиме недоступен.'
+    ).runs[0].font.size = Pt(10)
+
+    total_w = morph_indices.get("total_words", 0)
+    sent_c  = morph_indices.get("sent_count", 0)
+    doc.add_paragraph(
+        f'Вербальный объём: {total_w} слов  |  Предложений: {sent_c}'
+    ).runs[0].font.size = Pt(10)
+
+    idx_headers = ['№', 'Индекс', 'Числитель', 'Знаменатель', 'Значение']
+    idx_widths  = [0.8, 8.2, 2.0, 2.2, 2.2]
+
+    tbl2 = doc.add_table(rows=1, cols=5)
+    tbl2.style = 'Table Grid'
+
+    hdr2 = tbl2.rows[0]
+    for i, (h_text, w) in enumerate(zip(idx_headers, idx_widths)):
+        cell = hdr2.cells[i]
+        cell.width = int(Cm(w))
+        p = cell.paragraphs[0]
+        run = p.add_run(h_text)
+        run.bold = True
+        run.font.size = Pt(10)
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        tc_pr = cell._tc.get_or_add_tcPr()
+        shd = OxmlElement('w:shd')
+        shd.set(qn('w:val'), 'clear')
+        shd.set(qn('w:color'), 'auto')
+        shd.set(qn('w:fill'), 'D9D9D9')
+        tc_pr.append(shd)
+
+    indices = morph_indices.get("indices", [])
+    for idx, (name, num, den, val) in enumerate(indices, 1):
+        row_cells = tbl2.add_row().cells
+        num_s = str(num) if num is not None else '—'
+        den_s = str(den) if den is not None else '—'
+        val_s = str(val) if val is not None else 'нет данных'
+        widths = idx_widths
+        for i, (cell, txt) in enumerate(zip(row_cells,
+                                            [str(idx), name, num_s, den_s, val_s])):
+            cell.width = int(Cm(widths[i]))
+            p = cell.paragraphs[0]
+            run = p.add_run(txt)
+            run.font.size = Pt(10)
+            if i == 4 and val is not None:
+                run.bold = True
+            if i == 4 and val is None:
+                run.font.color.rgb = RGBColor(0x88, 0x88, 0x88)
+            if i in (2, 3, 4):
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    doc.save(filepath)

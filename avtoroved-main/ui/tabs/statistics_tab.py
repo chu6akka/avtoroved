@@ -103,6 +103,34 @@ class StatisticsTab(QWidget):
         bl.addWidget(bigram_group)
         self._inner_tabs.addTab(tab_bigrams, "🔗 POS-биграммы")
 
+        # ── Вкладка 4: Морфологические индексы идиостиля ─────────────
+        tab_idx = QWidget()
+        il = QVBoxLayout(tab_idx)
+        il.setContentsMargins(4, 4, 4, 4)
+        idx_hdr = QLabel(
+            "20 морфологических индексов идиостиля автора.\n"
+            "Источник: Лаб. работа № 11, СФЭ / Соколова Т.П. (МГЮА).\n"
+            "Индекс #7 требует семантической разметки и рассчитывается отдельно."
+        )
+        idx_hdr.setObjectName("caption")
+        idx_hdr.setWordWrap(True)
+        il.addWidget(idx_hdr)
+        idx_group = QGroupBox("Индексы")
+        idx_lay = QVBoxLayout(idx_group)
+        self.indices_table = QTableWidget()
+        self.indices_table.setColumnCount(4)
+        self.indices_table.setHorizontalHeaderLabels(["Индекс", "Числитель", "Знаменатель", "Значение"])
+        self.indices_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.indices_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.indices_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.indices_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self.indices_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.indices_table.verticalHeader().setVisible(False)
+        self.indices_table.setAlternatingRowColors(True)
+        idx_lay.addWidget(self.indices_table)
+        il.addWidget(idx_group)
+        self._inner_tabs.addTab(tab_idx, "📐 Индексы идиостиля")
+
     # Цвета для морфологических категорий
     _CAT_COLORS = {
         "Падеж":          "#89b4fa",
@@ -149,6 +177,9 @@ class StatisticsTab(QWidget):
 
         # ── Морфемы на 100 слов ───────────────────────────────────────
         self._populate_morph(metrics.get("morph_stats", {}))
+
+        # ── Морфологические индексы ───────────────────────────────────
+        self._populate_indices(metrics.get("morph_indices", {}))
 
         # ── POS-биграммы ──────────────────────────────────────────────
         pos_bg = metrics.get("pos_bigrams", {})
@@ -215,6 +246,29 @@ class StatisticsTab(QWidget):
 
         self._morph_layout.addStretch()
 
+    def _populate_indices(self, morph_indices: dict):
+        """Заполнить таблицу морфологических индексов идиостиля."""
+        indices = morph_indices.get("indices", [])
+        self.indices_table.setRowCount(len(indices))
+        for row, (name, num, den, val) in enumerate(indices):
+            num_s = str(num) if num is not None else "—"
+            den_s = str(den) if den is not None else "—"
+            val_s = str(val) if val is not None else "нет данных"
+
+            items = [
+                QTableWidgetItem(name),
+                QTableWidgetItem(num_s),
+                QTableWidgetItem(den_s),
+                QTableWidgetItem(val_s),
+            ]
+            for col, item in enumerate(items):
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                if col == 3 and val is not None:
+                    item.setForeground(QColor("#e8a030"))
+                elif val is None:
+                    item.setForeground(QColor("#6b7280"))
+                self.indices_table.setItem(row, col, item)
+
     def _is_dark(self) -> bool:
         palette = self.palette()
         bg = palette.color(palette.ColorRole.Window)
@@ -223,6 +277,7 @@ class StatisticsTab(QWidget):
     def clear(self):
         self.metrics_table.setRowCount(0)
         self.bigram_table.setRowCount(0)
+        self.indices_table.setRowCount(0)
         while self._morph_layout.count():
             child = self._morph_layout.takeAt(0)
             if child.widget():

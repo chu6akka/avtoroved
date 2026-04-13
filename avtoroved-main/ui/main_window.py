@@ -944,7 +944,8 @@ class MainWindow(QMainWindow):
         self.word_count_label.setText(vol_status)
 
         # Морфология
-        self.tab_morph.populate(tokens, text)
+        morph_indices = metrics.get("morph_indices", {})
+        self.tab_morph.populate(tokens, text, morph_indices)
 
         # Статистика
         self.tab_stats.populate(metrics)
