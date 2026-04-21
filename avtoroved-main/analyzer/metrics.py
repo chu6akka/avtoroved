@@ -119,6 +119,129 @@ def calculate_morph_stats(tokens: List[TokenInfo]) -> dict:
     return result
 
 
+def _feat(tok: TokenInfo, key: str) -> str:
+    """Вернуть значение морфологического признака из tok.feats."""
+    for part in tok.feats.split(";"):
+        part = part.strip()
+        if part.startswith(key + ":"):
+            return part.split(":", 1)[1].strip()
+    return ""
+
+
+def calculate_sae_coefficients(tokens: List[TokenInfo]) -> dict:
+    """
+    Вычисление 20 морфологических коэффициентов по методике
+    судебной автороведческой экспертизы (С.М. Вул, Е.И. Галяшина).
+
+    Местоимения = PRON + DET (по традиционной рус. грамматике;
+      "мой/твой/этот" в UD тегируются как DET, а не PRON)
+    Глаголы = VERB + AUX, но без Причастий и Деепричастий
+    Краткие прилагательные — через признак Variant: Short
+    Притяжательные местоимения — через признак Poss: Yes
+    """
+    words = [t for t in tokens if WORD_RE.search(t.text) and t.pos != "PUNCT"]
+    total = len(words)
+    if total == 0:
+        return {}
+
+    pos_lbl = Counter(t.pos_label for t in words)
+
+    # ── базовые категории ──────────────────────────────────────────
+    # Местоимения (PRON + DET) — в рус. грамматике одна категория
+    N_pron = pos_lbl.get("Местоимение", 0) + pos_lbl.get("Определительное слово", 0)
+    # Глаголы личной формы (без причастий и деепричастий, но с вспомогательными)
+    N_verb = pos_lbl.get("Глагол", 0) + pos_lbl.get("Вспомогательный глагол", 0)
+    N_adj  = pos_lbl.get("Прилагательное", 0)
+    N_adv  = pos_lbl.get("Наречие", 0)
+    N_noun = pos_lbl.get("Существительное", 0) + pos_lbl.get("Имя собственное", 0)
+    N_part = pos_lbl.get("Причастие", 0)       # VerbForm=Part
+    N_conv = pos_lbl.get("Деепричастие", 0)    # VerbForm=Conv
+    N_num  = pos_lbl.get("Числительное", 0)
+    N_prep = pos_lbl.get("Предлог", 0)
+    N_ptcl = pos_lbl.get("Частица", 0)
+    N_conj = (pos_lbl.get("Сочинительный союз", 0)
+              + pos_lbl.get("Подчинительный союз", 0))
+
+    # ── подкатегории из морф. признаков ────────────────────────────
+    # Краткие прилагательные (Variant: Short)
+    N_short_adj = sum(
+        1 for t in words
+        if t.pos_label == "Прилагательное" and "Variant: Short" in t.feats
+    )
+    # Притяжательные местоимения (Poss: Yes) — PRON или DET
+    N_poss = sum(
+        1 for t in words
+        if t.pos in ("PRON", "DET") and "Poss: Yes" in t.feats
+    )
+    # Личные местоимения (PronType: Prs)
+    N_pers = sum(
+        1 for t in words
+        if t.pos == "PRON" and "PronType: Prs" in t.feats
+    )
+
+    def _k(a: int, b: int) -> str:
+        """Форматирует коэффициент: числитель/знаменатель = значение."""
+        if b == 0:
+            return f"{a}/0 = н/д"
+        return f"{a}/{b} = {round(a / b, 3)}"
+
+    coefficients = [
+        # (номер, описание, числитель, знаменатель)
+        (1,  "Местоимения / текст",                           N_pron,          total),
+        (2,  "Глаголы / текст",                               N_verb,          total),
+        (3,  "Прилагательные / текст",                        N_adj,           total),
+        (4,  "Наречия / текст",                               N_adv,           total),
+        (5,  "Краткие формы / все прилагательные",            N_short_adj,     N_adj),
+        (6,  "Притяжательные местоимения / все местоимения",  N_poss,          N_pron),
+        (7,  "Прилагательные / существительные",              N_adj,           N_noun),
+        (8,  "Местоимения / прилагательные",                  N_pron,          N_adj),
+        (9,  "Существительные / глаголы",                     N_noun,          N_verb),
+        (10, "Местоимения / глаголы",                         N_pron,          N_verb),
+        (11, "Числительные / текст",                          N_num,           total),
+        (12, "Предлоги / текст",                              N_prep,          total),
+        (13, "Частицы / текст",                               N_ptcl,          total),
+        (14, "Союзы / текст",                                 N_conj,          total),
+        (15, "Наречия / прилагательные",                      N_adv,           N_adj),
+        (16, "Причастия / текст",                             N_part,          total),
+        (17, "Деепричастия / текст",                          N_conv,          total),
+        (18, "Глаголы / наречия",                             N_verb,          N_adv),
+        (19, "(Прилагательные + Причастия) / Деепричастия",  N_adj + N_part,  N_conv),
+        (20, "(Прилагательные + Числительные) / текст",       N_adj + N_num,   total),
+    ]
+
+    rows = [
+        {
+            "n": n,
+            "label": lbl,
+            "numerator": a,
+            "denominator": b,
+            "value": round(a / b, 3) if b else None,
+            "display": _k(a, b),
+        }
+        for n, lbl, a, b in coefficients
+    ]
+
+    base_counts = {
+        "Всего слов": total,
+        "Местоимения (PRON + DET)": N_pron,
+        "  в т.ч. личные": N_pers,
+        "  в т.ч. притяжательные": N_poss,
+        "Глаголы (личные формы)": N_verb,
+        "Прилагательные": N_adj,
+        "  в т.ч. краткие формы": N_short_adj,
+        "Наречия": N_adv,
+        "Существительные": N_noun,
+        "Причастия": N_part,
+        "Деепричастия": N_conv,
+        "Числительные": N_num,
+        "Предлоги": N_prep,
+        "Частицы": N_ptcl,
+        "Союзы": N_conj,
+    }
+
+    return {"rows": rows, "base_counts": base_counts}
+
+
 def calculate_metrics(tokens: List[TokenInfo], text: str) -> dict:
     words = [t for t in tokens if WORD_RE.search(t.text) and t.pos != "PUNCT"]
     total = len(words)
@@ -164,6 +287,7 @@ def calculate_metrics(tokens: List[TokenInfo], text: str) -> dict:
 
     pos_bigrams = calculate_pos_bigrams(tokens)
     morph_stats = calculate_morph_stats(tokens)
+    sae = calculate_sae_coefficients(tokens)
 
     return {
         "частоты": freq,
@@ -171,6 +295,7 @@ def calculate_metrics(tokens: List[TokenInfo], text: str) -> dict:
         "профиль_служебных_слов": style_markers,
         "pos_bigrams": pos_bigrams,
         "morph_stats": morph_stats,
+        "sae_coefficients": sae,
     }
 
 
