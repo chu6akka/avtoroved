@@ -82,11 +82,48 @@ def export_report_docx(filepath: str, text: str, metrics: dict,
             row[1].text = str(v['количество'])
             row[2].text = f"{v['коэффициент']:.2%}"
 
-    # 3.1. POS-биграммы
+    # 3.1. Морфологические коэффициенты (методика САЭ)
+    sae = metrics.get("sae_coefficients", {})
+    sae_rows = sae.get("rows", [])
+    base_cnt = sae.get("base_counts", {})
+    if sae_rows:
+        doc.add_heading('3.1. Морфологические коэффициенты (САЭ)', level=2)
+        doc.add_paragraph(
+            'По методике С.М. Вул, Е.И. Галяшиной. '
+            'Местоимения = PRON + DET (соответствует традиционной русской грамматике). '
+            'Глаголы — личные формы (без причастий и деепричастий).'
+        )
+        # Базовые счётчики
+        doc.add_paragraph('Базовые счётчики:').bold = True
+        t_base = doc.add_table(rows=1, cols=2)
+        t_base.style = 'Light Grid Accent 1'
+        t_base.rows[0].cells[0].text = 'Категория'
+        t_base.rows[0].cells[1].text = 'Количество'
+        for lbl, cnt in base_cnt.items():
+            row = t_base.add_row().cells
+            row[0].text = str(lbl)
+            row[1].text = str(cnt)
+        doc.add_paragraph('')
+        # 20 коэффициентов
+        t_sae = doc.add_table(rows=1, cols=4)
+        t_sae.style = 'Light Grid Accent 1'
+        hdr = t_sae.rows[0].cells
+        hdr[0].text = '№'
+        hdr[1].text = 'Показатель'
+        hdr[2].text = 'Числ./знаменатель'
+        hdr[3].text = 'Коэффициент'
+        for r in sae_rows:
+            row = t_sae.add_row().cells
+            row[0].text = str(r["n"])
+            row[1].text = r["label"]
+            row[2].text = f"{r['numerator']}/{r['denominator']}"
+            row[3].text = f"{r['value']:.3f}" if r["value"] is not None else "н/д"
+
+    # 3.2. POS-биграммы
     pos_bg = metrics.get("pos_bigrams", {})
     top_bg = pos_bg.get("top_bigrams", [])
     if top_bg:
-        doc.add_heading('3.1. Коэффициенты сочетаемости частеречных пар', level=2)
+        doc.add_heading('3.2. Коэффициенты сочетаемости частеречных пар (POS-биграммы)', level=2)
         doc.add_paragraph(
             'Метод POS-биграмм: частотное распределение последовательных пар '
             'частей речи отражает грамматические привычки автора. '

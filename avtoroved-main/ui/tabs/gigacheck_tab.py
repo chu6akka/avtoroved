@@ -80,8 +80,16 @@ class GigaCheckTab(QWidget):
         self.btn_detect = QPushButton("🔍 Проверить текст на ИИ")
         self.btn_detect.setEnabled(False)
         self.btn_detect.clicked.connect(self._run_detect)
+        btn_install = QPushButton("📦 Установить зависимости")
+        btn_install.setObjectName("secondary")
+        btn_install.setToolTip(
+            "Автоматически установит:\n"
+            "  pip install git+https://github.com/ai-forever/gigacheck\n"
+            "  pip install transformers torch")
+        btn_install.clicked.connect(self._install_deps)
         btn_row.addWidget(self.btn_load)
         btn_row.addWidget(self.btn_detect)
+        btn_row.addWidget(btn_install)
         btn_row.addStretch()
         ctrl_layout.addLayout(btn_row)
 
@@ -135,6 +143,77 @@ class GigaCheckTab(QWidget):
         self.highlighted_text.setPlainText(text)
         self.score_label.setText("—")
         self.verdict_label.setText("Нажмите «Проверить текст на ИИ»")
+
+    def _install_deps(self):
+        """Автоматически установить gigacheck + transformers + torch."""
+        import subprocess, sys
+        self.status_label.setText("Устанавливаются зависимости...")
+        self.progress.setVisible(True)
+
+        class _InstallThread(QThread):
+            done = pyqtSignal(bool, str)
+            progress_msg = pyqtSignal(str)
+
+            def run(self):
+                # Проверяем, установлен ли torch
+                try:
+                    import torch as _  # noqa
+                    torch_ok = True
+                except ImportError:
+                    torch_ok = False
+
+                # --- torch: сначала пробуем CPU-wheel с официального индекса PyTorch ---
+                if not torch_ok:
+                    self.progress_msg.emit("Устанавливается torch (CPU-wheel)...")
+                    r = subprocess.run(
+                        [sys.executable, "-m", "pip", "install", "--quiet",
+                         "torch", "--index-url",
+                         "https://download.pytorch.org/whl/cpu"],
+                        capture_output=True, text=True, timeout=600)
+                    if r.returncode != 0:
+                        # Запасной вариант — обычный PyPI (может быть медленнее)
+                        self.progress_msg.emit("Пробуем torch из PyPI...")
+                        r2 = subprocess.run(
+                            [sys.executable, "-m", "pip", "install", "--quiet", "torch"],
+                            capture_output=True, text=True, timeout=600)
+                        if r2.returncode != 0:
+                            self.done.emit(False, r2.stderr[-400:])
+                            return
+
+                # --- transformers ---
+                self.progress_msg.emit("Устанавливается transformers...")
+                r = subprocess.run(
+                    [sys.executable, "-m", "pip", "install", "--quiet", "transformers"],
+                    capture_output=True, text=True, timeout=300)
+                if r.returncode != 0:
+                    self.done.emit(False, r.stderr[-400:])
+                    return
+
+                # --- gigacheck (опционально, не блокирует при ошибке) ---
+                self.progress_msg.emit("Устанавливается gigacheck (опционально)...")
+                subprocess.run(
+                    [sys.executable, "-m", "pip", "install", "--quiet",
+                     "git+https://github.com/ai-forever/gigacheck"],
+                    capture_output=True, text=True, timeout=300)
+
+                self.done.emit(True, "")
+
+        def _on_done(ok, err):
+            self.progress.setVisible(False)
+            if ok:
+                self.status_label.setText("✓ Зависимости установлены. Нажмите «Загрузить модель».")
+            else:
+                self.status_label.setText(f"Ошибка установки: {err[:80]}")
+                QMessageBox.critical(self, "Ошибка установки",
+                    f"Не удалось установить torch/transformers:\n\n{err}\n\n"
+                    "Попробуйте вручную в терминале:\n"
+                    "  pip install torch --index-url https://download.pytorch.org/whl/cpu\n"
+                    "  pip install transformers")
+
+        self._install_thread = _InstallThread()
+        self._install_thread.done.connect(_on_done)
+        self._install_thread.progress_msg.connect(self.status_label.setText)
+        self._install_thread.start()
 
     def _load_model(self):
         self.btn_load.setEnabled(False)
