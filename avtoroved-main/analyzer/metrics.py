@@ -324,8 +324,12 @@ def calculate_morphological_indices(tokens: List[TokenInfo], text: str) -> dict:
 
     noun        = pc("NOUN")
     propn       = pc("PROPN")
-    noun_all    = noun + propn
-    pron        = pc("PRON")
+    noun_all    = noun + propn          # существительные + имена собственные
+    det         = pc("DET")
+    # В традиционной русской грамматике «местоимения» = PRON + DET
+    # (DET = местоимения-прилагательные: этот, мой, тот, наш, какой…)
+    pron_pron   = pc("PRON")            # только местоимения-существительные (я/ты/он/что)
+    pron_all    = pc("PRON", "DET")     # все местоимения (для индексов 2, 5, 10)
     verb        = pc("VERB", "AUX")
     adj         = pc("ADJ")
     adv         = pc("ADV")
@@ -333,7 +337,6 @@ def calculate_morphological_indices(tokens: List[TokenInfo], text: str) -> dict:
     adp         = pc("ADP")
     conj        = pc("CCONJ", "SCONJ")
     part_pos    = pc("PART")
-    det         = pc("DET")
 
     func_words    = sum(1 for t in words if t.pos in ("ADP", "CCONJ", "SCONJ", "PART", "DET", "INTJ"))
     service_words = sum(1 for t in words if t.pos in ("ADP", "CCONJ", "SCONJ", "PART"))
@@ -347,32 +350,54 @@ def calculate_morphological_indices(tokens: List[TokenInfo], text: str) -> dict:
     participles = feat_count("Форма глагола", "причастие")
     gerunds     = feat_count("Форма глагола", "деепричастие")
 
-    case_nom   = feat_count("Падеж", "именительный")
-    case_gen   = feat_count("Падеж", "родительный")
-    case_words = sum(1 for t in words
-                     if t.pos in ("NOUN", "PROPN", "PRON", "ADJ", "DET", "NUM")
-                     and "Падеж:" in (t.feats or ""))
+    # Слова категории состояния (предикативные наречия):
+    # Stanza тегирует их как ADV, но в методике Соколовой они учитываются
+    # в знаменателе индекса 16 вместе с глаголами, а не в индексе 14 (наречия).
+    _PRED_ADV = {
+        "можно", "нельзя", "нужно", "надо", "необходимо",
+        "жалко", "жаль", "больно", "стыдно", "скучно", "смешно",
+        "страшно", "странно", "интересно", "важно",
+        "видно", "слышно", "понятно", "ясно",
+        "пора", "некогда", "незачем",
+    }
+    pred_adv = sum(1 for t in words if t.pos == "ADV" and t.lemma.lower() in _PRED_ADV)
+    adv_pure = adv - pred_adv          # чистые наречия (для индекса 14)
+
+    # Падежные формы — только существительные и местоимения-существительные
+    # (методика Соколовой не включает прилагательные в индекс 19)
+    _CASE_POS = ("NOUN", "PROPN", "PRON")
+    case_nom   = sum(1 for t in words if t.pos in _CASE_POS and "Падеж: именительный" in (t.feats or ""))
+    case_gen   = sum(1 for t in words if t.pos in _CASE_POS and "Падеж: родительный"  in (t.feats or ""))
+    case_words = sum(1 for t in words if t.pos in _CASE_POS and "Падеж:"              in (t.feats or ""))
 
     def r(a, b):
         if b == 0 or a is None or b is None:
             return None
         return round(a / b, 3)
 
+    # Именные ЧР: сущ. + прил. + чист.наречия + числит. + все местоимения
+    nominal      = noun_all + adj + adv_pure + num + pron_all
+    # Знаменатель индекса 16: глаголы + предикативные наречия (СКС)
+    verb_pred    = verb + pred_adv
+    # Знаменатель индекса 9: прилагательные + определительные слова + частицы
     adj_det_part = adj + det + part_pos
-    nominal      = noun_all + adj + adv + num + pron
     verb_pf      = verb_pres + verb_fut
 
     indices = [
+        # Индекс 1: все существительные (NOUN + PROPN) / объём
         ("1. Существительные / объём текста",
-         noun, total, r(noun, total)),
+         noun_all, total, r(noun_all, total)),
+        # Индекс 2: все местоимения (PRON + DET) / объём
         ("2. Местоимения / объём текста",
-         pron, total, r(pron, total)),
+         pron_all, total, r(pron_all, total)),
         ("3. Глаголы / объём текста",
          verb, total, r(verb, total)),
+        # Индекс 4: местоимения-существительные / незнаменательные слова
         ("4. Местоимения / незнаменательные слова",
-         pron, func_words, r(pron, func_words)),
+         pron_pron, func_words, r(pron_pron, func_words)),
+        # Индекс 5: личные мест. / все местоимения (PRON + DET)
         ("5. Личные местоимения / все местоимения",
-         personal_pron, pron, r(personal_pron, pron)),
+         personal_pron, pron_all, r(personal_pron, pron_all)),
         ("6. Собственные сущ. / все существительные",
          propn, noun_all, r(propn, noun_all)),
         ("7. Абстрактные / конкретные сущ.",
@@ -381,25 +406,29 @@ def calculate_morphological_indices(tokens: List[TokenInfo], text: str) -> dict:
          verb_pf, verb_past, r(verb_pf, verb_past)),
         ("9. Существительные / (прил. + опред. + частицы)",
          noun_all, adj_det_part, r(noun_all, adj_det_part)),
+        # Индекс 10: сущ. / все местоимения (PRON + DET)
         ("10. Существительные / местоимения",
-         noun_all, pron, r(noun_all, pron)),
+         noun_all, pron_all, r(noun_all, pron_all)),
         ("11. Прилагательные / объём текста",
          adj, total, r(adj, total)),
         ("12. Причастия / объём текста",
          participles, total, r(participles, total)),
         ("13. Деепричастия / объём текста",
          gerunds, total, r(gerunds, total)),
+        # Индекс 14: чистые наречия (без СКС) / объём
         ("14. Наречия / объём текста",
-         adv, total, r(adv, total)),
+         adv_pure, total, r(adv_pure, total)),
         ("15. Незнаменательные слова / предложения",
          func_words, sent_count, r(func_words, sent_count)),
-        ("16. Именные ЧР / глаголы",
-         nominal, verb, r(nominal, verb)),
+        # Индекс 16: именные ЧР / (глаголы + СКС)
+        ("16. Именные ЧР / (глаголы + предикативные наречия)",
+         nominal, verb_pred, r(nominal, verb_pred)),
         ("17. Служебные слова / объём текста",
          service_words, total, r(service_words, total)),
         ("18. Союзы / предлоги",
          conj, adp, r(conj, adp)),
-        ("19. (Им. + Род. пад.) / все падежные формы",
+        # Индекс 19: только NOUN+PROPN+PRON (без ADJ/DET/NUM)
+        ("19. (Им. + Род. пад.) / все падежные формы сущ. и мест.",
          case_nom + case_gen, case_words, r(case_nom + case_gen, case_words)),
         ("20. (Глаголы + существительные) / объём текста",
          verb + noun_all, total, r(verb + noun_all, total)),
