@@ -111,6 +111,46 @@ def test_import_document_end_to_end(tmp_path, pdb):
     assert "выполнена NLP-разметка" in actions
 
 
+def test_assess_extraction_thresholds():
+    # 0 токенов → пусто, "текст не извлечён"
+    st, reason = ingest.assess_extraction("a.txt", 0, 0)
+    assert st == ingest.STATUS_EMPTY and "не извлеч" in reason
+    # извлечено, но < MIN_WORDS_EMPTY → пусто
+    st, _ = ingest.assess_extraction("a.txt", 5, 7)
+    assert st == ingest.STATUS_EMPTY
+    # между порогами → мало
+    st, _ = ingest.assess_extraction("a.txt", 50, 80)
+    assert st == ingest.STATUS_LOW
+    # выше минимума образца → ок
+    st, _ = ingest.assess_extraction("a.txt", 500, 600)
+    assert st == ingest.STATUS_OK
+
+
+def test_assess_extraction_pdf_scan_hint():
+    # PDF с пустым/мизерным текстом → пусто с пояснением про OCR
+    st, reason = ingest.assess_extraction("scan.pdf", 0, 0)
+    assert st == ingest.STATUS_EMPTY
+    assert "OCR" in reason
+
+
+def test_import_empty_document_marked_empty(tmp_path, pdb):
+    f = tmp_path / "empty.txt"
+    f.write_text("   \n\n  ", encoding="utf-8")  # фактически пусто
+    pid = pdb.create_project("Дело")
+    summary = ingest.import_document(
+        pdb, pid, str(f), protocol_db.ROLE_DISPUTED, FakeBackend(),
+        program_version="5.0")
+    assert summary["token_count"] == 0
+    assert summary["extraction_status"] == ingest.STATUS_EMPTY
+    # В журнале есть запись об оценке извлечения.
+    log = pdb.fetch_audit_log(pid)
+    assess = [r for r in log if r["action"] == "оценка извлечения"]
+    assert len(assess) == 1
+    import json
+    details = json.loads(assess[0]["details"])
+    assert details["статус"] == ingest.STATUS_EMPTY
+
+
 def test_pdf_disabled_without_pypdf(tmp_path, pdb):
     # Если pypdf не установлен, extract_text для .pdf даёт понятную ошибку.
     if ingest.PDF_AVAILABLE:

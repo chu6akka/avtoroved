@@ -37,6 +37,42 @@ SUPPORTED_EXTS = (".txt", ".docx") + ((".pdf",) if PDF_AVAILABLE else tuple())
 
 StatusCb = Optional[Callable[[str], None]]
 
+# ── Оценка извлечения текста (защита от пустого/мизерного импорта) ────────────
+# Это НЕ полный гейт пригодности (он будет на следующем этапе), а лишь сигнал,
+# что из файла не извлёкся осмысленный текст.
+MIN_WORDS_EMPTY = 20    # ниже этого (или 0 токенов) — считаем «пусто»
+MIN_WORDS_SAMPLE = 100  # ниже методического минимума образца — «мало» (не блокируем)
+
+STATUS_EMPTY = "пусто"
+STATUS_LOW = "мало"
+STATUS_OK = "ок"
+
+
+def assess_extraction(filename: str, word_count: Optional[int],
+                      token_count: int) -> tuple[str, str]:
+    """
+    Оценить результат извлечения текста документа.
+
+    Возвращает (статус, причина):
+      • STATUS_EMPTY — текст не извлечён (0 токенов) или объём < MIN_WORDS_EMPTY;
+        для PDF с пустым/мизерным текстом причина указывает на необходимость OCR;
+      • STATUS_LOW   — извлечено, но объём < MIN_WORDS_SAMPLE (помечаем, не блокируем);
+      • STATUS_OK    — иначе.
+    """
+    wc = word_count or 0
+    ext = os.path.splitext(filename)[1].lower()
+    if token_count <= 0 or wc < MIN_WORDS_EMPTY:
+        if ext == ".pdf":
+            reason = "PDF без текстового слоя — вероятно скан, требуется OCR"
+        elif token_count <= 0:
+            reason = "текст не извлечён"
+        else:
+            reason = f"извлечено менее {MIN_WORDS_EMPTY} словоформ"
+        return STATUS_EMPTY, reason
+    if wc < MIN_WORDS_SAMPLE:
+        return STATUS_LOW, f"объём ниже методического минимума образца ({MIN_WORDS_SAMPLE} словоформ)"
+    return STATUS_OK, "извлечение в норме"
+
 
 # ── хэш и извлечение текста ──────────────────────────────────────────────────
 def file_sha256(filepath: str) -> str:
@@ -230,6 +266,16 @@ def import_document(
         program_version=program_version,
     )
 
+    # Оценка извлечения: защита от пустого/мизерного текста (не блокирует импорт).
+    status, reason = assess_extraction(filename, wc, n_tok)
+    pdb.log_action(
+        action="оценка извлечения",
+        project_id=project_id,
+        details={"document_id": document_id, "статус": status,
+                 "word_count": wc, "token_count": n_tok, "причина": reason},
+        program_version=program_version,
+    )
+
     return {
         "document_id": document_id,
         "filename": filename,
@@ -237,4 +283,6 @@ def import_document(
         "word_count": wc,
         "sentence_count": n_sent,
         "token_count": n_tok,
+        "extraction_status": status,
+        "extraction_reason": reason,
     }

@@ -9,6 +9,7 @@ ui/tabs/materials_tab.py — вкладка «Материалы» раздел�
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox,
     QLineEdit, QTableWidget, QTableWidgetItem, QHeaderView, QFileDialog,
@@ -240,11 +241,25 @@ class MaterialsTab(QWidget):
 
     def _on_import_done(self, summary: dict):
         self._set_busy(False)
+        status = summary.get("extraction_status", ingest.STATUS_OK)
+        reason = summary.get("extraction_reason", "")
         self.status_label.setText(
             f"Импортирован «{summary['filename']}»: "
             f"{summary['word_count']} словоформ, "
-            f"{summary['sentence_count']} предлож., {summary['token_count']} токенов.")
+            f"{summary['sentence_count']} предлож., {summary['token_count']} токенов "
+            f"— статус извлечения: {status}.")
         self._reload_documents()
+        # Не даём пустому документу молча «уехать дальше».
+        if status == ingest.STATUS_EMPTY:
+            QMessageBox.warning(
+                self, "Текст не извлечён",
+                f"«{summary['filename']}»: {reason}.\n\n"
+                "Документ сохранён, но помечен красным — для экспертизы он непригоден "
+                "без повторного извлечения текста (например, OCR для скана).")
+        elif status == ingest.STATUS_LOW:
+            QMessageBox.information(
+                self, "Малый объём",
+                f"«{summary['filename']}»: {reason}.")
 
     def _on_import_failed(self, msg: str):
         self._set_busy(False)
@@ -260,13 +275,9 @@ class MaterialsTab(QWidget):
             did = doc["id"]
             n_sent = self._pdb.count_sentences(did)
             n_tok = self._pdb.count_tokens(did)
-            has_layers = self._pdb.get_layer(did, protocol_db.LAYER_CLEANED) is not None
-            if has_layers and n_tok > 0:
-                status = "✓ слои + NLP"
-            elif has_layers:
-                status = "слои построены"
-            else:
-                status = "—"
+            # Оценка извлечения (единый источник истины — ingest.assess_extraction).
+            status, reason = ingest.assess_extraction(
+                doc["filename"], doc["word_count"], n_tok)
             sha_short = (doc["file_sha256"] or "")[:12]
             row = self.table.rowCount()
             self.table.insertRow(row)
@@ -276,7 +287,27 @@ class MaterialsTab(QWidget):
             self._set_cell(row, 3, str(doc["word_count"] if doc["word_count"] is not None else "—"))
             self._set_cell(row, 4, str(n_sent))
             self._set_cell(row, 5, str(n_tok))
-            self._set_cell(row, 6, status)
+            self._set_status_cell(row, 6, status, reason)
+
+    # Цвета статуса извлечения: пусто — красный, мало — жёлтый, ок — обычный.
+    _STATUS_ICON = {
+        ingest.STATUS_EMPTY: "❌ пусто",
+        ingest.STATUS_LOW: "⚠ мало",
+        ingest.STATUS_OK: "✓ ок",
+    }
+    _STATUS_COLOR = {
+        ingest.STATUS_EMPTY: "#f38ba8",
+        ingest.STATUS_LOW: "#f9e2af",
+        ingest.STATUS_OK: None,
+    }
+
+    def _set_status_cell(self, row: int, col: int, status: str, reason: str):
+        item = QTableWidgetItem(self._STATUS_ICON.get(status, status))
+        item.setToolTip(reason)
+        color = self._STATUS_COLOR.get(status)
+        if color:
+            item.setForeground(QColor(color))
+        self.table.setItem(row, col, item)
 
     def _set_cell(self, row: int, col: int, text: str):
         item = QTableWidgetItem(text)
