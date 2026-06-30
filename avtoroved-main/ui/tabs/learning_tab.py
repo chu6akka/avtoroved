@@ -125,6 +125,22 @@ class LoadRusvecThread(QThread):
         self.finished.emit(ok)
 
 
+class LoadSBERTThread(QThread):
+    """Фоновый поток загрузки SBERT-модели (первый раз скачивает ~120 МБ)."""
+    status   = pyqtSignal(str)
+    finished = pyqtSignal(bool)
+
+    def __init__(self, lb, model_name: str, parent=None):
+        super().__init__(parent)
+        self.lb = lb
+        self.model_name = model_name
+
+    def run(self):
+        ok = self.lb.load_sbert(model_name=self.model_name,
+                                status_cb=self.status.emit)
+        self.finished.emit(ok)
+
+
 class TrainAnnotatorThread(QThread):
     """Фоновый поток обучения ML-фильтра стратификации."""
     status   = pyqtSignal(str)
@@ -149,6 +165,7 @@ class LearningTab(QWidget):
         self._expand_thread       = None
         self._download_thread     = None
         self._annotator_thread    = None
+        self._sbert_thread        = None
         self._ann_ids: list       = []
         self._ud_ids: list        = []
         self._setup_ui()
@@ -378,6 +395,37 @@ class LearningTab(QWidget):
         self.btn_train.clicked.connect(self._run_training)
         ft_form.addWidget(self.btn_train)
         left_layout.addWidget(ft_group)
+
+        # SBERT
+        sbert_group = QGroupBox("  SBERT — точное сходство текстов (rubert-tiny2)")
+        sbert_group.setObjectName("model_box")
+        sbert_form = QVBoxLayout(sbert_group)
+        sbert_form.setSpacing(6)
+
+        self.lbl_sbert_status = QLabel("SBERT: не загружен")
+        self.lbl_sbert_status.setObjectName("section_status")
+        self.lbl_sbert_status.setStyleSheet("color: #e06c6c;")
+
+        sbert_note = QLabel(
+            "Трансформерная модель (~120 МБ) для сравнения текстов.\n"
+            "При первом нажатии скачивается автоматически.\n"
+            "Заменяет FastText в метрике «Сходство» — точнее для русского языка."
+        )
+        sbert_note.setObjectName("caption")
+        sbert_note.setWordWrap(True)
+
+        self.sbert_op_status = QLabel("")
+        self.sbert_op_status.setWordWrap(True)
+        self.sbert_op_status.setObjectName("subtitle")
+
+        self.btn_load_sbert = QPushButton("▶  Загрузить SBERT (~120 МБ)")
+        self.btn_load_sbert.setObjectName("primary")
+        self.btn_load_sbert.clicked.connect(self._load_sbert)
+
+        for w in (self.lbl_sbert_status, sbert_note, self.sbert_op_status,
+                  self.btn_load_sbert):
+            sbert_form.addWidget(w)
+        left_layout.addWidget(sbert_group)
 
         left_layout.addStretch()
         splitter.addWidget(left)
@@ -659,6 +707,17 @@ class LearningTab(QWidget):
             self.lbl_ft_status.setStyleSheet("color: #e06c6c;")
             self.lbl_vocab.setText("Словарь: —")
 
+        if self._lb.sbert_ready:
+            self.lbl_sbert_status.setText("SBERT: загружен ✓  (активен для сравнения)")
+            self.lbl_sbert_status.setStyleSheet("color: #6abf69;")
+            self.btn_load_sbert.setText("✓ SBERT загружен")
+            self.btn_load_sbert.setEnabled(False)
+        else:
+            self.lbl_sbert_status.setText("SBERT: не загружен")
+            self.lbl_sbert_status.setStyleSheet("color: #e06c6c;")
+            self.btn_load_sbert.setText("▶  Загрузить SBERT (~120 МБ)")
+            self.btn_load_sbert.setEnabled(self._sbert_thread is None)
+
         can_train = s["ready_for_training"]
         self.btn_train.setEnabled(can_train and self._train_thread is None)
         if not can_train:
@@ -710,6 +769,26 @@ class LearningTab(QWidget):
             self.train_status.setText("FastText обучен ✓")
         else:
             self.train_status.setText("Обучение не удалось (мало данных?)")
+        self.refresh()
+
+    # ── SBERT ─────────────────────────────────────────────────────────────
+
+    def _load_sbert(self):
+        from analyzer.learning_backend import _SBERT_MODEL_NAME
+        self.btn_load_sbert.setEnabled(False)
+        self.sbert_op_status.setText("Загрузка SBERT… (первый раз скачивает ~120 МБ)")
+        self._sbert_thread = LoadSBERTThread(self._lb, _SBERT_MODEL_NAME, parent=self)
+        self._sbert_thread.status.connect(self.sbert_op_status.setText)
+        self._sbert_thread.finished.connect(self._on_sbert_loaded)
+        self._sbert_thread.start()
+
+    def _on_sbert_loaded(self, success: bool):
+        self._sbert_thread = None
+        if success:
+            self.sbert_op_status.setText("SBERT загружен — точное сходство текстов активно ✓")
+        else:
+            self.sbert_op_status.setText(
+                "Ошибка загрузки. Убедитесь что установлен: pip install sentence-transformers")
         self.refresh()
 
     # ── Navec: универсальный обработчик кнопки ───────────────────────────

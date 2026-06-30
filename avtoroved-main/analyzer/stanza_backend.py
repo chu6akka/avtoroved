@@ -146,7 +146,11 @@ class StanzaBackend:
             if "=" in pair:
                 k, v = pair.split("=", 1)
                 k_ru = FEAT_RU.get(k, k)
-                v_ru = FEAT_RU.get(v, v)
+                # Коллизия "Imp": Aspect=Imp (несовершенный) vs Mood=Imp (повелительное).
+                if k == "Mood" and v == "Imp":
+                    v_ru = "повелительное"
+                else:
+                    v_ru = FEAT_RU.get(v, v)
                 parts.append(f"{k_ru}: {v_ru}")
             else:
                 parts.append(FEAT_RU.get(pair, pair))

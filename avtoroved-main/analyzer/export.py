@@ -170,26 +170,28 @@ def export_report_docx(filepath: str, text: str, metrics: dict,
 
     # 6. Лексическая стратификация
     if strat_result:
+        from analyzer.stratification_engine import LAYER_META
+        marked = len(strat_result.tokens)
         doc.add_heading('6. Лексическая стратификация', level=2)
         doc.add_paragraph(
-            f'Маркированных единиц: {strat_result.marked_words} из {strat_result.total_words} слов.')
+            f'Маркированных единиц: {marked} из {strat_result.total_words} слов '
+            f'({strat_result.marked_ratio:.1%}).')
         t4 = doc.add_table(rows=1, cols=3)
         t4.style = 'Light Grid Accent 1'
         t4.rows[0].cells[0].text = 'Пласт'
         t4.rows[0].cells[1].text = 'Кол-во'
         t4.rows[0].cells[2].text = 'Доля'
-        try:
-            from lexical_stratification import LAYER_ORDER, LAYER_LABELS
-            for layer in LAYER_ORDER:
-                cnt = strat_result.layer_counts.get(layer, 0)
-                if cnt == 0:
-                    continue
-                row = t4.add_row().cells
-                row[0].text = LAYER_LABELS.get(layer, layer)
-                row[1].text = str(cnt)
-                row[2].text = f"{strat_result.layer_ratios.get(layer, 0):.1%}"
-        except ImportError:
-            pass
+        total_w = strat_result.total_words or 1
+        for layer_key, meta in sorted(
+            LAYER_META.items(), key=lambda x: -x[1]["priority"]
+        ):
+            cnt = strat_result.layer_counts.get(layer_key, 0)
+            if cnt == 0:
+                continue
+            row = t4.add_row().cells
+            row[0].text = meta["label"]
+            row[1].text = str(cnt)
+            row[2].text = f"{cnt / total_w:.1%}"
 
     # 7. GigaCheck (если есть)
     if gigacheck_result:
@@ -220,8 +222,16 @@ def export_report_docx(filepath: str, text: str, metrics: dict,
     doc.save(filepath)
 
 
-def export_comparison_docx(filepath: str, comp: dict, text1: str, text2: str):
-    """Экспорт сравнительного анализа в DOCX."""
+def export_comparison_docx(filepath: str, structured, comp: dict,
+                           text1: str, text2: str, expert_verdict: str = ""):
+    """
+    Экспорт сравнительного исследования в DOCX по структуре методики
+    Рубцовой 2007 (ЭКЦ МВД): два комплекса признаков (совпадающие /
+    различающиеся) по уровням НН/НС/НСВ, вспомогательные метрики отдельно,
+    подсказка по шкале (с. 85) и поле вывода эксперта.
+
+    Модуль не печатает решение — окончательный вывод формулирует эксперт.
+    """
     from docx import Document
     from docx.shared import Pt
     from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -231,42 +241,100 @@ def export_comparison_docx(filepath: str, comp: dict, text1: str, text2: str):
     style.font.name = 'Times New Roman'
     style.font.size = Pt(12)
 
-    h = doc.add_heading('СРАВНИТЕЛЬНЫЙ АНАЛИЗ ТЕКСТОВ', level=1)
+    h = doc.add_heading('СРАВНИТЕЛЬНОЕ ИССЛЕДОВАНИЕ ТЕКСТОВ', level=1)
     h.alignment = WD_ALIGN_PARAGRAPH.CENTER
     doc.add_paragraph(f'Дата: {datetime.now().strftime("%d.%m.%Y %H:%M")}')
+    doc.add_paragraph(
+        'Методика: Рубцова И.И. и др. Комплексная методика производства '
+        'судебно-автороведческих экспертиз. — М.: ЭКЦ МВД России, 2007. '
+        'Сравнение по трём уровням индивидуализации речемыслительного навыка '
+        '(НН — набор норм; НС — набор свойств норм; НСВ — набор средств выражения).'
+    )
 
-    doc.add_heading('1. Общее сходство', level=2)
+    # Если структурированного результата нет — деградация к минимуму
+    if structured is None:
+        doc.add_paragraph('Структурированный результат недоступен.')
+        doc.save(filepath)
+        return
+
+    # ── Счётчики ──────────────────────────────────────────────────────────
+    doc.add_heading('1. Итоги сопоставления', level=2)
+    ls = structured.level_summary
+    doc.add_paragraph(
+        f'Всего признаков: {structured.total_features} '
+        f'(совпадающих {len(structured.matches)}, различающихся {len(structured.diffs)}).'
+    )
+    doc.add_paragraph(
+        'По уровням (совпадения/различия): '
+        + ', '.join(f"{lv} {ls.get(lv, {}).get('match', 0)}/{ls.get(lv, {}).get('diff', 0)}"
+                    for lv in ('НН', 'НС', 'НСВ'))
+    )
+    doc.add_paragraph(
+        f'Высокоинформативных совпадений: {structured.high_informative_matches} '
+        f'из требуемых не менее {structured.threshold} (с. 85). '
+        f'Высокоинформативных различий: {structured.high_informative_diffs}.'
+    )
+
+    def _complex_table(title, feats):
+        doc.add_heading(title, level=2)
+        if not feats:
+            doc.add_paragraph('— не выявлено —')
+            return
+        order = {'НН': 0, 'НС': 1, 'НСВ': 2}
+        feats = sorted(feats, key=lambda f: order.get(f.level, 9))
+        table = doc.add_table(rows=1, cols=5)
+        table.style = 'Light Grid Accent 1'
+        hdr = table.rows[0].cells
+        for i, t in enumerate(['Ур.', 'Признак', 'Текст 1', 'Текст 2', 'Высокоинф.']):
+            hdr[i].text = t
+        for f in feats:
+            row = table.add_row().cells
+            row[0].text = f.level
+            row[1].text = f.name + (' (устойч.)' if f.stable else '')
+            row[2].text = str(f.value1)
+            row[3].text = str(f.value2)
+            row[4].text = 'да' if f.high_informative else ''
+            if f.note:
+                note_p = row[1].add_paragraph()
+                run = note_p.add_run(f.note)
+                run.font.size = Pt(9)
+                run.italic = True
+
+    _complex_table('2. Комплекс СОВПАДАЮЩИХ признаков', structured.matches)
+    _complex_table('3. Комплекс РАЗЛИЧАЮЩИХСЯ признаков', structured.diffs)
+
+    # ── Вспомогательные метрики ───────────────────────────────────────────
+    doc.add_heading('4. Вспомогательные объективизирующие показатели '
+                    '(не являются выводом)', level=2)
     table = doc.add_table(rows=1, cols=2)
     table.style = 'Light Grid Accent 1'
-    table.rows[0].cells[0].text = 'Компонент'
+    table.rows[0].cells[0].text = 'Показатель'
     table.rows[0].cells[1].text = 'Значение'
-    for label, key in [("Общее сходство", "overall"), ("Лексическое (Jaccard)", "jaccard"),
+    for label, key in [("Общее сходство (агрегат)", "overall"),
+                       ("Лексическое (Jaccard)", "jaccard"),
                        ("Морфологическое (POS)", "pos_similarity"),
                        ("Синтаксическое", "syntactic_similarity"),
                        ("TTR-сходство", "ttr_similarity"),
-                       ("POS-биграммное", "bigram_similarity")]:
-        if key in comp:
+                       ("POS-биграммное", "bigram_similarity"),
+                       ("SBERT (семантическое)", "sbert_sim")]:
+        if key in (comp or {}):
             row = table.add_row().cells
             row[0].text = label
             row[1].text = f"{comp[key]:.1%}"
 
-    doc.add_heading('2. Совпадающие леммы', level=2)
-    if comp["common_lemmas"]:
-        doc.add_paragraph(", ".join(comp["common_lemmas"]))
-    else:
-        doc.add_paragraph("Совпадений не обнаружено.")
+    # ── Подсказка и вывод эксперта ────────────────────────────────────────
+    doc.add_heading('5. Синтезирующая стадия', level=2)
+    p = doc.add_paragraph()
+    p.add_run('Подсказка по шкале (с. 85, НЕ вывод): ').bold = True
+    p.add_run(structured.hint)
+    if structured.hint_basis:
+        doc.add_paragraph('Основание: ' + '; '.join(structured.hint_basis) + '.')
+    doc.add_paragraph('Окончательный вывод формулирует эксперт.').italic = True
 
-    doc.add_heading('3. Вывод', level=2)
-    sim = comp["overall"]
-    if sim >= 0.7:
-        conclusion = "Высокая степень сходства. Возможна принадлежность одному автору."
-    elif sim >= 0.5:
-        conclusion = "Средняя степень сходства. Необходимо расширение материала."
-    elif sim >= 0.3:
-        conclusion = "Умеренные различия. Разные авторы или ситуации."
-    else:
-        conclusion = "Существенные различия. Вероятно, разные авторы."
-    doc.add_paragraph(conclusion)
+    doc.add_heading('Вывод эксперта', level=3)
+    doc.add_paragraph(expert_verdict if expert_verdict.strip()
+                      else '__________________________________________________')
+
     doc.save(filepath)
 
 

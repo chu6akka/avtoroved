@@ -1,28 +1,45 @@
 """
-Вкладка 6: Сравнение текстов.
+Вкладка 6: Сравнительное исследование текстов.
+
+Структура — по методике Рубцовой 2007 (ЭКЦ МВД):
+  два комплекса признаков (совпадающие / различающиеся), разнесённые
+  по трём уровням НН/НС/НСВ; счётчик высокоинформативных совпадений
+  против порога 20; вспомогательные объективизирующие метрики отдельно;
+  подсказка по шкале (с. 85) и ПОЛЕ ДЛЯ ВЫВОДА ЭКСПЕРТА.
+
+Модуль не выносит решение — окончательный вывод формулирует эксперт.
 """
 from __future__ import annotations
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
     QGroupBox, QTextEdit, QPushButton, QLabel,
     QFileDialog, QMessageBox, QTableWidget,
-    QTableWidgetItem, QHeaderView
+    QTableWidgetItem, QHeaderView, QScrollArea, QFrame
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor
 
+from analyzer import comparison_engine as ce
+
+_MATCH_BG = QColor("#1e2e1e")
+_DIFF_BG = QColor("#2e1e1e")
+
 
 class ComparisonTab(QWidget):
-    """Идентификационная задача: сравнение двух текстов."""
+    """Идентификационная задача: сравнительное исследование двух текстов."""
 
     compare_requested = pyqtSignal(str, str)
     export_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._last_comparison = None
+        self._structured = None      # ComparisonResult
+        self._aux = None             # вспомогательные метрики
+        self._features = []          # CompFeature в порядке строк таблицы
+        self._populating = False
         self._setup_ui()
 
+    # ── UI ────────────────────────────────────────────────────────────────
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 6, 6, 6)
@@ -62,39 +79,80 @@ class ComparisonTab(QWidget):
         left_layout.addWidget(self.btn_compare)
         splitter.addWidget(left)
 
-        # Правая панель: результаты
+        # Правая панель: результат
         right = QWidget()
         right_layout = QVBoxLayout(right)
         right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(4)
 
-        res_group = QGroupBox("Результат сравнения")
-        res_layout = QVBoxLayout(res_group)
+        # Счётчики + подсказка
+        self.summary_lbl = QLabel("Выполните сравнение текстов.")
+        self.summary_lbl.setWordWrap(True)
+        self.summary_lbl.setStyleSheet("font-size:11px; padding:4px;")
+        right_layout.addWidget(self.summary_lbl)
 
-        self.metrics_table = QTableWidget()
-        self.metrics_table.setColumnCount(2)
-        self.metrics_table.setHorizontalHeaderLabels(["Компонент", "Значение"])
-        self.metrics_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.metrics_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        self.metrics_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.metrics_table.verticalHeader().setVisible(False)
-        self.metrics_table.setMaximumHeight(200)
-        res_layout.addWidget(self.metrics_table)
+        # Таблица признаков (два комплекса по уровням)
+        feat_group = QGroupBox("Сопоставление признаков (НН / НС / НСВ)")
+        fg_layout = QVBoxLayout(feat_group)
+        hint_hdr = QLabel("Отметьте «высокоинф.» для высокоинформативных признаков "
+                          "(методика, с. 35/85) — подсказка пересчитается.")
+        hint_hdr.setStyleSheet("font-size:10px; color:#8a8278;")
+        hint_hdr.setWordWrap(True)
+        fg_layout.addWidget(hint_hdr)
 
-        self.result_text = QTextEdit()
-        self.result_text.setReadOnly(True)
-        res_layout.addWidget(self.result_text)
+        self.feat_table = QTableWidget()
+        self.feat_table.setColumnCount(6)
+        self.feat_table.setHorizontalHeaderLabels(
+            ["Комплекс", "Ур.", "Признак", "Текст 1", "Текст 2", "Высокоинф."])
+        hh = self.feat_table.horizontalHeader()
+        hh.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        hh.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        hh.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        hh.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        hh.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        hh.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
+        self.feat_table.verticalHeader().setVisible(False)
+        self.feat_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.feat_table.itemChanged.connect(self._on_item_changed)
+        fg_layout.addWidget(self.feat_table)
+        right_layout.addWidget(feat_group, stretch=3)
+
+        # Вспомогательные метрики
+        aux_group = QGroupBox("Вспомогательные объективизирующие показатели (не являются выводом)")
+        aux_layout = QVBoxLayout(aux_group)
+        self.aux_table = QTableWidget()
+        self.aux_table.setColumnCount(2)
+        self.aux_table.setHorizontalHeaderLabels(["Показатель", "Значение"])
+        self.aux_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.aux_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.aux_table.verticalHeader().setVisible(False)
+        self.aux_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.aux_table.setMaximumHeight(160)
+        aux_layout.addWidget(self.aux_table)
+        right_layout.addWidget(aux_group, stretch=1)
+
+        # Поле вывода эксперта
+        exp_group = QGroupBox("Вывод эксперта (формулируется экспертом)")
+        exp_layout = QVBoxLayout(exp_group)
+        self.expert_verdict = QTextEdit()
+        self.expert_verdict.setPlaceholderText(
+            "Здесь эксперт формулирует окончательный вывод на основе совокупности "
+            "признаков и подсказки (программа решение не выносит).")
+        self.expert_verdict.setMaximumHeight(90)
+        exp_layout.addWidget(self.expert_verdict)
+        right_layout.addWidget(exp_group, stretch=1)
 
         btn_export = QPushButton("📄 Экспорт в DOCX")
         btn_export.setObjectName("secondary")
         btn_export.clicked.connect(self.export_requested)
-        res_layout.addWidget(btn_export)
-        right_layout.addWidget(res_group)
-        splitter.addWidget(right)
+        right_layout.addWidget(btn_export)
 
+        splitter.addWidget(right)
         splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 1)
+        splitter.setStretchFactor(1, 2)
         layout.addWidget(splitter)
 
+    # ── Ввод ──────────────────────────────────────────────────────────────
     def _load_file(self, num: int):
         fp, _ = QFileDialog.getOpenFileName(
             self, "Открыть текст", "", "Тексты (*.txt *.docx);;Все файлы (*)")
@@ -103,10 +161,7 @@ class ComparisonTab(QWidget):
         try:
             from analyzer.export import load_text_from_file
             text = load_text_from_file(fp)
-            if num == 1:
-                self.text1.setPlainText(text)
-            else:
-                self.text2.setPlainText(text)
+            (self.text1 if num == 1 else self.text2).setPlainText(text)
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", str(e))
 
@@ -118,71 +173,121 @@ class ComparisonTab(QWidget):
             return
         self.compare_requested.emit(t1, t2)
 
-    def show_result(self, comp: dict):
-        """Отобразить результат сравнения."""
-        self._last_comparison = comp
+    # ── Отображение результата ────────────────────────────────────────────
+    def show_result(self, structured, aux: dict):
+        self._structured = structured
+        self._aux = aux or {}
 
-        rows = [
-            ("Общее сходство", f"{comp['overall']:.1%}"),
-            ("Лексическое (Jaccard)", f"{comp['jaccard']:.1%}"),
-            ("Морфологическое (POS)", f"{comp['pos_similarity']:.1%}"),
-            ("Синтаксическое", f"{comp['syntactic_similarity']:.1%}"),
-            ("TTR-сходство", f"{comp['ttr_similarity']:.1%}"),
-            ("POS-биграммное", f"{comp.get('bigram_similarity', 0):.1%}"),
+        # Признаки: сначала совпадающие, затем различающиеся; внутри — по уровням
+        order = {"НН": 0, "НС": 1, "НСВ": 2}
+        self._features = (
+            sorted(structured.matches, key=lambda f: order.get(f.level, 9))
+            + sorted(structured.diffs, key=lambda f: order.get(f.level, 9))
+        )
+
+        self._populating = True
+        self.feat_table.setRowCount(len(self._features))
+        for r, f in enumerate(self._features):
+            is_match = (f.kind == "match")
+            c0 = QTableWidgetItem("СОВПАД." if is_match else "РАЗЛИЧ.")
+            c1 = QTableWidgetItem(f.level)
+            c2 = QTableWidgetItem(f.name + (" ⟲" if f.stable else ""))
+            if f.note:
+                c2.setToolTip(f.note)
+            c3 = QTableWidgetItem(f.value1)
+            c4 = QTableWidgetItem(f.value2)
+            chk = QTableWidgetItem()
+            chk.setFlags(Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEnabled)
+            chk.setCheckState(Qt.CheckState.Checked if f.high_informative
+                              else Qt.CheckState.Unchecked)
+            bg = _MATCH_BG if is_match else _DIFF_BG
+            for c in (c0, c1, c2, c3, c4, chk):
+                c.setBackground(bg)
+            for c in (c0, c1, c2, c3, c4):
+                c.setFlags(c.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            self.feat_table.setItem(r, 0, c0)
+            self.feat_table.setItem(r, 1, c1)
+            self.feat_table.setItem(r, 2, c2)
+            self.feat_table.setItem(r, 3, c3)
+            self.feat_table.setItem(r, 4, c4)
+            self.feat_table.setItem(r, 5, chk)
+        self._populating = False
+
+        self._fill_aux()
+        self._refresh_summary()
+
+    def _fill_aux(self):
+        labels = [
+            ("Общее сходство (агрегат)", "overall"),
+            ("Лексическое (Jaccard)", "jaccard"),
+            ("Морфологическое (POS)", "pos_similarity"),
+            ("Синтаксическое", "syntactic_similarity"),
+            ("TTR-сходство", "ttr_similarity"),
+            ("POS-биграммное", "bigram_similarity"),
+            ("SBERT (семантическое)", "sbert_sim"),
         ]
-        if "fasttext_sim" in comp:
-            rows.append(("FastText (семантическое) ⚡", f"{comp['fasttext_sim']:.1%}"))
-        self.metrics_table.setRowCount(len(rows))
-        for i, (k, v) in enumerate(rows):
-            ki = QTableWidgetItem(k)
-            ki.setFlags(ki.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            vi = QTableWidgetItem(v)
-            vi.setFlags(vi.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            if i == 0:
-                sim = comp["overall"]
-                color = "#6abf69" if sim >= 0.7 else "#e8a030" if sim >= 0.5 else "#e06c6c"
-                vi.setForeground(QColor(color))
-                font = vi.font()
-                font.setBold(True)
-                vi.setFont(font)
-            self.metrics_table.setItem(i, 0, ki)
-            self.metrics_table.setItem(i, 1, vi)
+        rows = [(lbl, self._aux[k]) for lbl, k in labels if k in self._aux]
+        self.aux_table.setRowCount(len(rows))
+        for i, (lbl, val) in enumerate(rows):
+            ki = QTableWidgetItem(lbl)
+            vi = QTableWidgetItem(f"{val:.1%}" if isinstance(val, (int, float)) else str(val))
+            for it in (ki, vi):
+                it.setFlags(it.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            self.aux_table.setItem(i, 0, ki)
+            self.aux_table.setItem(i, 1, vi)
 
-        sim = comp["overall"]
-        if sim >= 0.7:
-            conclusion = "Высокое сходство — возможно один автор."
-        elif sim >= 0.5:
-            conclusion = "Среднее сходство — необходим дополнительный материал."
-        elif sim >= 0.3:
-            conclusion = "Умеренные различия — разные авторы или ситуации."
-        else:
-            conclusion = "Существенные различия — вероятно, разные авторы."
+    def _on_item_changed(self, item):
+        if self._populating or item.column() != 5:
+            return
+        row = item.row()
+        if 0 <= row < len(self._features):
+            self._features[row].high_informative = (
+                item.checkState() == Qt.CheckState.Checked)
+            ce.recompute_hint(self._structured)
+            # пересчитать счётчики высокоинформативных
+            self._structured.high_informative_matches = sum(
+                1 for f in self._structured.matches if f.high_informative)
+            self._structured.high_informative_diffs = sum(
+                1 for f in self._structured.diffs if f.high_informative)
+            self._refresh_summary()
 
-        lemmas = comp.get("common_lemmas", [])
-        chunks = []
-        for i in range(0, len(lemmas), 6):
-            chunks.append("  " + ", ".join(lemmas[i:i + 6]))
+    def _refresh_summary(self):
+        s = self._structured
+        if s is None:
+            return
+        ls = s.level_summary
+        lvl_txt = "  ".join(
+            f"{lv}: +{ls.get(lv, {}).get('match', 0)}/−{ls.get(lv, {}).get('diff', 0)}"
+            for lv in ("НН", "НС", "НСВ"))
+        ok = s.high_informative_matches >= s.threshold
+        basis = ("; ".join(s.hint_basis)) if s.hint_basis else "—"
+        self.summary_lbl.setText(
+            f"<b>Признаков всего:</b> {s.total_features}  "
+            f"(совпадений {len(s.matches)}, различий {len(s.diffs)})<br>"
+            f"<b>По уровням:</b> {lvl_txt}<br>"
+            f"<b>Высокоинформативных совпадений:</b> {s.high_informative_matches} / "
+            f"порог {s.threshold} "
+            f"<span style='color:{'#6abf69' if ok else '#e8a030'}'>"
+            f"({'порог достигнут' if ok else 'ниже порога'})</span><br>"
+            f"<b>Подсказка (не вывод):</b> {s.hint}<br>"
+            f"<span style='color:#8a8278; font-size:10px'>основание: {basis}. "
+            f"Окончательный вывод формулирует эксперт.</span>")
 
-        ft_line = ""
-        if "fasttext_sim" in comp:
-            ft_line = f"FastText семантическое сходство: {comp['fasttext_sim']:.1%}\n"
-
-        report = [
-            f"Текст 1: {comp['words1']} слов, TTR={comp['ttr1']}, ср.предл.={comp['avg_sent1']}",
-            f"Текст 2: {comp['words2']} слов, TTR={comp['ttr2']}, ср.предл.={comp['avg_sent2']}",
-            "",
-            f"Совпадающие леммы ({len(lemmas)}):",
-        ] + chunks + ["", ft_line + f"ВЫВОД: {conclusion}"]
-
-        self.result_text.setPlainText("\n".join(report))
+    # ── API для main_window / экспорта ────────────────────────────────────
+    def get_expert_verdict(self) -> str:
+        return self.expert_verdict.toPlainText().strip()
 
     def get_last_comparison(self):
-        return self._last_comparison
+        return self._structured
 
     def get_texts(self):
         return self.text1.toPlainText(), self.text2.toPlainText()
 
     def clear(self):
-        self.metrics_table.setRowCount(0)
-        self.result_text.clear()
-        self._last_comparison = None
+        self.feat_table.setRowCount(0)
+        self.aux_table.setRowCount(0)
+        self.expert_verdict.clear()
+        self.summary_lbl.setText("Выполните сравнение текстов.")
+        self._structured = None
+        self._aux = None
+        self._features = []

@@ -1,0 +1,1078 @@
+# Уровень НС — набор свойств норм (средний уровень индивидуализации навыка).
+# Методика Рубцовой и др. (ЭКЦ МВД, 2007), с. 87–94. Значимость — средняя.
+
+# --- Смысловые признаки (с. 87–88) ---
+- id: ns.smysl.on_behalf_org
+  level: NS
+  category: smyslovye
+  name: Выступление от имени организации
+  significance: medium
+  method: llm
+  source: "с. 87"
+- id: ns.smysl.on_behalf_person
+  level: NS
+  category: smyslovye
+  name: Выступление от имени конкретного лица
+  significance: medium
+  method: llm
+  source: "с. 87"
+- id: ns.smysl.gendered_spheres
+  level: NS
+  category: smyslovye
+  name: Свободная ориентация в традиционно мужских/женских сферах деятельности
+  significance: medium
+  method: llm
+  source: "с. 87"
+- id: ns.smysl.lexsem_paradigms
+  level: NS
+  category: smyslovye
+  name: Использование различных лексико-семантических парадигм
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.smysl.softened_extremism
+  level: NS
+  category: smyslovye
+  name: Смягчённый характер экстремистских высказываний
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.smysl.demand_publish
+  level: NS
+  category: smyslovye
+  name: Требование опубликовать письмо в средствах массовой информации
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.smysl.familiar_to_addressee
+  level: NS
+  category: smyslovye
+  name: Грубовато-фамильярное отношение к адресату
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.smysl.harsh_actions
+  level: NS
+  category: smyslovye
+  name: Чрезмерная жёсткость планируемых акций
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.smysl.value_orientations
+  level: NS
+  category: smyslovye
+  name: Наличие в тексте различных ценностных ориентаций
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.smysl.conspiracy
+  level: NS
+  category: smyslovye
+  name: Увлечение элементами конспирации
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.smysl.negative_past
+  level: NS
+  category: smyslovye
+  name: Проявление негативного отношения к прошлому
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.smysl.living_relatives
+  level: NS
+  category: smyslovye
+  name: Упоминание о здравствующих родственниках
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.smysl.faith_in_punishment
+  level: NS
+  category: smyslovye
+  name: Вера в справедливое наказание со стороны репрессивных органов
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.smysl.respectful_addressee
+  level: NS
+  category: smyslovye
+  name: Уважительное обращение к адресату послания
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.smysl.instructive_appeal
+  level: NS
+  category: smyslovye
+  name: Наставительность и апелляция к жизненному опыту
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.smysl.afterlife_death
+  level: NS
+  category: smyslovye
+  name: Размышления о существовании загробной жизни, о смерти
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.smysl.negative_nationality
+  level: NS
+  category: smyslovye
+  name: Негативная оценка деятельности лиц определённой национальности
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.smysl.defend_peoples
+  level: NS
+  category: smyslovye
+  name: Защита интересов определённых народностей
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.smysl.production_mentions
+  level: NS
+  category: smyslovye
+  name: Упоминание производственных процессов, должностных работников организаций
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.smysl.events_at_work
+  level: NS
+  category: smyslovye
+  name: Ссылка на события, произошедшие на производстве, в фирме
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.smysl.delusional_ideas
+  level: NS
+  category: smyslovye
+  name: Наличие суждений, отражающих бредовые идеи автора
+  significance: medium
+  method: llm
+  source: "с. 88"
+
+# --- Текстологические признаки (с. 88) ---
+- id: ns.text.ssc_thematic_coherent
+  level: NS
+  category: textological
+  name: Построение сложного синтаксического целого с учётом тематичности и связности
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.text.coherent_no_digressions
+  level: NS
+  category: textological
+  name: Связность мысли, отсутствие побочных ассоциаций
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.text.chaotic
+  level: NS
+  category: textological
+  name: Непоследовательность, хаотичность в изложении мыслей
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.text.clear_logic
+  level: NS
+  category: textological
+  name: Наличие чёткой логической структуры текста
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.text.unsupported_claims
+  level: NS
+  category: textological
+  name: Наличие бездоказательных утверждений, основанных на эмоциях
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.text.digressions
+  level: NS
+  category: textological
+  name: Наличие отступлений от линии повествования, множество побочных ассоциаций
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.text.excessive_detail
+  level: NS
+  category: textological
+  name: Чрезмерная обстоятельность суждений
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.text.no_logical_relations
+  level: NS
+  category: textological
+  name: Неразличение логических отношений между словами
+  significance: medium
+  method: llm
+  source: "с. 88"
+- id: ns.text.stereotyped
+  level: NS
+  category: textological
+  name: Стереотипно повторяющиеся суждения
+  significance: medium
+  method: llm
+  source: "с. 88"
+
+# --- Лексические: смысловое значение слова (с. 89) ---
+- id: ns.lex.temporal
+  level: NS
+  category: lexical
+  subcategory: meaning
+  name: Частое использование лексики с временным значением («до настоящего времени», «иногда»)
+  significance: medium
+  method: auto
+  extractor: lexicon_match
+  lexicon: lexicons/lex/temporal.txt
+  source: "с. 89"
+- id: ns.lex.demonstrative
+  level: NS
+  category: lexical
+  subcategory: meaning
+  name: Частое использование лексики с указательным значением («этот», «там»)
+  significance: medium
+  method: auto
+  extractor: lexicon_match
+  lexicon: lexicons/lex/demonstrative.txt
+  source: "с. 89"
+- id: ns.lex.truth_falsity
+  level: NS
+  category: lexical
+  subcategory: meaning
+  name: Оценочная лексика «истинность/мнимость» («правильно», «точно», «ложно»)
+  significance: medium
+  method: auto
+  extractor: lexicon_match
+  lexicon: lexicons/lex/truth_falsity.txt
+  source: "с. 89"
+- id: ns.lex.lexsem_constructs
+  level: NS
+  category: lexical
+  subcategory: meaning
+  name: Лексические конструкции лексико-семантических парадигм («дом», «семья», «зарплата»)
+  significance: medium
+  method: hybrid
+  extractor: lexicon_match
+  source: "с. 89"
+- id: ns.lex.attitude_to_message
+  level: NS
+  category: lexical
+  subcategory: meaning
+  name: Лексика, выражающая отношение к сообщаемому («по-моему», «я считаю»)
+  significance: medium
+  method: auto
+  extractor: lexicon_match
+  lexicon: lexicons/lex/attitude.txt
+  source: "с. 89"
+- id: ns.lex.emotion_words
+  level: NS
+  category: lexical
+  subcategory: meaning
+  name: Лексика, выражающая радость, сожаление, удивление («к сожалению», «к счастью»)
+  significance: medium
+  method: auto
+  extractor: lexicon_match
+  lexicon: lexicons/lex/emotion.txt
+  source: "с. 89"
+
+# --- Лексические: синонимия/антонимия (с. 89) ---
+- id: ns.lex.synonym_chains
+  level: NS
+  category: lexical
+  subcategory: synonymy_antonymy
+  name: Частое использование цепочек из синонимичных слов
+  significance: medium
+  method: llm
+  source: "с. 89"
+- id: ns.lex.antonyms
+  level: NS
+  category: lexical
+  subcategory: synonymy_antonymy
+  name: Частое использование антонимов («добро — зло», «правда — ложь»)
+  significance: medium
+  method: hybrid
+  source: "с. 89"
+- id: ns.lex.antiphrasis
+  level: NS
+  category: lexical
+  subcategory: synonymy_antonymy
+  name: Приём антифразиса (намеренное использование одного антонима вместо другого)
+  significance: medium
+  method: llm
+  source: "с. 89"
+- id: ns.lex.antithesis
+  level: NS
+  category: lexical
+  subcategory: synonymy_antonymy
+  name: Использование антитезы
+  significance: medium
+  method: llm
+  source: "с. 89"
+- id: ns.lex.synonym_rows_3_4
+  level: NS
+  category: lexical
+  subcategory: synonymy_antonymy
+  name: Синонимические ряды из 3–4 слов
+  significance: medium
+  method: llm
+  source: "с. 89"
+
+# --- Лексические: словоупотребление (с. 89) ---
+- id: ns.lex.dialectisms
+  level: NS
+  category: lexical
+  subcategory: word_usage
+  name: Частое использование диалектизмов («баской», «однова»)
+  significance: medium
+  method: hybrid
+  extractor: lexicon_match
+  lexicon: lexicons/lex/dialectisms.txt
+  source: "с. 89"
+- id: ns.lex.professionalisms
+  level: NS
+  category: lexical
+  subcategory: word_usage
+  name: Частое использование профессионализмов («номинал», «инвестиции»)
+  significance: medium
+  method: hybrid
+  extractor: lexicon_match
+  lexicon: lexicons/lex/professionalisms.txt
+  source: "с. 89"
+- id: ns.lex.medical
+  level: NS
+  category: lexical
+  subcategory: word_usage
+  name: Частое использование медицинской лексики («реанимация», «инфаркт»)
+  significance: medium
+  method: hybrid
+  extractor: thematic
+  lexicon: lexicons/thematic/medicine.txt
+  source: "с. 89"
+- id: ns.lex.financial
+  level: NS
+  category: lexical
+  subcategory: word_usage
+  name: Преимущественное использование финансовой лексики («бюджет», «капитал», «кредит»)
+  significance: medium
+  method: hybrid
+  extractor: thematic
+  lexicon: lexicons/thematic/finance.txt
+  source: "с. 89"
+- id: ns.lex.military_jargon
+  level: NS
+  category: lexical
+  subcategory: word_usage
+  name: Устойчивые сочетания, штампы языка военнослужащих («звание», «срок службы»)
+  significance: medium
+  method: hybrid
+  extractor: lexicon_match
+  lexicon: lexicons/lex/military_jargon.txt
+  source: "с. 89"
+
+# --- Лексические: изобразительно-выразительные средства (с. 90) ---
+- id: ns.lex.metaphor
+  level: NS
+  category: lexical
+  subcategory: figurative
+  name: Частое использование метафор
+  significance: medium
+  method: llm
+  source: "с. 90"
+- id: ns.lex.metonymy_synecdoche
+  level: NS
+  category: lexical
+  subcategory: figurative
+  name: Преимущественное использование метонимии, синекдохи
+  significance: medium
+  method: llm
+  source: "с. 90"
+- id: ns.lex.simile
+  level: NS
+  category: lexical
+  subcategory: figurative
+  name: Частое использование сравнений как средства образности речи
+  significance: medium
+  method: hybrid
+  source: "с. 90"
+- id: ns.lex.litotes
+  level: NS
+  category: lexical
+  subcategory: figurative
+  name: Использование литоты
+  significance: medium
+  method: llm
+  source: "с. 90"
+- id: ns.lex.intensifying_epithets
+  level: NS
+  category: lexical
+  subcategory: figurative
+  name: Частое использование усилительных эпитетов
+  significance: medium
+  method: llm
+  source: "с. 90"
+- id: ns.lex.hyperbolic_epithets
+  level: NS
+  category: lexical
+  subcategory: figurative
+  name: Использование гиперболических эпитетов
+  significance: medium
+  method: llm
+  source: "с. 90"
+
+# --- Лексические: ошибки словоупотребления (с. 90) ---
+- id: ns.lex.wrong_word_choice
+  level: NS
+  category: lexical
+  subcategory: errors
+  name: Неправильный выбор слова
+  significance: medium
+  method: llm
+  source: "с. 90"
+- id: ns.lex.logical_errors
+  level: NS
+  category: lexical
+  subcategory: errors
+  name: Наличие логических ошибок (алогизм, подмена понятий)
+  significance: medium
+  method: llm
+  source: "с. 90"
+- id: ns.lex.collocation_violation
+  level: NS
+  category: lexical
+  subcategory: errors
+  name: Нарушение лексической сочетаемости
+  significance: medium
+  method: llm
+  source: "с. 90"
+- id: ns.lex.speech_insufficiency
+  level: NS
+  category: lexical
+  subcategory: errors
+  name: Речевая недостаточность
+  significance: medium
+  method: llm
+  source: "с. 90"
+- id: ns.lex.speech_redundancy
+  level: NS
+  category: lexical
+  subcategory: errors
+  name: Речевая избыточность
+  significance: medium
+  method: llm
+  source: "с. 90"
+- id: ns.lex.bad_synonym_choice
+  level: NS
+  category: lexical
+  subcategory: errors
+  name: Неудачный выбор синонимов
+  significance: medium
+  method: llm
+  source: "с. 90"
+
+# --- Стилистические: деловой стиль (с. 90–92) ---
+- id: ns.style.ob.person_by_activity
+  level: NS
+  category: stylistic
+  subcategory: official_business
+  name: Обозначение человека по роду его деятельности
+  significance: medium
+  method: hybrid
+  source: "с. 90"
+- id: ns.style.ob.substitutes_stamps
+  level: NS
+  category: stylistic
+  subcategory: official_business
+  name: Использование субститутов и штампов официально-делового стиля
+  significance: medium
+  method: auto
+  extractor: lexicon_match
+  lexicon: lexicons/style/ob_stamps.txt
+  source: "с. 90"
+- id: ns.style.ob.three_part_model
+  level: NS
+  category: stylistic
+  subcategory: official_business
+  name: Построение текста по трёхчастной модели
+  significance: medium
+  method: llm
+  source: "с. 90"
+- id: ns.style.ob.synonym_repeat_adv_adj
+  level: NS
+  category: stylistic
+  subcategory: official_business
+  name: Использование синонимического повтора наречий и прилагательных
+  significance: medium
+  method: llm
+  source: "с. 92"
+- id: ns.style.ob.subordinate_chains
+  level: NS
+  category: stylistic
+  subcategory: official_business
+  name: Использование цепочек из однородных подчинительных конструкций
+  significance: medium
+  method: auto
+  extractor: syntax_chains
+  source: "с. 92"
+- id: ns.style.ob.close_meaning_chains
+  level: NS
+  category: stylistic
+  subcategory: official_business
+  name: Использование цепочек из близких по смыслу слов
+  significance: medium
+  method: llm
+  source: "с. 92"
+
+# --- Стилистические: разговорный стиль (с. 92) ---
+- id: ns.style.coll.prefixed_occasionalisms
+  level: NS
+  category: stylistic
+  subcategory: colloquial
+  name: Использование окказионализмов с приставками
+  significance: medium
+  method: llm
+  source: "с. 92"
+- id: ns.style.coll.thematic_adjacency
+  level: NS
+  category: stylistic
+  subcategory: colloquial
+  name: Использование связи по тематической смежности
+  significance: medium
+  method: llm
+  source: "с. 92"
+- id: ns.style.coll.ellipsis_object
+  level: NS
+  category: stylistic
+  subcategory: colloquial
+  name: Использование эллипсиса объекта
+  significance: medium
+  method: llm
+  source: "с. 92"
+- id: ns.style.coll.ellipsis_addressee
+  level: NS
+  category: stylistic
+  subcategory: colloquial
+  name: Использование эллипсиса адресата
+  significance: medium
+  method: llm
+  source: "с. 92"
+- id: ns.style.coll.ellipsis_action
+  level: NS
+  category: stylistic
+  subcategory: colloquial
+  name: Использование эллипсиса действия
+  significance: medium
+  method: llm
+  source: "с. 92"
+- id: ns.style.coll.ellipsis_noun
+  level: NS
+  category: stylistic
+  subcategory: colloquial
+  name: Эллипсис существительного в словосочетании «прилагательное + существительное»
+  significance: medium
+  method: llm
+  source: "с. 92"
+- id: ns.style.coll.clarifications
+  level: NS
+  category: stylistic
+  subcategory: colloquial
+  name: Использование уточнений
+  significance: medium
+  method: hybrid
+  source: "с. 92"
+- id: ns.style.coll.inversion_genitive
+  level: NS
+  category: stylistic
+  subcategory: colloquial
+  name: Инверсия существительного в родительном падеже
+  significance: medium
+  method: auto
+  extractor: inversion
+  source: "с. 92"
+- id: ns.style.coll.inversion_adv_adj
+  level: NS
+  category: stylistic
+  subcategory: colloquial
+  name: Инверсия наречия относительно глагола, прилагательного относительно существительного
+  significance: medium
+  method: auto
+  extractor: inversion
+  source: "с. 92"
+- id: ns.style.coll.inversion_question
+  level: NS
+  category: stylistic
+  subcategory: colloquial
+  name: Инверсия вопросительных слов
+  significance: medium
+  method: hybrid
+  source: "с. 92"
+- id: ns.style.coll.conj_omission_inversion
+  level: NS
+  category: stylistic
+  subcategory: colloquial
+  name: Пропуск союзов, инверсия союзов
+  significance: medium
+  method: llm
+  source: "с. 92"
+- id: ns.style.coll.main_clause_omission
+  level: NS
+  category: stylistic
+  subcategory: colloquial
+  name: Пропуск/инверсия главной части сложного предложения
+  significance: medium
+  method: llm
+  source: "с. 92"
+
+# --- Синтаксические: уровень словосочетания (с. 92) ---
+- id: ns.synt.phrase.verbal_dominant
+  level: NS
+  category: syntactic
+  subcategory: phrase
+  name: Преобладание глагольных словосочетаний
+  significance: medium
+  method: auto
+  extractor: phrase_types
+  source: "с. 92"
+- id: ns.synt.phrase.nominal
+  level: NS
+  category: syntactic
+  subcategory: phrase
+  name: Частое/редкое использование именных словосочетаний
+  significance: medium
+  method: auto
+  extractor: phrase_types
+  source: "с. 92"
+- id: ns.synt.phrase.adverbial
+  level: NS
+  category: syntactic
+  subcategory: phrase
+  name: Частое использование наречных словосочетаний
+  significance: medium
+  method: auto
+  extractor: phrase_types
+  source: "с. 92"
+- id: ns.synt.phrase.adjunction
+  level: NS
+  category: syntactic
+  subcategory: phrase
+  name: Преобладание конструкций с примыканием
+  significance: medium
+  method: auto
+  extractor: phrase_relations
+  source: "с. 92"
+- id: ns.synt.phrase.agreement
+  level: NS
+  category: syntactic
+  subcategory: phrase
+  name: Частое/редкое использование конструкций с согласованием
+  significance: medium
+  method: auto
+  extractor: phrase_relations
+  source: "с. 92"
+- id: ns.synt.phrase.government
+  level: NS
+  category: syntactic
+  subcategory: phrase
+  name: Преобладание конструкций с управлением
+  significance: medium
+  method: auto
+  extractor: phrase_relations
+  source: "с. 92"
+- id: ns.synt.phrase.nonfree
+  level: NS
+  category: syntactic
+  subcategory: phrase
+  name: Частое использование несвободных словосочетаний
+  significance: medium
+  method: hybrid
+  source: "с. 92"
+- id: ns.synt.phrase.idioms
+  level: NS
+  category: syntactic
+  subcategory: phrase
+  name: Частое использование фразеологизмов
+  significance: medium
+  method: hybrid
+  extractor: lexicon_match
+  lexicon: lexicons/lex/idioms.txt
+  source: "с. 92"
+- id: ns.synt.phrase.complex
+  level: NS
+  category: syntactic
+  subcategory: phrase
+  name: Частое использование сложных словосочетаний
+  significance: medium
+  method: auto
+  extractor: phrase_types
+  source: "с. 92"
+
+# --- Синтаксические: простое предложение (с. 92–93) ---
+- id: ns.synt.simple.rare_schemes
+  level: NS
+  category: syntactic
+  subcategory: simple
+  name: Частое употребление редких структурных схем
+  significance: medium
+  method: llm
+  source: "с. 92"
+- id: ns.synt.simple.extension_degree
+  level: NS
+  category: syntactic
+  subcategory: simple
+  name: Высокая/низкая степень распространённости предложений
+  significance: medium
+  method: auto
+  extractor: sentence_extension
+  source: "с. 92"
+- id: ns.synt.simple.modality_means
+  level: NS
+  category: syntactic
+  subcategory: simple
+  name: Средства выражения субъективной и объективной модальности, богатая их синонимия
+  significance: medium
+  method: hybrid
+  extractor: modality
+  source: "с. 92"
+- id: ns.synt.simple.inversion
+  level: NS
+  category: syntactic
+  subcategory: simple
+  name: Частые случаи инверсии (нарушения нейтрального порядка слов)
+  significance: medium
+  method: auto
+  extractor: inversion
+  source: "с. 92"
+- id: ns.synt.simple.participial
+  level: NS
+  category: syntactic
+  subcategory: simple
+  name: Частое использование причастных и деепричастных оборотов и пояснительных конструкций
+  significance: medium
+  method: auto
+  extractor: participial
+  source: "с. 93"
+- id: ns.synt.simple.direct_order
+  level: NS
+  category: syntactic
+  subcategory: simple
+  name: Прямой порядок слов, отсутствие нарушений нейтрального порядка
+  significance: medium
+  method: auto
+  extractor: inversion
+  source: "с. 93"
+- id: ns.synt.simple.brief_unextended
+  level: NS
+  category: syntactic
+  subcategory: simple
+  name: Слабая распространённость предложений, обращения и обособленные уточняющие обороты
+  significance: medium
+  method: auto
+  extractor: sentence_extension
+  source: "с. 93"
+- id: ns.synt.simple.developed_extension
+  level: NS
+  category: syntactic
+  subcategory: simple
+  name: Развитая система распространения структурных схем, обилие уточняющих оборотов
+  significance: medium
+  method: hybrid
+  extractor: sentence_extension
+  source: "с. 93"
+
+# --- Синтаксические: сложное предложение (с. 93) ---
+- id: ns.synt.complex.subordinate_dominant
+  level: NS
+  category: syntactic
+  subcategory: complex
+  name: Преобладание сложноподчинённых предложений
+  significance: medium
+  method: auto
+  extractor: clause_types
+  source: "с. 93"
+- id: ns.synt.complex.coordinate
+  level: NS
+  category: syntactic
+  subcategory: complex
+  name: Частое использование сложносочинённых предложений
+  significance: medium
+  method: auto
+  extractor: clause_types
+  source: "с. 93"
+- id: ns.synt.complex.asyndetic
+  level: NS
+  category: syntactic
+  subcategory: complex
+  name: Преобладание бессоюзных предложений
+  significance: medium
+  method: auto
+  extractor: clause_types
+  source: "с. 93"
+- id: ns.synt.complex.attributive_clauses
+  level: NS
+  category: syntactic
+  subcategory: complex
+  name: Частое использование придаточных определительных
+  significance: medium
+  method: auto
+  extractor: clause_types
+  source: "с. 93"
+- id: ns.synt.complex.adverbial_clauses
+  level: NS
+  category: syntactic
+  subcategory: complex
+  name: Использование придаточных обстоятельственных
+  significance: medium
+  method: auto
+  extractor: clause_types
+  source: "с. 93"
+- id: ns.synt.complex.subordinating_conj
+  level: NS
+  category: syntactic
+  subcategory: complex
+  name: Частое использование подчинительных союзов
+  significance: medium
+  method: auto
+  extractor: conjunctions
+  source: "с. 93"
+- id: ns.synt.complex.coordinating_conj
+  level: NS
+  category: syntactic
+  subcategory: complex
+  name: Преобладание сочинительных союзов
+  significance: medium
+  method: auto
+  extractor: conjunctions
+  source: "с. 93"
+- id: ns.synt.complex.demonstrative_main
+  level: NS
+  category: syntactic
+  subcategory: complex
+  name: Использование указательных местоимений в главной части сложного предложения
+  significance: medium
+  method: auto
+  extractor: demonstrative_main
+  source: "с. 93"
+
+# --- Синтаксические: сверхфразовые единства (с. 93–94) ---
+- id: ns.synt.sfu.parallelism
+  level: NS
+  category: syntactic
+  subcategory: sfu
+  name: Преимущественное использование синтаксического параллелизма
+  significance: medium
+  method: hybrid
+  source: "с. 93"
+- id: ns.synt.sfu.anaphora
+  level: NS
+  category: syntactic
+  subcategory: sfu
+  name: Частое использование анафоры
+  significance: medium
+  method: hybrid
+  extractor: anaphora
+  source: "с. 93"
+- id: ns.synt.sfu.predicate_object_repeat
+  level: NS
+  category: syntactic
+  subcategory: sfu
+  name: Использование повтора типа «сказуемое-дополнение»
+  significance: medium
+  method: llm
+  source: "с. 93"
+- id: ns.synt.sfu.openings_closings
+  level: NS
+  category: syntactic
+  subcategory: sfu
+  name: Использование зачинов и концовки
+  significance: medium
+  method: llm
+  source: "с. 93"
+- id: ns.synt.sfu.connective_relations
+  level: NS
+  category: syntactic
+  subcategory: sfu
+  name: Присоединительные или соединительные соотношения между членами СФЕ
+  significance: medium
+  method: llm
+  source: "с. 93"
+- id: ns.synt.sfu.theme_rheme_repeat
+  level: NS
+  category: syntactic
+  subcategory: sfu
+  name: Различные типы темо-рематической локализации повтора
+  significance: medium
+  method: llm
+  source: "с. 93"
+- id: ns.synt.sfu.segmentable
+  level: NS
+  category: syntactic
+  subcategory: sfu
+  name: Использование членимых или нечленимых сверхфразовых единств
+  significance: medium
+  method: llm
+  source: "с. 93"
+- id: ns.synt.sfu.large
+  level: NS
+  category: syntactic
+  subcategory: sfu
+  name: Использование больших по объёму сверхфразовых единств
+  significance: medium
+  method: auto
+  extractor: sfu_size
+  source: "с. 93"
+- id: ns.synt.sfu.split_theme_progression
+  level: NS
+  category: syntactic
+  subcategory: sfu
+  name: Частое использование прогрессии с расщеплённой темой
+  significance: medium
+  method: llm
+  source: "с. 93"
+- id: ns.synt.sfu.connective_dominant
+  level: NS
+  category: syntactic
+  subcategory: sfu
+  name: Преимущественные присоединительные отношения между членами СФЕ
+  significance: medium
+  method: llm
+  source: "с. 93"
+- id: ns.synt.sfu.dynamic_opening
+  level: NS
+  category: syntactic
+  subcategory: sfu
+  name: Частое использование динамического зачина
+  significance: medium
+  method: llm
+  source: "с. 94"
+- id: ns.synt.sfu.rhetorical_question_ending
+  level: NS
+  category: syntactic
+  subcategory: sfu
+  name: Использование риторического вопроса в концовке СФЕ
+  significance: medium
+  method: hybrid
+  source: "с. 94"
+- id: ns.synt.sfu.chain_connection
+  level: NS
+  category: syntactic
+  subcategory: sfu
+  name: Цепная связь предложений в сверхфразовом единстве
+  significance: medium
+  method: llm
+  source: "с. 94"
+- id: ns.synt.sfu.strong_cohesion
+  level: NS
+  category: syntactic
+  subcategory: sfu
+  name: Сильная степень связности (в среднем 4–5 повторов между контактными предложениями)
+  significance: medium
+  method: hybrid
+  extractor: cohesion
+  source: "с. 94"
+
+# --- Психолингвистические признаки (с. 94) ---
+- id: ns.psy.self_assertion
+  level: NS
+  category: psycholinguistic
+  name: Доминирование эмоций самоутверждения, борьбы
+  significance: medium
+  method: llm
+  source: "с. 94"
+- id: ns.psy.rationalistic
+  level: NS
+  category: psycholinguistic
+  name: Преобладание рационалистических оценок поступков
+  significance: medium
+  method: llm
+  source: "с. 94"
+- id: ns.psy.precise_parameters
+  level: NS
+  category: psycholinguistic
+  name: Чёткость определения параметров времени, расстояния, количества
+  significance: medium
+  method: llm
+  source: "с. 94"
+- id: ns.psy.exalted_emotions
+  level: NS
+  category: psycholinguistic
+  name: Проявление эмоций (экзальтированность, гиперболизация, сентиментальность)
+  significance: medium
+  method: llm
+  source: "с. 94"
+- id: ns.psy.social_evaluation
+  level: NS
+  category: psycholinguistic
+  name: Оценка поступков, событий с точки зрения социальной обстановки
+  significance: medium
+  method: llm
+  source: "с. 94"
+- id: ns.psy.ethical_evaluation
+  level: NS
+  category: psycholinguistic
+  name: Доминирование этической оценки происходящего
+  significance: medium
+  method: llm
+  source: "с. 94"
+- id: ns.psy.thirst_for_retribution
+  level: NS
+  category: psycholinguistic
+  name: Жажда справедливого наказания, возмездия со стороны
+  significance: medium
+  method: llm
+  source: "с. 94"
+- id: ns.psy.pity_empathy
+  level: NS
+  category: psycholinguistic
+  name: Чувство жалости, сопереживания по отношению к потерпевшему
+  significance: medium
+  method: llm
+  source: "с. 94"
+- id: ns.psy.shaming
+  level: NS
+  category: psycholinguistic
+  name: Попытка пристыдить за поступки, воззвать к совести
+  significance: medium
+  method: llm
+  source: "с. 94"
+- id: ns.psy.moralizing
+  level: NS
+  category: psycholinguistic
+  name: Морализаторский тон повествования
+  significance: medium
+  method: llm
+  source: "с. 94"
+- id: ns.psy.pleading_assuring
+  level: NS
+  category: psycholinguistic
+  name: Просительно-заверительный характер речи
+  significance: medium
+  method: llm
+  source: "с. 94"
+- id: ns.psy.rude
+  level: NS
+  category: psycholinguistic
+  name: Грубый характер речи
+  significance: medium
+  method: llm
+  source: "с. 94"
+- id: ns.psy.optimistic
+  level: NS
+  category: psycholinguistic
+  name: Оптимистический характер повествования
+  significance: medium
+  method: llm
+  source: "с. 94"
+- id: ns.psy.duty_responsibility
+  level: NS
+  category: psycholinguistic
+  name: Наличие эмоций ответственности, долга
+  significance: medium
+  method: llm
+  source: "с. 94"
+- id: ns.psy.malicious_skeptical
+  level: NS
+  category: psycholinguistic
+  name: Злобно-завистливая, скептическая оценка событий
+  significance: medium
+  method: llm
+  source: "с. 94"

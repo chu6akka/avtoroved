@@ -24,22 +24,21 @@ from analyzer.export import load_text_from_file, export_report_docx, export_comp
 from analyzer import cache_manager, config as app_config
 from analyzer import lt_checker as lt_module
 from analyzer import punct_checker as punct_module
-from analyzer import corpus_manager, learning_backend as lb_module
+from analyzer import learning_backend as lb_module
 from analyzer import yandex_speller as yaspell_module
 from analyzer import stratification_engine as strat_module
 from analyzer import thematic_engine as thematic_module
 from analyzer import freq_engine as freq_module
 from analyzer import senti_engine as senti_module
+from analyzer import diagnostic_engine as diag_module
 
 from ui.tabs.morphology_tab import MorphologyTab
 from ui.tabs.statistics_tab import StatisticsTab
 from ui.tabs.errors_tab import ErrorsTab
-from ui.tabs.internet_tab import InternetTab
 from ui.tabs.comparison_tab import ComparisonTab
 from ui.tabs.gigacheck_tab import GigaCheckTab
-from ui.tabs.grammar_query_tab import GrammarQueryTab
 from ui.tabs.report_tab import ReportTab
-from ui.tabs.learning_tab import LearningTab, TrainThread
+from ui.tabs.profile_tab import ProfileTab
 from ui.tabs.stratification_tab import StratificationTab
 from ui.tabs.thematic_tab import ThematicTab
 from ui.tabs.nkrya_tab import NkryaTab
@@ -226,33 +225,76 @@ class AnalysisThread(QThread):
 
 
 class CompareThread(QThread):
-    """Поток для сравнения текстов."""
+    """
+    Поток сравнительного исследования (методика Рубцовой 2007, ЭКЦ МВД).
+
+    По каждому тексту собирает признаки (морфология, метрики, навыки из errors.py,
+    стратификация), затем comparison_engine строит структуру НН/НС/НСВ.
+    Вспомогательные метрики сходства сохраняются отдельно.
+    """
     status = pyqtSignal(str)
-    finished = pyqtSignal(dict, str, str)
+    # comp (вспомогательные метрики), structured (ComparisonResult), text1, text2
+    finished = pyqtSignal(dict, object, str, str)
     error = pyqtSignal(str)
 
-    def __init__(self, stanza: StanzaBackend, text1: str, text2: str):
+    def __init__(self, stanza: StanzaBackend, text1: str, text2: str,
+                 error_analyzer=None, strat_engine=None):
         super().__init__()
         self.stanza = stanza
         self.text1 = text1
         self.text2 = text2
+        self.error_analyzer = error_analyzer
+        self.strat_engine = strat_engine
+
+    def _build_bundle(self, name: str, text: str, tokens: list):
+        """Собрать признаки одного текста для движка сравнения."""
+        from analyzer.metrics import calculate_metrics
+        from analyzer.errors import calculate_general_skill
+        from analyzer import comparison_engine as ce
+
+        metrics = calculate_metrics(tokens, text)
+        er = None
+        if self.error_analyzer is not None:
+            er = self.error_analyzer.analyze(text, tokens)
+            # Общий признак письменной речи (ЭКЦ МВД, с. 13) — для уровня НН
+            if er is not None and not er.general_skill_level:
+                (er.general_skill_level, er.general_skill_desc,
+                 er.total_unique_errors) = calculate_general_skill(
+                    er.errors, er.total_words)
+        sr = None
+        if self.strat_engine is not None:
+            try:
+                sr = self.strat_engine.analyze(text)
+            except Exception:
+                pass
+        return ce.build_bundle(name, text, tokens, metrics, er, sr)
 
     def run(self):
         try:
             from analyzer.metrics import compare_texts
+            from analyzer import comparison_engine as ce
+
             self.stanza.ensure_loaded(self.status.emit)
             self.status.emit("Анализ текста 1...")
             tok1 = self.stanza.analyze(self.text1)
             self.status.emit("Анализ текста 2...")
             tok2 = self.stanza.analyze(self.text2)
-            self.status.emit("Вычисление сходства...")
+
+            self.status.emit("Вспомогательные метрики сходства...")
             comp = compare_texts(tok1, tok2, self.text1, self.text2)
-            # Сохраняем леммы для FastText-сходства в main_window
             comp["_lemmas1"] = [t.lemma.lower() for t in tok1
                                 if WORD_RE.search(t.text) and t.pos != "PUNCT"]
             comp["_lemmas2"] = [t.lemma.lower() for t in tok2
                                 if WORD_RE.search(t.text) and t.pos != "PUNCT"]
-            self.finished.emit(comp, self.text1, self.text2)
+
+            self.status.emit("Раздельное исследование признаков...")
+            b1 = self._build_bundle("Текст 1", self.text1, tok1)
+            b2 = self._build_bundle("Текст 2", self.text2, tok2)
+
+            self.status.emit("Сравнительное исследование (НН/НС/НСВ)...")
+            structured = ce.compare(b1, b2, comp)
+
+            self.finished.emit(comp, structured, self.text1, self.text2)
         except Exception as e:
             self.error.emit(str(e))
 
@@ -280,13 +322,15 @@ class MainWindow(QMainWindow):
         _saved_backend = app_config.get("nlp_backend", "stanza")
         self._nlp_backend = self.spacy_backend if _saved_backend == "spacy" else self.stanza
         self._lb = lb_module.get()
-        self._lb.load_or_init_fasttext()  # загрузить модель если есть
-        self._corpus_train_thread = None
+        self._sbert_thread = None
+        self._diag_engine = diag_module.get()
 
         self._last_text = ""
         self._last_tokens = []
         self._last_metrics = {}
         self._last_error_result = None
+        self._last_strat_result = None
+        self._last_thematic_result = None
         self._analysis_thread = None
         self._compare_thread = None
 
@@ -423,26 +467,23 @@ class MainWindow(QMainWindow):
 
         # Группа АНАЛИЗ
         _section("АНАЛИЗ ТЕКСТА")
-        _nav("📊", "Статистика",         0)
-        _nav("📝", "Языковые навыки",     1)
-        _nav("🔤", "Морфология",          2)
-        _nav("🎨", "Стратификация",       3)
-        _nav("🗂", "Тематика",            4)
-
-        _nav("📚", "НКРЯ: частоты",       5)
-        _nav("💬", "Тональность",          6)
+        _nav("📊", "Статистика",      0)
+        _nav("📝", "Языковые навыки", 1)
+        _nav("🔤", "Морфология",      2)
+        _nav("🎨", "Стратификация",   3)
+        _nav("🗂", "Тематика",        4)
+        _nav("📚", "НКРЯ: частоты",   5)
+        _nav("💬", "Тональность",     6)
 
         _divider()
         _section("ИНСТРУМЕНТЫ")
-        _nav("🔍", "Граммзапросы",       7)
-        _nav("⚖️", "Сравнение",          8)
-        _nav("🌐", "Интернет-профиль",   9)
-        _nav("🤖", "ИИ-детектор",        10)
+        _nav("⚖️", "Сравнение",      7)
+        _nav("🤖", "ИИ-детектор",    8)
 
         _divider()
         _section("СЕРВИС")
-        _nav("📄", "Отчёт",             11)
-        _nav("🎓", "Корпус / Модель",   12)
+        _nav("📄", "Отчёт",           9)
+        _nav("🔬", "Профиль автора",  10)
 
         # ── Кнопка справочника словарей ───────────────────────────
         _divider()
@@ -474,9 +515,28 @@ class MainWindow(QMainWindow):
 
         self._ya_status_label = QLabel("⏳ Спеллер: ...")
         self._ya_status_label.setObjectName("lt_status")
-        self._ya_status_label.setContentsMargins(12, 2, 8, 4)
+        self._ya_status_label.setContentsMargins(12, 2, 8, 2)
         self._ya_status_label.setWordWrap(True)
         nav_layout.addWidget(self._ya_status_label)
+
+        # ── SBERT ─────────────────────────────────────────────────
+        sbert_divider = QFrame()
+        sbert_divider.setObjectName("sidebar_divider")
+        sbert_divider.setFrameShape(QFrame.Shape.HLine)
+        nav_layout.addWidget(sbert_divider)
+
+        self._sbert_status_label = QLabel("🧠 SBERT: не загружен")
+        self._sbert_status_label.setObjectName("lt_status")
+        self._sbert_status_label.setContentsMargins(12, 4, 8, 2)
+        self._sbert_status_label.setWordWrap(True)
+        nav_layout.addWidget(self._sbert_status_label)
+
+        self._btn_load_sbert = QPushButton("⬇ Загрузить SBERT")
+        self._btn_load_sbert.setObjectName("sidebar_btn")
+        self._btn_load_sbert.setFixedHeight(28)
+        self._btn_load_sbert.setToolTip("Улучшает точность сравнения текстов (~120 MB)")
+        self._btn_load_sbert.clicked.connect(self._load_sbert)
+        nav_layout.addWidget(self._btn_load_sbert)
 
         scroll.setWidget(nav_widget)
         layout.addWidget(scroll)
@@ -606,8 +666,7 @@ class MainWindow(QMainWindow):
         self._text_expanded = False   # состояние toggle
 
         # ── Стек страниц ───────────────────────────────────────────
-        self.stack = __import__(
-            'PyQt6.QtWidgets', fromlist=['QStackedWidget']).QStackedWidget()
+        self.stack = QStackedWidget()
 
         # 0 — Статистика
         self.tab_stats = StatisticsTab()
@@ -642,32 +701,24 @@ class MainWindow(QMainWindow):
         self.tab_senti = SentiTab()
         self.stack.addWidget(self.tab_senti)
 
-        # 7 — Граммзапросы
-        self.tab_grammar = GrammarQueryTab()
-        self.stack.addWidget(self.tab_grammar)
-
-        # 8 — Сравнение
+        # 7 — Сравнение
         self.tab_compare = ComparisonTab()
         self.tab_compare.compare_requested.connect(self._run_compare)
         self.tab_compare.export_requested.connect(self._export_compare_docx)
         self.stack.addWidget(self.tab_compare)
 
-        # 9 — Интернет-профиль
-        self.tab_internet = InternetTab()
-        self.stack.addWidget(self.tab_internet)
-
-        # 10 — ИИ-детектор
+        # 8 — ИИ-детектор
         self.tab_gigacheck = GigaCheckTab()
         self.stack.addWidget(self.tab_gigacheck)
 
-        # 11 — Отчёт
+        # 9 — Отчёт
         self.tab_report = ReportTab()
         self.tab_report.export_requested.connect(self._export_docx)
         self.stack.addWidget(self.tab_report)
 
-        # 12 — Корпус / Модель
-        self.tab_learning = LearningTab()
-        self.stack.addWidget(self.tab_learning)
+        # 10 — Профиль автора (диагностика)
+        self.tab_profile = ProfileTab()
+        self.stack.addWidget(self.tab_profile)
 
         # ── Вертикальный сплиттер: текст ↕ страницы ──────────────────
         vsplit = QSplitter(Qt.Orientation.Vertical)
@@ -694,7 +745,7 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("F2"), self).activated.connect(self._open_text_window)
         QShortcut(QKeySequence("F3"), self).activated.connect(self._toggle_text_area)
         # Цифровые клавиши для быстрого переключения (Ctrl+1..9, Ctrl+0)
-        for i in range(12):
+        for i in range(11):
             key = str(i + 1) if i < 9 else ("0" if i == 9 else None)
             if key:
                 QShortcut(QKeySequence(f"Ctrl+{key}"), self).activated.connect(
@@ -849,30 +900,39 @@ class MainWindow(QMainWindow):
             self._ya_status_label.setText("✗ Спеллер: офлайн")
             self._ya_status_label.setStyleSheet("color: #6c7086; font-size: 11px;")
 
-    # ──── КОРПУС И САМООБУЧЕНИЕ ────
-    def _corpus_add_and_train(self, text: str, tokens: list):
-        """Добавить текст в корпус и запустить дообучение если порог достигнут."""
-        from analyzer.stanza_backend import WORD_RE
-        lemmas = [t.lemma for t in tokens if WORD_RE.search(t.text) and t.pos != "PUNCT"]
-        if not lemmas:
+    # ──── SBERT ────
+    def _load_sbert(self):
+        """Загрузить SBERT в фоновом потоке."""
+        if self._lb.sbert_ready:
             return
+        self._btn_load_sbert.setEnabled(False)
+        self._sbert_status_label.setText("🧠 SBERT: загрузка…")
 
-        corpus_manager.add_text(text, lemmas)
+        class _SbertThread(QThread):
+            status   = pyqtSignal(str)
+            finished = pyqtSignal(bool)
+            def __init__(self, lb, parent=None):
+                super().__init__(parent)
+                self.lb = lb
+            def run(self):
+                ok = self.lb.load_sbert(status_cb=self.status.emit)
+                self.finished.emit(ok)
 
-        # Запустить обучение если корпус готов и нет активного потока
-        if (corpus_manager.stats()["ready_for_training"]
-                and self._corpus_train_thread is None):
-            sentences = corpus_manager.get_recent_lemma_sentences(50)
-            self._corpus_train_thread = TrainThread(self._lb, sentences, parent=self)
-            self._corpus_train_thread.finished.connect(self._on_corpus_train_done)
-            self._corpus_train_thread.start()
+        self._sbert_thread = _SbertThread(self._lb, parent=self)
+        self._sbert_thread.status.connect(self.status_label.setText)
+        self._sbert_thread.finished.connect(self._on_sbert_loaded)
+        self._sbert_thread.start()
 
-        # Обновить вкладку корпуса
-        self.tab_learning.refresh()
-
-    def _on_corpus_train_done(self, success: bool):
-        self._corpus_train_thread = None
-        self.tab_learning.refresh()
+    def _on_sbert_loaded(self, success: bool):
+        if success:
+            self._sbert_status_label.setText("🧠 SBERT: загружен ✓")
+            self._sbert_status_label.setStyleSheet("color: #a6e3a1; font-size: 11px;")
+            self._btn_load_sbert.setVisible(False)
+            self.status_label.setText("SBERT готов — сравнение текстов стало точнее")
+        else:
+            self._sbert_status_label.setText("🧠 SBERT: ошибка")
+            self._sbert_status_label.setStyleSheet("color: #f38ba8; font-size: 11px;")
+            self._btn_load_sbert.setEnabled(True)
 
     # ──── ПЕРЕКЛЮЧЕНИЕ NLP-БЭКЕНДА ────
     def _on_backend_changed(self, index: int):
@@ -925,6 +985,8 @@ class MainWindow(QMainWindow):
         self._last_tokens = tokens
         self._last_metrics = metrics
         self._last_error_result = error_result
+        self._last_strat_result = strat_result
+        self._last_thematic_result = thematic_result
         self.btn_analyze.setEnabled(True)
 
         word_count = metrics["дополнительно"].get("Всего слов", 0)
@@ -963,10 +1025,6 @@ class MainWindow(QMainWindow):
         if thematic_result is not None:
             self.tab_thematic.populate(thematic_result)
 
-        # Интернет-профиль
-        if error_result:
-            self.tab_internet.populate(error_result.internet_profile)
-
         # GigaCheck: передать текст
         self.tab_gigacheck.set_text(text)
 
@@ -978,17 +1036,22 @@ class MainWindow(QMainWindow):
         if senti_result is not None:
             self.tab_senti.show_result(senti_result)
 
-        # Грамматические запросы
-        self.tab_grammar.set_tokens(tokens, text[:80])
-
         # Отчёт
         self.tab_report.generate_report(text, metrics, error_result, None, None)
 
+        # Диагностический профиль автора (эвристический движок — не должен ронять UI)
+        try:
+            diag_result = self._diag_engine.analyze(
+                tokens, metrics, error_result, thematic_result)
+            self.tab_profile.show_result(diag_result)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self.tab_profile.clear()
+            self.status_label.setText(f"Профиль автора недоступен: {e}")
+
         # Переходим на страницу статистики
         self._switch_page(0)
-
-        # ── Пополнение корпуса и дообучение (фоновый поток) ──────────────
-        self._corpus_add_and_train(text, tokens)
 
     def _on_analysis_error(self, msg: str):
         self.btn_analyze.setEnabled(True)
@@ -1051,21 +1114,36 @@ class MainWindow(QMainWindow):
     # ──── СРАВНЕНИЕ ТЕКСТОВ ────
     def _run_compare(self, text1: str, text2: str):
         self.status_label.setText("Сравнение текстов...")
-        self._compare_thread = CompareThread(self._nlp_backend, text1, text2)
+        self._compare_thread = CompareThread(
+            self._nlp_backend, text1, text2,
+            error_analyzer=self.error_analyzer,
+            strat_engine=self.strat_engine)
         self._compare_thread.status.connect(self.status_label.setText)
         self._compare_thread.finished.connect(self._on_compare_done)
         self._compare_thread.error.connect(lambda e: QMessageBox.critical(self, "Ошибка", e))
         self._compare_thread.start()
 
-    def _on_compare_done(self, comp: dict, t1: str, t2: str):
+    def _on_compare_done(self, comp: dict, structured, t1: str, t2: str):
         self.status_label.setText("Сравнение завершено")
-        # Вычислить FastText-сходство если модель готова
+        # SBERT-сходство — вспомогательный объективизирующий показатель
         l1 = comp.pop("_lemmas1", [])
         l2 = comp.pop("_lemmas2", [])
-        if self._lb.ft_ready and l1 and l2:
-            comp["fasttext_sim"] = self._lb.vector_similarity(l1, l2)
-        self._last_compare = (comp, t1, t2)
-        self.tab_compare.show_result(comp)
+        if self._lb.sbert_ready and l1 and l2:
+            sbert_sim = self._lb.vector_similarity(l1, l2)
+            comp["sbert_sim"] = sbert_sim
+            comp["overall"] = round(
+                comp.get("jaccard", 0)                * 0.22
+                + comp.get("pos_similarity", 0)       * 0.15
+                + comp.get("syntactic_similarity", 0) * 0.13
+                + comp.get("ttr_similarity", 0)       * 0.13
+                + comp.get("bigram_similarity", 0)    * 0.17
+                + sbert_sim                            * 0.20,
+                3,
+            )
+        if structured is not None:
+            structured.auxiliary = comp   # обновить вспомогательные метрики (с SBERT)
+        self._last_compare = (comp, structured, t1, t2)
+        self.tab_compare.show_result(structured, comp)
 
     # ──── ЭКСПОРТ ────
     def _export_docx(self):
@@ -1080,8 +1158,8 @@ class MainWindow(QMainWindow):
                 export_report_docx(
                     fp, self._last_text, self._last_metrics,
                     self._last_error_result, self._last_tokens,
-                    strat_result=None,
-                    thematic_result=None)
+                    strat_result=self._last_strat_result,
+                    thematic_result=self._last_thematic_result)
                 QMessageBox.information(self, "Готово", f"Отчёт сохранён:\n{fp}")
             except Exception as e:
                 QMessageBox.critical(self, "Ошибка", str(e))
@@ -1090,13 +1168,14 @@ class MainWindow(QMainWindow):
         if not hasattr(self, '_last_compare') or not self._last_compare:
             QMessageBox.information(self, "Нет данных", "Сначала выполните сравнение текстов.")
             return
-        comp, t1, t2 = self._last_compare
+        comp, structured, t1, t2 = self._last_compare
         fp, _ = QFileDialog.getSaveFileName(
             self, "Сохранить сравнение", "сравнение_текстов.docx",
             "Word (*.docx)")
         if fp:
             try:
-                export_comparison_docx(fp, comp, t1, t2)
+                export_comparison_docx(fp, structured, comp, t1, t2,
+                                       expert_verdict=self.tab_compare.get_expert_verdict())
                 QMessageBox.information(self, "Готово", f"Отчёт сохранён:\n{fp}")
             except Exception as e:
                 QMessageBox.critical(self, "Ошибка", str(e))
@@ -1215,15 +1294,16 @@ class MainWindow(QMainWindow):
         self.tab_morph.clear()
         self.tab_stats.clear()
         self.tab_errors.clear()
-        self.tab_internet.clear()
         self.tab_compare.clear()
         self.tab_gigacheck.clear()
-        self.tab_grammar.clear()
         self.tab_report.clear()
+        self.tab_profile.clear()
         self._last_text = ""
         self._last_tokens = []
         self._last_metrics = {}
         self._last_error_result = None
+        self._last_strat_result = None
+        self._last_thematic_result = None
         self.status_label.setText("Готов к работе")
         self.word_count_label.setText("")
 
