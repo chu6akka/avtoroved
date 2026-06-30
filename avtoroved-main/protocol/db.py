@@ -108,11 +108,25 @@ CREATE TABLE IF NOT EXISTS audit_log (
   program_version TEXT
 );
 
+CREATE TABLE IF NOT EXISTS suitability (
+  id INTEGER PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  document_id INTEGER REFERENCES documents(id),   -- NULL = проверка пары
+  pair_doc_a INTEGER REFERENCES documents(id),    -- для парной сопоставимости
+  pair_doc_b INTEGER REFERENCES documents(id),
+  verdict TEXT NOT NULL,        -- 'пригоден' | 'пригоден_с_ограничениями' | 'непригоден'
+  flags TEXT,                   -- JSON-список красных флагов
+  metrics TEXT,                 -- JSON: объём, доля цитат, повторов и т.п.
+  blocks_strong_conclusion INTEGER NOT NULL DEFAULT 0,  -- 0/1
+  created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_documents_project ON documents(project_id);
 CREATE INDEX IF NOT EXISTS idx_layers_document ON document_layers(document_id);
 CREATE INDEX IF NOT EXISTS idx_sentences_document ON sentences(document_id);
 CREATE INDEX IF NOT EXISTS idx_tokens_sentence ON tokens(sentence_id);
 CREATE INDEX IF NOT EXISTS idx_audit_project ON audit_log(project_id);
+CREATE INDEX IF NOT EXISTS idx_suitability_project ON suitability(project_id);
 """
 
 
@@ -327,5 +341,43 @@ class ProtocolDB:
                 ).fetchall()
             return conn.execute(
                 "SELECT * FROM audit_log WHERE project_id = ? ORDER BY id DESC",
+                (project_id,),
+            ).fetchall()
+
+    # ── пригодность (стадия оценки пригодности) ──────────────────────────────
+    def clear_suitability(self, project_id: int) -> None:
+        """Удалить все оценки пригодности проекта (перед пересчётом)."""
+        with self._connect() as conn:
+            conn.execute("DELETE FROM suitability WHERE project_id = ?", (project_id,))
+
+    def save_suitability(
+        self,
+        project_id: int,
+        verdict: str,
+        blocks_strong_conclusion: bool,
+        document_id: Optional[int] = None,
+        pair_doc_a: Optional[int] = None,
+        pair_doc_b: Optional[int] = None,
+        flags: Optional[list] = None,
+        metrics: Optional[dict] = None,
+    ) -> int:
+        """Сохранить одну оценку пригодности (по документу или по паре)."""
+        flags_json = json.dumps(flags, ensure_ascii=False) if flags is not None else None
+        metrics_json = json.dumps(metrics, ensure_ascii=False) if metrics is not None else None
+        with self._connect() as conn:
+            cur = conn.execute(
+                "INSERT INTO suitability "
+                "(project_id, document_id, pair_doc_a, pair_doc_b, verdict, flags, metrics, "
+                " blocks_strong_conclusion, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (project_id, document_id, pair_doc_a, pair_doc_b, verdict,
+                 flags_json, metrics_json, 1 if blocks_strong_conclusion else 0, _now()),
+            )
+            return int(cur.lastrowid)
+
+    def fetch_suitability(self, project_id: int) -> list[sqlite3.Row]:
+        with self._connect() as conn:
+            return conn.execute(
+                "SELECT * FROM suitability WHERE project_id = ? ORDER BY id",
                 (project_id,),
             ).fetchall()

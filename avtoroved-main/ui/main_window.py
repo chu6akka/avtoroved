@@ -44,6 +44,7 @@ from ui.tabs.thematic_tab import ThematicTab
 from ui.tabs.nkrya_tab import NkryaTab
 from ui.tabs.senti_tab import SentiTab
 from ui.tabs.materials_tab import MaterialsTab
+from ui.tabs.suitability_tab import SuitabilityTab
 
 try:
     import matplotlib
@@ -489,6 +490,7 @@ class MainWindow(QMainWindow):
         _divider()
         _section("ЭКСПЕРТНЫЙ ПРОТОКОЛ")
         _nav("📁", "Материалы",       11)
+        _nav("✅", "Пригодность",      12)
 
         # ── Кнопка справочника словарей ───────────────────────────
         _divider()
@@ -728,6 +730,10 @@ class MainWindow(QMainWindow):
         # 11 — Материалы (раздел «Экспертный протокол»): переиспользуем Stanza
         self.tab_materials = MaterialsTab(self.stanza)
         self.stack.addWidget(self.tab_materials)
+
+        # 12 — Пригодность (гейт перед анализом): читает материалы из protocol.db
+        self.tab_suitability = SuitabilityTab()
+        self.stack.addWidget(self.tab_suitability)
 
         # ── Вертикальный сплиттер: текст ↕ страницы ──────────────────
         vsplit = QSplitter(Qt.Orientation.Vertical)
