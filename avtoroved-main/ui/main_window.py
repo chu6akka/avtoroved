@@ -43,6 +43,7 @@ from ui.tabs.stratification_tab import StratificationTab
 from ui.tabs.thematic_tab import ThematicTab
 from ui.tabs.nkrya_tab import NkryaTab
 from ui.tabs.senti_tab import SentiTab
+from ui.tabs.materials_tab import MaterialsTab
 
 try:
     import matplotlib
@@ -485,6 +486,10 @@ class MainWindow(QMainWindow):
         _nav("📄", "Отчёт",           9)
         _nav("🔬", "Профиль автора",  10)
 
+        _divider()
+        _section("ЭКСПЕРТНЫЙ ПРОТОКОЛ")
+        _nav("📁", "Материалы",       11)
+
         # ── Кнопка справочника словарей ───────────────────────────
         _divider()
         btn_lexicon = QPushButton("📖 Справочник словарей")
@@ -719,6 +724,10 @@ class MainWindow(QMainWindow):
         # 10 — Профиль автора (диагностика)
         self.tab_profile = ProfileTab()
         self.stack.addWidget(self.tab_profile)
+
+        # 11 — Материалы (раздел «Экспертный протокол»): переиспользуем Stanza
+        self.tab_materials = MaterialsTab(self.stanza)
+        self.stack.addWidget(self.tab_materials)
 
         # ── Вертикальный сплиттер: текст ↕ страницы ──────────────────
         vsplit = QSplitter(Qt.Orientation.Vertical)
