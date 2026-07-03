@@ -10,6 +10,36 @@ from typing import List
 from analyzer.stanza_backend import TokenInfo
 
 
+def _docx_block_texts(doc):
+    """
+    Тексты блоков DOCX в порядке их следования в теле документа:
+    обычные абзацы (w:p) и таблицы (w:tbl) — документы, свёрстанные
+    таблицей (резюме, анкеты), иначе дают пустой текст.
+    """
+    from docx.oxml.ns import qn
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
+
+    for child in doc.element.body.iterchildren():
+        if child.tag == qn('w:p'):
+            text = Paragraph(child, doc).text
+            if text.strip():
+                yield text
+        elif child.tag == qn('w:tbl'):
+            for row in Table(child, doc).rows:
+                cells, seen = [], set()
+                for cell in row.cells:
+                    # Объединённые ячейки повторяются в row.cells — берём один раз.
+                    if id(cell._tc) in seen:
+                        continue
+                    seen.add(id(cell._tc))
+                    text = cell.text.strip()
+                    if text:
+                        cells.append(text)
+                if cells:
+                    yield '\t'.join(cells)
+
+
 def load_text_from_file(filepath: str) -> str:
     """Загрузить текст из .txt или .docx файла."""
     ext = os.path.splitext(filepath)[1].lower()
@@ -24,7 +54,7 @@ def load_text_from_file(filepath: str) -> str:
     elif ext == '.docx':
         from docx import Document
         doc = Document(filepath)
-        return '\n'.join(p.text for p in doc.paragraphs if p.text.strip())
+        return '\n'.join(_docx_block_texts(doc))
     else:
         raise ValueError(f"Неподдерживаемый формат: {ext}")
 

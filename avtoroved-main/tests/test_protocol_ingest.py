@@ -151,6 +151,48 @@ def test_import_empty_document_marked_empty(tmp_path, pdb):
     assert details["статус"] == ingest.STATUS_EMPTY
 
 
+def test_import_docx_table_only(tmp_path, pdb):
+    """
+    DOCX, свёрстанный таблицей (типичное резюме), раньше давал 0 слов:
+    load_text_from_file читал только doc.paragraphs. Теперь текст ячеек
+    таблиц тоже извлекается.
+    """
+    docx_lib = pytest.importorskip("docx")
+    f = tmp_path / "резюме.docx"
+    doc = docx_lib.Document()
+    table = doc.add_table(rows=2, cols=2)
+    table.cell(0, 0).text = "Иванов Иван Иванович"
+    table.cell(0, 1).text = "инженер программист"
+    table.cell(1, 0).text = "Опыт работы десять лет"
+    table.cell(1, 1).text = "Образование высшее техническое"
+    doc.save(str(f))
+
+    summary = ingest.import_document(
+        pdb, pdb.create_project("Дело"), str(f),
+        protocol_db.ROLE_DISPUTED, FakeBackend(), program_version="5.0")
+    assert summary["word_count"] > 0
+    assert summary["token_count"] > 0
+
+
+def test_docx_paragraphs_and_tables_in_document_order(tmp_path):
+    """Порядок блоков сохраняется: абзац до таблицы, таблица, абзац после."""
+    docx_lib = pytest.importorskip("docx")
+    from analyzer.export import load_text_from_file
+
+    f = tmp_path / "mixed.docx"
+    doc = docx_lib.Document()
+    doc.add_paragraph("Абзац до таблицы")
+    table = doc.add_table(rows=1, cols=2)
+    table.cell(0, 0).text = "ячейка первая"
+    table.cell(0, 1).text = "ячейка вторая"
+    doc.add_paragraph("Абзац после таблицы")
+    doc.save(str(f))
+
+    text = load_text_from_file(str(f))
+    assert text.index("Абзац до") < text.index("ячейка первая") \
+        < text.index("ячейка вторая") < text.index("Абзац после")
+
+
 def test_pdf_disabled_without_pypdf(tmp_path, pdb):
     # Если pypdf не установлен, extract_text для .pdf даёт понятную ошибку.
     if ingest.PDF_AVAILABLE:
