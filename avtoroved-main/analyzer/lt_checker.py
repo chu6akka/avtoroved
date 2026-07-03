@@ -239,14 +239,19 @@ class LTChecker:
         errors: List[TextError] = []
 
         for m in matches:
-            # Унифицированный доступ к полям (объект или dict)
+            # Унифицированный доступ к полям (объект или dict).
+            # language_tool_python <2.8 использовал camelCase (ruleId,
+            # errorLength), новые версии — snake_case (rule_id, error_length).
             if use_lt_object:
-                rule_id  = getattr(m, 'ruleId', '') or ''
+                rule_id  = (getattr(m, 'ruleId', None)
+                            or getattr(m, 'rule_id', '') or '')
                 category = getattr(m, 'category', '') or ''
                 message  = getattr(m, 'message', '') or ''
-                offset   = m.offset
-                length   = m.errorLength
-                replacements = [r for r in (m.replacements or [])]
+                offset   = getattr(m, 'offset', 0)
+                length   = getattr(m, 'errorLength', None)
+                if length is None:
+                    length = getattr(m, 'error_length', 0)
+                replacements = [r for r in (getattr(m, 'replacements', None) or [])]
             else:
                 rule_id  = m.get('rule', {}).get('id', '')
                 category = m.get('rule', {}).get('category', {}).get('id', '')

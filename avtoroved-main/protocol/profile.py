@@ -333,9 +333,9 @@ def run_for_document(
                 _status("LanguageTool: проверка текста (локально)...")
                 errors += lt.check(text) or []
                 try:
-                    import language_tool_python
+                    from importlib.metadata import version as _pkg_version
                     lt_meta = {"режим": "local",
-                               "версия": getattr(language_tool_python, "__version__", "?")}
+                               "версия": _pkg_version("language-tool-python")}
                 except Exception:
                     lt_meta = {"режим": "local", "версия": "?"}
             else:
