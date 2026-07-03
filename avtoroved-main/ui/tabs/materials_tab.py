@@ -152,6 +152,9 @@ class MaterialsTab(QWidget):
             ["Имя файла", "Роль", "SHA-256", "Словоформы", "Предлож.", "Токены", "Статус"])
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setAlternatingRowColors(True)
+        self.table.setStyleSheet("QTableWidget::item { padding: 6px 8px; }")
+        self.table.verticalHeader().setVisible(False)
         hh = self.table.horizontalHeader()
         hh.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         for c in range(1, 7):

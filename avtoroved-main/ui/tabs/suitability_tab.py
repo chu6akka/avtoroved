@@ -84,6 +84,9 @@ class SuitabilityTab(QWidget):
     def _tune_table(self, table: QTableWidget, stretch_col: int):
         table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        table.setAlternatingRowColors(True)
+        table.setStyleSheet("QTableWidget::item { padding: 6px 8px; }")
+        table.verticalHeader().setVisible(False)
         hh = table.horizontalHeader()
         for c in range(table.columnCount()):
             mode = (QHeaderView.ResizeMode.Stretch if c == stretch_col

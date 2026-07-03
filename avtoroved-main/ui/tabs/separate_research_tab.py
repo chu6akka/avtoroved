@@ -10,11 +10,11 @@ ui/tabs/separate_research_tab.py — вкладка «Раздельное ис�
 """
 from __future__ import annotations
 
-from PyQt6.QtCore import QThread, pyqtSignal
-from PyQt6.QtGui import QColor
+from PyQt6.QtCore import QThread, pyqtSignal, Qt
+from PyQt6.QtGui import QColor, QFont
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox,
-    QTreeWidget, QTreeWidgetItem, QHeaderView, QMessageBox,
+    QTreeWidget, QTreeWidgetItem, QHeaderView, QMessageBox, QTextEdit, QSplitter,
 )
 
 from protocol import db as protocol_db
@@ -99,12 +99,40 @@ class SeparateResearchTab(QWidget):
         self.tree = QTreeWidget()
         self.tree.setColumnCount(6)
         self.tree.setHeaderLabels(
-            ["Группа / элемент", "Вид", "Значение", "Фрагмент", "Источник", "Ид. ценность"])
+            ["Элемент профиля", "Вид", "Значение", "Фрагмент", "Источник", "Ид. ценность"])
+        self.tree.setAlternatingRowColors(True)
+        self.tree.setIndentation(20)
+        self.tree.setUniformRowHeights(False)
+        self.tree.setWordWrap(True)
+        # Просторные строки: без этого дерево сливается в нечитаемую простыню.
+        self.tree.setStyleSheet(
+            "QTreeWidget::item { padding: 6px 8px; }"
+            "QTreeWidget { font-size: 13px; }")
         hh = self.tree.header()
-        hh.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        hh.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        hh.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
+        hh.resizeSection(0, 340)
+        hh.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        hh.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
+        hh.resizeSection(2, 280)
         hh.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
-        layout.addWidget(self.tree, stretch=1)
+        hh.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        hh.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
+        self.tree.itemSelectionChanged.connect(self._on_selection)
+
+        # Панель деталей: полный текст значения/фрагмента выбранной строки —
+        # решает проблему обрезанных колонок.
+        self.detail = QTextEdit()
+        self.detail.setReadOnly(True)
+        self.detail.setPlaceholderText(
+            "Выберите строку профиля — здесь появится полное значение и фрагмент.")
+        self.detail.setMaximumHeight(160)
+
+        split = QSplitter(Qt.Orientation.Vertical)
+        split.setChildrenCollapsible(False)
+        split.addWidget(self.tree)
+        split.addWidget(self.detail)
+        split.setSizes([560, 130])
+        layout.addWidget(split, stretch=1)
 
         self.status_label = QLabel("Выберите документ и постройте профиль.")
         self.status_label.setObjectName("caption")
@@ -188,14 +216,30 @@ class SeparateResearchTab(QWidget):
         QMessageBox.critical(self, "Ошибка", msg)
 
     # ── отображение сохранённого профиля ─────────────────────────────────────
+    # Русские названия групп для заголовков с пояснением.
+    _GROUP_TITLES = {
+        profile_mod.GROUP_SEMANTIC: "📚 Смысловые (тематика — слабый признак автора)",
+        profile_mod.GROUP_TEXTOLOGICAL: "📐 Текстологические (архитектоника текста)",
+        profile_mod.GROUP_LINGUISTIC: "🔤 Языковые",
+        profile_mod.GROUP_PSYCHO: "🧠 Психолингвистические (интерпретация — эксперту)",
+    }
+    _ID_VALUE_COLOR = {"высокая": "#a6e3a1", "низкая": "#7f849c"}
+
     def _reload_tree(self):
         self.tree.clear()
+        self.detail.clear()
         if self._document_id is None:
             return
         rows = self._pdb.fetch_feature_candidates(self._document_id)
         if not rows:
             self.status_label.setText("Профиль не построен. Нажмите «Построить профиль».")
             return
+
+        bold = QFont()
+        bold.setBold(True)
+        bold.setPointSize(bold.pointSize() + 1)
+        sub_bold = QFont()
+        sub_bold.setBold(True)
 
         # группа → подгруппа → элементы
         by_group: dict[str, dict[str, list]] = {}
@@ -205,30 +249,72 @@ class SeparateResearchTab(QWidget):
         for group in _GROUP_ORDER + [g for g in by_group if g not in _GROUP_ORDER]:
             if group not in by_group:
                 continue
-            g_item = QTreeWidgetItem([group.upper()])
+            n_in_group = sum(len(v) for v in by_group[group].values())
+            title = self._GROUP_TITLES.get(group, group.upper())
+            g_item = QTreeWidgetItem([f"{title}  —  {n_in_group}"])
+            g_item.setFont(0, bold)
+            g_item.setBackground(0, QColor("#313244"))
             self.tree.addTopLevelItem(g_item)
+            g_item.setFirstColumnSpanned(True)
             for subgroup, items in by_group[group].items():
                 parent = g_item
                 if subgroup != "—":
-                    parent = QTreeWidgetItem([subgroup])
+                    parent = QTreeWidgetItem([f"{subgroup}  ({len(items)})"])
+                    parent.setFont(0, sub_bold)
                     g_item.addChild(parent)
+                    parent.setFirstColumnSpanned(True)
                 for r in items:
                     self._add_row(parent, r)
+                parent.setExpanded(True)
             g_item.setExpanded(True)
-        self.status_label.setText(f"Элементов профиля: {len(rows)}.")
+        self.status_label.setText(
+            f"Элементов профиля: {len(rows)}. Клик по строке — полный текст внизу.")
 
     def _add_row(self, parent: QTreeWidgetItem, r):
         value = r["value"] or ""
+        # Короткая подпись вида — «кандидат_признак» не влезает в колонку.
+        kind_short = "◆ кандидат" if r["kind"] == profile_mod.KIND_CANDIDATE else "Σ счётчик"
         item = QTreeWidgetItem([
-            r["label"], r["kind"], value, r["fragment"] or "",
+            r["label"], kind_short, value, r["fragment"] or "",
             r["source"] or "", r["id_value"] or ""])
+        # Полный текст каждой ячейки — во всплывающей подсказке.
+        for col, text in ((0, r["label"]), (2, value), (3, r["fragment"] or ""),
+                          (4, r["source"] or "")):
+            if text:
+                item.setToolTip(col, text)
         if profile_mod.NOTE_UNRELIABLE_AUTOCORRECT in value:
             for col in range(item.columnCount()):
                 item.setForeground(col, QColor(_UNRELIABLE_COLOR))
             item.setToolTip(2, "Ненадёжен: происхождение текста предполагает автокоррекцию")
         elif r["kind"] == profile_mod.KIND_CANDIDATE:
             item.setForeground(1, QColor(_CANDIDATE_COLOR))
+        id_color = self._ID_VALUE_COLOR.get(r["id_value"] or "")
+        if id_color and profile_mod.NOTE_UNRELIABLE_AUTOCORRECT not in value:
+            item.setForeground(5, QColor(id_color))
+        # Данные строки для панели деталей.
+        item.setData(0, Qt.ItemDataRole.UserRole, dict(r))
         parent.addChild(item)
+
+    def _on_selection(self):
+        """Показать полное значение и фрагмент выбранной строки внизу."""
+        items = self.tree.selectedItems()
+        if not items:
+            return
+        r = items[0].data(0, Qt.ItemDataRole.UserRole)
+        if not r:
+            self.detail.clear()
+            return
+        parts = [f"<b>{r['label']}</b>"]
+        meta = " · ".join(x for x in (
+            r.get("kind"), r.get("subgroup"), r.get("source"),
+            f"ид. ценность: {r['id_value']}" if r.get("id_value") else "") if x)
+        if meta:
+            parts.append(f"<span style='color:#a6adc8'>{meta}</span>")
+        if r.get("value"):
+            parts.append(f"<b>Значение:</b> {r['value']}")
+        if r.get("fragment"):
+            parts.append(f"<b>Фрагмент:</b> {r['fragment']}")
+        self.detail.setHtml("<br>".join(parts))
 
     def _update_buttons(self):
         self.btn_build.setEnabled(self._document_id is not None)

@@ -610,6 +610,10 @@ class MainWindow(QMainWindow):
 
         return sidebar
 
+    # Страницы раздела «Экспертный протокол» — работают с материалами из БД,
+    # общее поле «Текст для анализа» на них не используется и скрывается.
+    _PROTOCOL_PAGES_FROM = 11
+
     def _switch_page(self, idx: int):
         """Переключить страницу контента и обновить активный nav-элемент."""
         self.stack.setCurrentIndex(idx)
@@ -619,6 +623,12 @@ class MainWindow(QMainWindow):
             btn.style().unpolish(btn)
             btn.style().polish(btn)
         self._current_page = idx
+
+        # Скрыть/показать поле текста в зависимости от типа страницы
+        if hasattr(self, "text_input"):
+            analytical = idx < self._PROTOCOL_PAGES_FROM
+            self.text_input.setVisible(analytical)
+            self._input_header_widget.setVisible(analytical)
 
     def _build_ui(self):
         central = QWidget()
@@ -638,8 +648,11 @@ class MainWindow(QMainWindow):
         content_layout.setContentsMargins(12, 8, 12, 8)
         content_layout.setSpacing(8)
 
-        # Текстовое поле (всегда видно)
-        input_header = QHBoxLayout()
+        # Текстовое поле (видно на аналитических страницах; на страницах
+        # экспертного протокола скрывается — там источник текста это БД)
+        self._input_header_widget = QWidget()
+        input_header = QHBoxLayout(self._input_header_widget)
+        input_header.setContentsMargins(0, 0, 0, 0)
         input_lbl = QLabel("Текст для анализа")
         input_lbl.setObjectName("subtitle")
         input_header.addWidget(input_lbl)
@@ -663,7 +676,7 @@ class MainWindow(QMainWindow):
         btn_toggle.clicked.connect(self._toggle_text_area)
         input_header.addWidget(btn_toggle)
 
-        content_layout.addLayout(input_header)
+        content_layout.addWidget(self._input_header_widget)
 
         self.text_input = _PlainPasteEdit()
         self.text_input.setObjectName("text_input")
