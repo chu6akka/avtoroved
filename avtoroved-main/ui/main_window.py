@@ -45,6 +45,7 @@ from ui.tabs.nkrya_tab import NkryaTab
 from ui.tabs.senti_tab import SentiTab
 from ui.tabs.materials_tab import MaterialsTab
 from ui.tabs.suitability_tab import SuitabilityTab
+from ui.tabs.separate_research_tab import SeparateResearchTab
 
 try:
     import matplotlib
@@ -491,6 +492,7 @@ class MainWindow(QMainWindow):
         _section("ЭКСПЕРТНЫЙ ПРОТОКОЛ")
         _nav("📁", "Материалы",       11)
         _nav("✅", "Пригодность",      12)
+        _nav("🧩", "Раздельное исслед.", 13)
 
         # ── Кнопка справочника словарей ───────────────────────────
         _divider()
@@ -734,6 +736,10 @@ class MainWindow(QMainWindow):
         # 12 — Пригодность (гейт перед анализом): читает материалы из protocol.db
         self.tab_suitability = SuitabilityTab()
         self.stack.addWidget(self.tab_suitability)
+
+        # 13 — Раздельное исследование: профиль каждого текста, без сравнения
+        self.tab_separate = SeparateResearchTab(self.stanza)
+        self.stack.addWidget(self.tab_separate)
 
         # ── Вертикальный сплиттер: текст ↕ страницы ──────────────────
         vsplit = QSplitter(Qt.Orientation.Vertical)

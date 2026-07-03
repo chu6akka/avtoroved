@@ -1,0 +1,197 @@
+"""Тесты стадии «раздельное исследование» (protocol/profile.py)."""
+import pytest
+
+from protocol import db as protocol_db
+from protocol import profile as pf
+
+
+# ── чистые сборщики ──────────────────────────────────────────────────────────
+class _FakeDomain:
+    def __init__(self):
+        self.label = "Право"
+        self.cosine = 0.42
+        self.match_count = 7
+        self.examples = ["закон", "договор"]
+
+
+class _FakeThematic:
+    top_domains = [_FakeDomain()]
+
+
+def test_semantic_candidates_low_id_value():
+    out = pf.semantic_candidates(_FakeThematic())
+    assert len(out) == 1
+    c = out[0]
+    assert c["group_name"] == pf.GROUP_SEMANTIC
+    assert c["id_value"] == "низкая"          # тема ≠ автор
+    assert "Право" in c["label"]
+    assert c["source"] == "thematic_engine"
+
+
+def test_textological_counters():
+    metrics = {"дополнительно": {
+        "Всего слов": 120, "Всего предложений": 9,
+        "Средняя длина предложения (слов)": 13.3,
+        "Дисперсия длины предложений": 4.2}}
+    text = "Первый абзац из нескольких слов.\n\nВторой абзац тоже есть."
+    out = pf.textological_candidates(metrics, text)
+    labels = {c["label"]: c for c in out}
+    assert labels["Число абзацев"]["value"] == "2"
+    assert all(c["kind"] == pf.KIND_COUNTER for c in out)
+    assert all(c["group_name"] == pf.GROUP_TEXTOLOGICAL for c in out)
+
+
+class _FakeStratToken:
+    def __init__(self, surface, lemma, layer, context=""):
+        self.surface, self.lemma, self.layer, self.context = surface, lemma, layer, context
+
+
+class _FakeStrat:
+    layer_counts = {"разговорная": 3, "жаргон": 1}
+    layer_words = {"разговорная": ["чуток", "малость"], "жаргон": ["движуха"]}
+    marked_ratio = 0.05
+    tokens = [_FakeStratToken("движуха", "движуха", "жаргон", "вся эта движуха вокруг")]
+
+
+def test_lexical_candidates_with_strat():
+    metrics = {"дополнительно": {"Лексическое разнообразие (TTR)": 0.61,
+                                 "Доля hapax-лемм": 0.44}}
+    out = pf.lexical_candidates(metrics, _FakeStrat())
+    labels = [c["label"] for c in out]
+    assert "Лексическое разнообразие (TTR)" in labels
+    assert any("разговорная" in l for l in labels)
+    assert any("Доля нелитературной лексики" in l for l in labels)
+    assert all(c["subgroup"] == pf.SUB_LEXICAL for c in out)
+
+
+def test_syntactic_sentence_types():
+    metrics = {"частоты": {"Существительное": {"количество": 10, "коэффициент": 0.3}}}
+    text = "Это утверждение. А это вопрос? И восклицание! И недосказанность…"
+    out = pf.syntactic_candidates(metrics, text)
+    labels = {c["label"]: c["value"] for c in out}
+    assert labels["Вопросительные предложения"] == "1"
+    assert labels["Восклицательные предложения"] == "1"
+    assert labels["Предложения с многоточием"] == "1"
+    assert any(l.startswith("Доля POS") for l in labels)
+
+
+# ── кандидаты ошибок: требование проверки и ненадёжность ─────────────────────
+class _FakeError:
+    def __init__(self, error_type="Пунктуационная", subtype="запятая",
+                 significance="высокая"):
+        self.error_type = error_type
+        self.subtype = subtype
+        self.fragment = "текст , с ошибкой"
+        self.description = "лишний пробел перед запятой"
+        self.position = (5, 6)
+        self.source = "PUNCT"
+        self.context = "…текст , с ошибкой…"
+        self.significance = significance
+
+
+def test_error_candidates_default_needs_review():
+    out = pf.error_candidates([_FakeError()], autocorrect_unreliable=False)
+    assert len(out) == 1
+    c = out[0]
+    assert c["kind"] == pf.KIND_CANDIDATE
+    assert pf.NOTE_NEEDS_REVIEW in c["value"]
+    assert pf.NOTE_UNRELIABLE_AUTOCORRECT not in c["value"]
+    assert c["subgroup"] == pf.SUB_PUNCTUATION
+    assert c["id_value"] == "высокая"
+    assert c["fragment"]
+
+
+def test_error_candidates_unreliable_with_autocorrect():
+    out = pf.error_candidates(
+        [_FakeError("Орфографическая", "тся/ться")], autocorrect_unreliable=True)
+    c = out[0]
+    assert pf.NOTE_UNRELIABLE_AUTOCORRECT in c["value"]
+    assert c["subgroup"] == pf.SUB_ORTHOGRAPHIC
+
+
+def test_psycho_candidates_minimal_no_interpretation():
+    out = pf.psycho_candidates(_FakeStrat())
+    assert len(out) == 1
+    c = out[0]
+    assert c["group_name"] == pf.GROUP_PSYCHO
+    assert c["kind"] == pf.KIND_CANDIDATE
+    assert "эксперту" in c["value"]     # интерпретация остаётся эксперту
+    assert c["id_value"] == ""          # автоматической оценки нет
+
+
+# ── запись профиля в БД и журнал ─────────────────────────────────────────────
+@pytest.fixture()
+def pdb(tmp_path):
+    return protocol_db.ProtocolDB(str(tmp_path / "prof.db"))
+
+
+def _fake_backend():
+    from analyzer.stanza_backend import TokenInfo
+
+    class FB:
+        def analyze(self, text):
+            import re
+            toks = []
+            for sid, m in enumerate(re.finditer(r"[A-Za-zА-Яа-яЁё]+", text)):
+                toks.append(TokenInfo(
+                    text=m.group(0), lemma=m.group(0).lower(),
+                    pos="NOUN", pos_label="Существительное", feats="—",
+                    char_start=m.start(), char_end=m.end(), sent_id=0))
+            return toks
+    return FB()
+
+
+def _make_doc(pdb, pid, provenance="рукопись"):
+    did = pdb.add_document(pid, "doc.txt", protocol_db.ROLE_SAMPLE,
+                           file_sha256="h", provenance=provenance,
+                           genre="письмо", word_count=30)
+    pdb.save_layers(did, {
+        protocol_db.LAYER_CLEANED:
+            "Первое предложение о разном.\n\nВторой абзац про закон и договор."})
+    return did
+
+
+def test_run_for_document_writes_profile_and_log(pdb):
+    pid = pdb.create_project("Дело")
+    did = _make_doc(pdb, pid)
+    summary = pf.run_for_document(pdb, pid, did, _fake_backend(),
+                                  program_version="5.0")
+    assert summary["count"] > 0
+    rows = pdb.fetch_feature_candidates(did)
+    assert len(rows) == summary["count"]
+    groups = {r["group_name"] for r in rows}
+    # Как минимум текстологические и языковые всегда строятся.
+    assert pf.GROUP_TEXTOLOGICAL in groups
+    assert pf.GROUP_LINGUISTIC in groups
+    # Обязательные поля заполнены.
+    assert all(r["kind"] in (pf.KIND_COUNTER, pf.KIND_CANDIDATE) for r in rows)
+    assert all(r["source"] for r in rows)
+    assert all(r["created_at"] for r in rows)
+    # Журнал.
+    actions = [r["action"] for r in pdb.fetch_audit_log(pid)]
+    assert "построен профиль (раздельное исследование)" in actions
+
+
+def test_run_for_document_idempotent(pdb):
+    pid = pdb.create_project("Дело")
+    did = _make_doc(pdb, pid)
+    pf.run_for_document(pdb, pid, did, _fake_backend())
+    n1 = len(pdb.fetch_feature_candidates(did))
+    pf.run_for_document(pdb, pid, did, _fake_backend())
+    n2 = len(pdb.fetch_feature_candidates(did))
+    assert n1 == n2   # пересборка без дублей
+
+
+def test_autocorrect_flag_from_suitability(pdb):
+    """Флаг автокоррекции из 2А помечает кандидатов ошибок ненадёжными."""
+    pid = pdb.create_project("Дело")
+    did = _make_doc(pdb, pid, provenance="цифровой")
+    # Стадия 2А поставила флаг автокоррекции.
+    pdb.save_suitability(
+        pid, verdict="пригоден_с_ограничениями", blocks_strong_conclusion=True,
+        document_id=did,
+        flags=[{"code": "автокоррекция", "level": "ограничение", "message": "…"}],
+        metrics={})
+    assert pf.has_autocorrect_flag(pdb, pid, did) is True
+    summary = pf.run_for_document(pdb, pid, did, _fake_backend())
+    assert summary["autocorrect_unreliable"] is True

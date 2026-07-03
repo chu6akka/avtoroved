@@ -121,7 +121,22 @@ CREATE TABLE IF NOT EXISTS suitability (
   created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS feature_candidates (
+  id INTEGER PRIMARY KEY,
+  document_id INTEGER NOT NULL REFERENCES documents(id),
+  group_name TEXT NOT NULL,     -- 'смысловые'|'текстологические'|'языковые'|'психолингвистические'
+  subgroup TEXT,                -- 'лексические'|'стилистические'|'синтаксические'|'орфографические'|'пунктуационные'|...
+  kind TEXT NOT NULL,           -- 'счётчик' | 'кандидат_признак'
+  label TEXT NOT NULL,
+  value TEXT,                   -- значение счётчика или описание признака
+  fragment TEXT,                -- фрагмент текста, где проявился
+  source TEXT,                  -- модуль-источник
+  id_value TEXT,                -- метка идентификационной ценности: 'низкая'|'средняя'|'высокая'|''
+  created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_documents_project ON documents(project_id);
+CREATE INDEX IF NOT EXISTS idx_fc_document ON feature_candidates(document_id);
 CREATE INDEX IF NOT EXISTS idx_layers_document ON document_layers(document_id);
 CREATE INDEX IF NOT EXISTS idx_sentences_document ON sentences(document_id);
 CREATE INDEX IF NOT EXISTS idx_tokens_sentence ON tokens(sentence_id);
@@ -380,4 +395,41 @@ class ProtocolDB:
             return conn.execute(
                 "SELECT * FROM suitability WHERE project_id = ? ORDER BY id",
                 (project_id,),
+            ).fetchall()
+
+    # ── кандидаты признаков (раздельное исследование) ────────────────────────
+    def clear_feature_candidates(self, document_id: int) -> None:
+        """Удалить профиль документа (перед пересборкой)."""
+        with self._connect() as conn:
+            conn.execute("DELETE FROM feature_candidates WHERE document_id = ?",
+                         (document_id,))
+
+    def save_feature_candidates(self, document_id: int, candidates: list[dict]) -> int:
+        """
+        Сохранить элементы профиля документа. Каждый элемент:
+        {group_name, subgroup, kind, label, value, fragment, source, id_value}.
+        Возвращает число записанных строк.
+        """
+        ts = _now()
+        rows = [
+            (document_id, c["group_name"], c.get("subgroup"), c["kind"],
+             c["label"], c.get("value"), c.get("fragment"), c.get("source"),
+             c.get("id_value", ""), ts)
+            for c in candidates
+        ]
+        with self._connect() as conn:
+            conn.executemany(
+                "INSERT INTO feature_candidates "
+                "(document_id, group_name, subgroup, kind, label, value, fragment, "
+                " source, id_value, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                rows,
+            )
+        return len(rows)
+
+    def fetch_feature_candidates(self, document_id: int) -> list[sqlite3.Row]:
+        with self._connect() as conn:
+            return conn.execute(
+                "SELECT * FROM feature_candidates WHERE document_id = ? ORDER BY id",
+                (document_id,),
             ).fetchall()
