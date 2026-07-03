@@ -87,6 +87,7 @@ class _FakeError:
         self.source = "PUNCT"
         self.context = "…текст , с ошибкой…"
         self.significance = significance
+        self.rule_ref = "PUNCT:TEST"
 
 
 def test_error_candidates_default_needs_review():
@@ -107,6 +108,13 @@ def test_error_candidates_unreliable_with_autocorrect():
     c = out[0]
     assert pf.NOTE_UNRELIABLE_AUTOCORRECT in c["value"]
     assert c["subgroup"] == pf.SUB_ORTHOGRAPHIC
+    assert c["reliability"] == "низкая"    # автокоррекция понижает надёжность
+
+
+def test_error_candidates_reliability_passthrough():
+    out = pf.error_candidates([_FakeError()], autocorrect_unreliable=False,
+                              reliabilities=["низкая"])
+    assert out[0]["reliability"] == "низкая"
 
 
 def test_psycho_candidates_minimal_no_interpretation():
@@ -154,7 +162,7 @@ def _make_doc(pdb, pid, provenance="рукопись"):
 def test_run_for_document_writes_profile_and_log(pdb):
     pid = pdb.create_project("Дело")
     did = _make_doc(pdb, pid)
-    summary = pf.run_for_document(pdb, pid, did, _fake_backend(),
+    summary = pf.run_for_document(pdb, pid, did, _fake_backend(), use_lt=False,
                                   program_version="5.0")
     assert summary["count"] > 0
     rows = pdb.fetch_feature_candidates(did)
@@ -175,9 +183,9 @@ def test_run_for_document_writes_profile_and_log(pdb):
 def test_run_for_document_idempotent(pdb):
     pid = pdb.create_project("Дело")
     did = _make_doc(pdb, pid)
-    pf.run_for_document(pdb, pid, did, _fake_backend())
+    pf.run_for_document(pdb, pid, did, _fake_backend(), use_lt=False)
     n1 = len(pdb.fetch_feature_candidates(did))
-    pf.run_for_document(pdb, pid, did, _fake_backend())
+    pf.run_for_document(pdb, pid, did, _fake_backend(), use_lt=False)
     n2 = len(pdb.fetch_feature_candidates(did))
     assert n1 == n2   # пересборка без дублей
 
@@ -193,5 +201,5 @@ def test_autocorrect_flag_from_suitability(pdb):
         flags=[{"code": "автокоррекция", "level": "ограничение", "message": "…"}],
         metrics={})
     assert pf.has_autocorrect_flag(pdb, pid, did) is True
-    summary = pf.run_for_document(pdb, pid, did, _fake_backend())
+    summary = pf.run_for_document(pdb, pid, did, _fake_backend(), use_lt=False)
     assert summary["autocorrect_unreliable"] is True

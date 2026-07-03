@@ -18,6 +18,7 @@ import re
 from typing import Any, Optional
 
 from protocol import db as protocol_db
+from protocol import detector_filter
 
 # ── Группы (по методике: 4 группы признаков) ─────────────────────────────────
 GROUP_SEMANTIC = "смысловые"
@@ -184,25 +185,35 @@ def syntactic_candidates(metrics: dict, text: str) -> list[dict]:
 
 
 # ── 3г. Языковые / орфография+пунктуация: кандидаты из модуля ошибок ─────────
-def error_candidates(errors: list, autocorrect_unreliable: bool) -> list[dict]:
+def error_candidates(errors: list, autocorrect_unreliable: bool,
+                     reliabilities: Optional[list[str]] = None) -> list[dict]:
     """
     Кандидаты признаков из ошибок (TextError). По умолчанию каждый помечен
     «требует проверки»; при флаге автокоррекции из suitability — «ненадёжен
     (автокоррекция)» (орфографические и пунктуационные признаки искажены).
+
+    reliabilities — надёжность каждого срабатывания из слоя фильтрации
+    (protocol/detector_filter.py), позиционно к errors. Флаг автокоррекции
+    дополнительно понижает надёжность до «низкая».
     """
     out: list[dict] = []
     note = NOTE_UNRELIABLE_AUTOCORRECT if autocorrect_unreliable else NOTE_NEEDS_REVIEW
-    for err in errors or []:
+    for i, err in enumerate(errors or []):
         subgroup = _ERROR_SUBGROUP.get(err.error_type, SUB_ORTHOGRAPHIC)
         desc = err.description or err.subtype or err.error_type
-        out.append(_c(
+        rel = reliabilities[i] if reliabilities and i < len(reliabilities) else ""
+        if autocorrect_unreliable:
+            rel = "низкая"
+        c = _c(
             GROUP_LINGUISTIC, KIND_CANDIDATE,
             f"{err.error_type}: {err.subtype or 'без подтипа'}",
             value=f"{desc} · {note}",
             subgroup=subgroup,
             fragment=err.fragment or err.context or None,
             source=err.source or "errors",
-            id_value=err.significance or "средняя"))
+            id_value=err.significance or "средняя")
+        c["reliability"] = rel
+        out.append(c)
     return out
 
 
@@ -237,7 +248,8 @@ def psycho_candidates(strat_result: Any) -> list[dict]:
 def build_profile(text: str, metrics: dict,
                   thematic_result: Any = None, strat_result: Any = None,
                   errors: Optional[list] = None, internet_profile: Any = None,
-                  autocorrect_unreliable: bool = False) -> list[dict]:
+                  autocorrect_unreliable: bool = False,
+                  error_reliabilities: Optional[list[str]] = None) -> list[dict]:
     """Собрать полный профиль (4 группы) из результатов существующих модулей."""
     profile: list[dict] = []
     profile += semantic_candidates(thematic_result)
@@ -245,7 +257,8 @@ def build_profile(text: str, metrics: dict,
     profile += lexical_candidates(metrics, strat_result)
     profile += stylistic_candidates(metrics, internet_profile)
     profile += syntactic_candidates(metrics, text)
-    profile += error_candidates(errors or [], autocorrect_unreliable)
+    profile += error_candidates(errors or [], autocorrect_unreliable,
+                                reliabilities=error_reliabilities)
     profile += psycho_candidates(strat_result)
     return profile
 
@@ -273,6 +286,7 @@ def run_for_document(
     backend: Any,
     program_version: Optional[str] = None,
     status_cb=None,
+    use_lt: bool = True,
 ) -> dict:
     """
     Построить и сохранить профиль одного документа (идемпотентно: старый
@@ -295,15 +309,47 @@ def run_for_document(
     from analyzer.metrics import calculate_metrics
     metrics = calculate_metrics(tokens, text)
 
-    # Офлайн-кандидаты ошибок (пунктуация по правилам); сетевые (LT/Спеллер)
-    # сюда не входят — воспроизводимость важнее полноты.
+    # Кандидаты ошибок: собственные офлайн-правила + LanguageTool СТРОГО в
+    # локальном режиме (материалы дела нельзя отправлять на внешний сервер;
+    # публичный API LT в протокольном пути не используется).
     _status("Кандидаты ошибок (офлайн-правила)...")
     errors = []
+    punct_rules_version = ""
     try:
         from analyzer import punct_checker
+        punct_rules_version = getattr(punct_checker, "RULES_VERSION", "")
         errors = punct_checker.check_with_tokens(text, tokens) or []
     except Exception:
         pass
+
+    lt_meta = {"режим": "не использован", "версия": ""}
+    if use_lt:
+        try:
+            from analyzer import lt_checker as lt_module
+            lt = lt_module.get()
+            _status("LanguageTool: инициализация (только локальный сервер)...")
+            lt.ensure_loaded()
+            if lt.mode == "local":
+                _status("LanguageTool: проверка текста (локально)...")
+                errors += lt.check(text) or []
+                try:
+                    import language_tool_python
+                    lt_meta = {"режим": "local",
+                               "версия": getattr(language_tool_python, "__version__", "?")}
+                except Exception:
+                    lt_meta = {"режим": "local", "версия": "?"}
+            else:
+                # Публичный API доступен, но для протокола запрещён.
+                lt_meta = {"режим": f"пропущен ({lt.mode or 'недоступен'})", "версия": ""}
+        except Exception:
+            lt_meta = {"режим": "ошибка инициализации", "версия": ""}
+
+    # Слой фильтрации (единственная точка между детектором и feature_candidates).
+    _status("Фильтрация срабатываний детектора...")
+    filter_config, filter_hash = detector_filter.load_config()
+    filtered = detector_filter.apply_filter(errors, filter_config)
+    errors = [e for e, _rel in filtered.kept]
+    error_reliabilities = [rel for _e, rel in filtered.kept]
 
     _status("Интернет-профиль...")
     internet_profile = None
@@ -336,7 +382,8 @@ def run_for_document(
         text, metrics,
         thematic_result=thematic_result, strat_result=strat_result,
         errors=errors, internet_profile=internet_profile,
-        autocorrect_unreliable=autocorrect)
+        autocorrect_unreliable=autocorrect,
+        error_reliabilities=error_reliabilities)
 
     pdb.clear_feature_candidates(document_id)
     n = pdb.save_feature_candidates(document_id, profile)
@@ -345,8 +392,19 @@ def run_for_document(
         details={"document_id": document_id, "filename": doc["filename"],
                  "элементов": n,
                  "групп": sorted({c["group_name"] for c in profile}),
-                 "автокоррекция_ненадёжность": autocorrect},
+                 "автокоррекция_ненадёжность": autocorrect,
+                 # Воспроизводимость: версии движков и конфига фильтра.
+                 "фильтр_конфиг_hash": filter_hash,
+                 "версия_правил_пунктуации": punct_rules_version,
+                 "languagetool": lt_meta,
+                 # Подавленные срабатывания не исчезают бесследно.
+                 "срабатываний_детектора": filtered.total_in,
+                 "подавлено_всего": filtered.total_suppressed,
+                 "подавлено_по_правилам": dict(filtered.suppressed)},
         program_version=program_version)
 
     return {"document_id": document_id, "count": n,
-            "autocorrect_unreliable": autocorrect, "profile": profile}
+            "autocorrect_unreliable": autocorrect, "profile": profile,
+            "detector_total": filtered.total_in,
+            "suppressed": dict(filtered.suppressed),
+            "filter_hash": filter_hash}

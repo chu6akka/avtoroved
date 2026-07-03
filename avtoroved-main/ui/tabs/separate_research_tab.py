@@ -15,6 +15,7 @@ from PyQt6.QtGui import QColor, QFont
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox,
     QTreeWidget, QTreeWidgetItem, QHeaderView, QMessageBox, QTextEdit, QSplitter,
+    QCheckBox,
 )
 
 from protocol import db as protocol_db
@@ -93,13 +94,22 @@ class SeparateResearchTab(QWidget):
         self.btn_build = QPushButton("🧩 Построить профиль")
         self.btn_build.clicked.connect(self._build_profile)
         top.addWidget(self.btn_build)
+        # Фильтр сомнительных кандидатов (надёжность «низкая») — по умолчанию скрыты.
+        self.chk_hide_low = QCheckBox("Скрывать низконадёжные")
+        self.chk_hide_low.setChecked(True)
+        self.chk_hide_low.setToolTip(
+            "Кандидаты с надёжностью «низкая» (сомнительные правила детектора, "
+            "автокоррекция) скрыты. Снимите галочку, чтобы показать их.")
+        self.chk_hide_low.toggled.connect(self._reload_tree)
+        top.addWidget(self.chk_hide_low)
         top.addStretch()
         layout.addLayout(top)
 
         self.tree = QTreeWidget()
-        self.tree.setColumnCount(6)
+        self.tree.setColumnCount(7)
         self.tree.setHeaderLabels(
-            ["Элемент профиля", "Вид", "Значение", "Фрагмент", "Источник", "Ид. ценность"])
+            ["Элемент профиля", "Вид", "Значение", "Фрагмент", "Источник",
+             "Ид. ценность", "Надёжность"])
         self.tree.setAlternatingRowColors(True)
         self.tree.setIndentation(20)
         self.tree.setUniformRowHeights(False)
@@ -117,6 +127,7 @@ class SeparateResearchTab(QWidget):
         hh.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         hh.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
         hh.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
+        hh.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
         self.tree.itemSelectionChanged.connect(self._on_selection)
 
         # Панель деталей: полный текст значения/фрагмента выбранной строки —
@@ -230,9 +241,24 @@ class SeparateResearchTab(QWidget):
         self.detail.clear()
         if self._document_id is None:
             return
-        rows = self._pdb.fetch_feature_candidates(self._document_id)
-        if not rows:
+        all_rows = self._pdb.fetch_feature_candidates(self._document_id)
+        if not all_rows:
             self.status_label.setText("Профиль не построен. Нажмите «Построить профиль».")
+            return
+
+        # Скрытие низконадёжных кандидатов (переключатель, по умолчанию включён).
+        hide_low = self.chk_hide_low.isChecked()
+        rows = []
+        hidden = 0
+        for r in all_rows:
+            if hide_low and (r["reliability"] or "") == "низкая":
+                hidden += 1
+                continue
+            rows.append(r)
+        if not rows and hidden:
+            self.status_label.setText(
+                f"Все {hidden} кандидатов низконадёжны и скрыты — "
+                "снимите галочку «Скрывать низконадёжные».")
             return
 
         bold = QFont()
@@ -267,16 +293,21 @@ class SeparateResearchTab(QWidget):
                     self._add_row(parent, r)
                 parent.setExpanded(True)
             g_item.setExpanded(True)
+        hidden_note = f" Скрыто низконадёжных: {hidden}." if hidden else ""
         self.status_label.setText(
-            f"Элементов профиля: {len(rows)}. Клик по строке — полный текст внизу.")
+            f"Элементов профиля: {len(rows)}.{hidden_note} "
+            "Клик по строке — полный текст внизу.")
 
     def _add_row(self, parent: QTreeWidgetItem, r):
         value = r["value"] or ""
         # Короткая подпись вида — «кандидат_признак» не влезает в колонку.
         kind_short = "◆ кандидат" if r["kind"] == profile_mod.KIND_CANDIDATE else "Σ счётчик"
+        reliability = r["reliability"] or ""
         item = QTreeWidgetItem([
             r["label"], kind_short, value, r["fragment"] or "",
-            r["source"] or "", r["id_value"] or ""])
+            r["source"] or "", r["id_value"] or "", reliability])
+        if reliability == "низкая":
+            item.setForeground(6, QColor(_UNRELIABLE_COLOR))
         # Полный текст каждой ячейки — во всплывающей подсказке.
         for col, text in ((0, r["label"]), (2, value), (3, r["fragment"] or ""),
                           (4, r["source"] or "")):
@@ -307,7 +338,8 @@ class SeparateResearchTab(QWidget):
         parts = [f"<b>{r['label']}</b>"]
         meta = " · ".join(x for x in (
             r.get("kind"), r.get("subgroup"), r.get("source"),
-            f"ид. ценность: {r['id_value']}" if r.get("id_value") else "") if x)
+            f"ид. ценность: {r['id_value']}" if r.get("id_value") else "",
+            f"надёжность: {r['reliability']}" if r.get("reliability") else "") if x)
         if meta:
             parts.append(f"<span style='color:#a6adc8'>{meta}</span>")
         if r.get("value"):

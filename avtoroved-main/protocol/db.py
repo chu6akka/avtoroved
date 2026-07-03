@@ -132,6 +132,7 @@ CREATE TABLE IF NOT EXISTS feature_candidates (
   fragment TEXT,                -- фрагмент текста, где проявился
   source TEXT,                  -- модуль-источник
   id_value TEXT,                -- метка идентификационной ценности: 'низкая'|'средняя'|'высокая'|''
+  reliability TEXT DEFAULT '',  -- надёжность кандидата: 'низкая'|'средняя'|'высокая'|''
   created_at TEXT NOT NULL
 );
 
@@ -171,9 +172,15 @@ class ProtocolDB:
         return conn
 
     def init_db(self) -> None:
-        """Создать таблицы и индексы, если их ещё нет."""
+        """Создать таблицы и индексы, если их ещё нет; домигрировать старые базы."""
         with self._connect() as conn:
             conn.executescript(SCHEMA)
+            # Миграция: колонка reliability появилась после создания ранних баз.
+            cols = {r["name"] for r in conn.execute(
+                "PRAGMA table_info(feature_candidates)").fetchall()}
+            if "reliability" not in cols:
+                conn.execute(
+                    "ALTER TABLE feature_candidates ADD COLUMN reliability TEXT DEFAULT ''")
 
     # ── проекты ─────────────────────────────────────────────────────────────
     def create_project(
@@ -414,15 +421,15 @@ class ProtocolDB:
         rows = [
             (document_id, c["group_name"], c.get("subgroup"), c["kind"],
              c["label"], c.get("value"), c.get("fragment"), c.get("source"),
-             c.get("id_value", ""), ts)
+             c.get("id_value", ""), c.get("reliability", ""), ts)
             for c in candidates
         ]
         with self._connect() as conn:
             conn.executemany(
                 "INSERT INTO feature_candidates "
                 "(document_id, group_name, subgroup, kind, label, value, fragment, "
-                " source, id_value, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " source, id_value, reliability, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 rows,
             )
         return len(rows)
