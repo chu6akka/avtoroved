@@ -210,7 +210,9 @@ def error_candidates(errors: list, autocorrect_unreliable: bool,
             value=f"{desc} · {note}",
             subgroup=subgroup,
             fragment=err.fragment or err.context or None,
-            source=err.source or "errors",
+            # rule_ref (напр. LT:MORFOLOGIK_RULE_RU_RU) — чтобы правило можно
+            # было найти и занести в detector_filter.json прямо из UI.
+            source=getattr(err, "rule_ref", "") or err.source or "errors",
             id_value=err.significance or "средняя")
         c["reliability"] = rel
         out.append(c)
