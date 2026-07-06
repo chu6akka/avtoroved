@@ -46,6 +46,7 @@ from ui.tabs.senti_tab import SentiTab
 from ui.tabs.materials_tab import MaterialsTab
 from ui.tabs.suitability_tab import SuitabilityTab
 from ui.tabs.separate_research_tab import SeparateResearchTab
+from ui.tabs.feature_map_tab import FeatureMapTab
 
 try:
     import matplotlib
@@ -493,6 +494,7 @@ class MainWindow(QMainWindow):
         _nav("📁", "Материалы",       11)
         _nav("✅", "Пригодность",      12)
         _nav("🧩", "Раздельное исслед.", 13)
+        _nav("🗺", "Карта признаков",  14)
 
         # ── Кнопка справочника словарей ───────────────────────────
         _divider()
@@ -753,6 +755,10 @@ class MainWindow(QMainWindow):
         # 13 — Раздельное исследование: профиль каждого текста, без сравнения
         self.tab_separate = SeparateResearchTab(self.stanza)
         self.stack.addWidget(self.tab_separate)
+
+        # 14 — Карта признаков: экспертный отбор кандидатов (решения append-only)
+        self.tab_feature_map = FeatureMapTab()
+        self.stack.addWidget(self.tab_feature_map)
 
         # ── Вертикальный сплиттер: текст ↕ страницы ──────────────────
         vsplit = QSplitter(Qt.Orientation.Vertical)

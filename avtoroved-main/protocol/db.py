@@ -136,8 +136,42 @@ CREATE TABLE IF NOT EXISTS feature_candidates (
   created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS feature_decisions (
+  -- Append-only журнал решений эксперта по кандидатам признаков.
+  -- Никогда не редактируется и не чистится: полная история для воспроизводимости.
+  id INTEGER PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  document_id INTEGER NOT NULL REFERENCES documents(id),
+  candidate_key TEXT NOT NULL,   -- стабильный хэш содержимого кандидата (переживает пересборку профиля)
+  status TEXT NOT NULL,          -- 'принят'|'отклонён'|'сомнителен'|'не_учитывать'|'сброшен'
+  group_name TEXT, subgroup TEXT, label TEXT, value TEXT, fragment TEXT,
+  source TEXT, reliability TEXT, auto_id_value TEXT,
+  expert_id_value TEXT,          -- ид. ценность по оценке эксперта (может отличаться от авто)
+  expert_note TEXT,
+  decided_at TEXT NOT NULL,
+  program_version TEXT
+);
+
+CREATE TABLE IF NOT EXISTS features (
+  -- Текущее состояние карты признаков: последнее решение по каждому кандидату.
+  -- Материализуется из feature_decisions; 'сброшен' удаляет строку отсюда.
+  id INTEGER PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  document_id INTEGER NOT NULL REFERENCES documents(id),
+  candidate_key TEXT NOT NULL,
+  status TEXT NOT NULL,
+  group_name TEXT, subgroup TEXT, label TEXT, value TEXT, fragment TEXT,
+  source TEXT, reliability TEXT, auto_id_value TEXT,
+  expert_id_value TEXT, expert_note TEXT,
+  decided_at TEXT NOT NULL,
+  UNIQUE(document_id, candidate_key)
+);
+
 CREATE INDEX IF NOT EXISTS idx_documents_project ON documents(project_id);
 CREATE INDEX IF NOT EXISTS idx_fc_document ON feature_candidates(document_id);
+CREATE INDEX IF NOT EXISTS idx_fd_document ON feature_decisions(document_id);
+CREATE INDEX IF NOT EXISTS idx_features_document ON features(document_id);
+CREATE INDEX IF NOT EXISTS idx_features_project ON features(project_id);
 CREATE INDEX IF NOT EXISTS idx_layers_document ON document_layers(document_id);
 CREATE INDEX IF NOT EXISTS idx_sentences_document ON sentences(document_id);
 CREATE INDEX IF NOT EXISTS idx_tokens_sentence ON tokens(sentence_id);
@@ -440,3 +474,75 @@ class ProtocolDB:
                 "SELECT * FROM feature_candidates WHERE document_id = ? ORDER BY id",
                 (document_id,),
             ).fetchall()
+
+    # ── карта признаков: решения эксперта ────────────────────────────────────
+    def record_feature_decision(
+        self,
+        project_id: int,
+        document_id: int,
+        candidate_key: str,
+        status: str,
+        snapshot: dict,
+        expert_id_value: str = "",
+        expert_note: str = "",
+        program_version: Optional[str] = None,
+    ) -> int:
+        """
+        Записать решение эксперта: строка ВСЕГДА добавляется в append-only
+        журнал feature_decisions, а таблица features обновляется до текущего
+        состояния (последнее решение по ключу; статус 'сброшен' удаляет строку).
+        snapshot — содержимое кандидата: {group_name, subgroup, label, value,
+        fragment, source, reliability, id_value}.
+        """
+        ts = _now()
+        snap = (
+            snapshot.get("group_name"), snapshot.get("subgroup"),
+            snapshot.get("label"), snapshot.get("value"),
+            snapshot.get("fragment"), snapshot.get("source"),
+            snapshot.get("reliability"), snapshot.get("id_value"),
+        )
+        with self._connect() as conn:
+            cur = conn.execute(
+                "INSERT INTO feature_decisions "
+                "(project_id, document_id, candidate_key, status, group_name, subgroup, "
+                " label, value, fragment, source, reliability, auto_id_value, "
+                " expert_id_value, expert_note, decided_at, program_version) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (project_id, document_id, candidate_key, status, *snap,
+                 expert_id_value, expert_note, ts, program_version),
+            )
+            decision_id = int(cur.lastrowid)
+            # Материализация текущего состояния.
+            conn.execute(
+                "DELETE FROM features WHERE document_id = ? AND candidate_key = ?",
+                (document_id, candidate_key))
+            if status != "сброшен":
+                conn.execute(
+                    "INSERT INTO features "
+                    "(project_id, document_id, candidate_key, status, group_name, subgroup, "
+                    " label, value, fragment, source, reliability, auto_id_value, "
+                    " expert_id_value, expert_note, decided_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (project_id, document_id, candidate_key, status, *snap,
+                     expert_id_value, expert_note, ts),
+                )
+        return decision_id
+
+    def fetch_features(self, document_id: Optional[int] = None,
+                       project_id: Optional[int] = None) -> list[sqlite3.Row]:
+        """Текущее состояние карты признаков (по документу или по проекту)."""
+        with self._connect() as conn:
+            if document_id is not None:
+                return conn.execute(
+                    "SELECT * FROM features WHERE document_id = ? ORDER BY id",
+                    (document_id,)).fetchall()
+            return conn.execute(
+                "SELECT * FROM features WHERE project_id = ? ORDER BY id",
+                (project_id,)).fetchall()
+
+    def fetch_feature_decisions(self, document_id: int) -> list[sqlite3.Row]:
+        """Полная история решений по документу (append-only, новые сверху)."""
+        with self._connect() as conn:
+            return conn.execute(
+                "SELECT * FROM feature_decisions WHERE document_id = ? ORDER BY id DESC",
+                (document_id,)).fetchall()
