@@ -1,0 +1,10 @@
+{
+  "rusentilex": {
+    "name": "RuSentiLex — тональный словарь (labinform.ru)",
+    "url": "https://www.labinform.ru/pub/rusentilex/rusentilex_2017.txt",
+    "updated_at": "2026-07-06T23:08:08",
+    "entries": 13461,
+    "sha256": "a109369fb52990065d663011a7e98326b102fbb2c9c6936fea059773d4260892",
+    "backup": "F:\\avtoroved-protocol\\avtoroved-main\\data\\senti\\rusentilex.json.bak-20260706-230808"
+  }
+}

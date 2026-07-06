@@ -345,6 +345,11 @@ class MainWindow(QMainWindow):
         self._lt_prewarm_thread = None
         self._yaspell_prewarm_thread = None
 
+        # Архивные страницы (скрыты из UI, модули работают) — см. комментарий
+        # у _DEFAULT_ARCHIVED_PAGES; переопределяется ключом config.json.
+        self._archived_pages = set(app_config.get(
+            "archived_pages", self._DEFAULT_ARCHIVED_PAGES))
+
         self._build_menu()
         self._build_toolbar()
         self._build_ui()
@@ -372,6 +377,10 @@ class MainWindow(QMainWindow):
         act_batch = QAction("📦 Пакетная обработка...", self)
         act_batch.triggered.connect(self._open_batch)
         file_menu.addAction(act_batch)
+        file_menu.addSeparator()
+        act_lexupd = QAction("📚 Обновить словарные базы...", self)
+        act_lexupd.triggered.connect(self._open_lexicon_update)
+        file_menu.addAction(act_lexupd)
         file_menu.addSeparator()
         act_quit = QAction("Выход", self)
         act_quit.setShortcut(QKeySequence.StandardKey.Quit)
@@ -461,12 +470,18 @@ class MainWindow(QMainWindow):
             d.setFrameShape(QFrame.Shape.HLine)
             nav_layout.addWidget(d)
 
-        def _nav(icon: str, label: str, idx: int) -> QPushButton:
+        def _nav(icon: str, label: str, idx: int) -> QPushButton | None:
+            # Архивные страницы не получают кнопку в сайдбаре: модуль остаётся
+            # в программе (и продолжает считаться при анализе), но из UI убран.
+            # Вернуть вкладку: правка списка archived_pages в config.json.
+            if idx in self._archived_pages:
+                return None
             btn = QPushButton(f"  {icon}  {label}")
             btn.setObjectName("nav_btn")
             btn.setProperty("active", "false")
             btn.setCheckable(False)
             btn.setFixedHeight(38)
+            btn._page_idx = idx
             btn.clicked.connect(lambda _=False, i=idx: self._switch_page(i))
             nav_layout.addWidget(btn)
             self._nav_buttons.append(btn)
@@ -622,11 +637,21 @@ class MainWindow(QMainWindow):
     # общее поле «Текст для анализа» на них не используется и скрывается.
     _PROTOCOL_PAGES_FROM = 11
 
+    # Архив: страницы, чьи функции покрыты экспертным протоколом, скрыты из
+    # сайдбара (код и расчёты сохранены — данные этих модулей идут в профиль
+    # раздельного исследования и инспектор токенов). Вернуть страницу: убрать
+    # индекс из списка "archived_pages" в config.json рядом с программой.
+    # 3 Стратификация, 4 Тематика, 5 НКРЯ, 6 Тональность,
+    # 7 Сравнение (старое), 9 Отчёт (старый), 10 Профиль автора.
+    _DEFAULT_ARCHIVED_PAGES = [3, 4, 5, 6, 7, 9, 10]
+
     def _switch_page(self, idx: int):
         """Переключить страницу контента и обновить активный nav-элемент."""
+        if idx in self._archived_pages:
+            return   # архивная страница недоступна из UI
         self.stack.setCurrentIndex(idx)
-        for i, btn in enumerate(self._nav_buttons):
-            btn.setProperty("active", "true" if i == idx else "false")
+        for btn in self._nav_buttons:
+            btn.setProperty("active", "true" if btn._page_idx == idx else "false")
             # Qt требует перезаполнить стиль при изменении property
             btn.style().unpolish(btn)
             btn.style().polish(btn)
@@ -802,7 +827,8 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+O"), self).activated.connect(self._load_file)
         QShortcut(QKeySequence("F2"), self).activated.connect(self._open_text_window)
         QShortcut(QKeySequence("F3"), self).activated.connect(self._toggle_text_area)
-        # Цифровые клавиши для быстрого переключения (Ctrl+1..9, Ctrl+0)
+        # Цифровые клавиши для быстрого переключения (Ctrl+1..9, Ctrl+0);
+        # архивные страницы пропускаются в _switch_page.
         for i in range(11):
             key = str(i + 1) if i < 9 else ("0" if i == 9 else None)
             if key:
@@ -942,6 +968,12 @@ class MainWindow(QMainWindow):
         """Открыть справочник словарей (тематики и пласты)."""
         from ui.dialogs.lexicon_viewer import LexiconViewerDialog
         dlg = LexiconViewerDialog(self)
+        dlg.exec()
+
+    def _open_lexicon_update(self):
+        """Открыть диалог обновления словарных баз (явное действие, с бэкапом)."""
+        from ui.dialogs.lexicon_update_dialog import LexiconUpdateDialog
+        dlg = LexiconUpdateDialog(self)
         dlg.exec()
 
     def _on_yaspell_status(self, msg: str):
