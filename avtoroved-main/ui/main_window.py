@@ -49,6 +49,7 @@ from ui.tabs.separate_research_tab import SeparateResearchTab
 from ui.tabs.feature_map_tab import FeatureMapTab
 from ui.tabs.comparative_research_tab import ComparativeResearchTab
 from ui.tabs.conclusion_tab import ConclusionTab
+from ui.tabs.token_inspector_tab import TokenInspectorTab
 
 try:
     import matplotlib
@@ -499,6 +500,7 @@ class MainWindow(QMainWindow):
         _nav("🗺", "Карта признаков",  14)
         _nav("⚖", "Сравнительное исслед.", 15)
         _nav("📜", "Вывод и заключение", 16)
+        _nav("🔍", "Инспектор токенов", 17)
 
         # ── Кнопка справочника словарей ───────────────────────────
         _divider()
@@ -771,6 +773,10 @@ class MainWindow(QMainWindow):
         # 16 — Вывод и заключение: правило Рубцовой + экспорт DOCX
         self.tab_conclusion = ConclusionTab()
         self.stack.addWidget(self.tab_conclusion)
+
+        # 17 — Инспектор токенов: карточки слов + внешние словари по клику
+        self.tab_token_inspector = TokenInspectorTab()
+        self.stack.addWidget(self.tab_token_inspector)
 
         # ── Вертикальный сплиттер: текст ↕ страницы ──────────────────
         vsplit = QSplitter(Qt.Orientation.Vertical)

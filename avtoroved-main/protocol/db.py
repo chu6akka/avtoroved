@@ -440,6 +440,15 @@ class ProtocolDB:
                 (document_id,),
             ).fetchone()[0])
 
+    def fetch_document_tokens(self, document_id: int) -> list[sqlite3.Row]:
+        """Все токены документа с индексом предложения (для инспектора токенов)."""
+        with self._connect() as conn:
+            return conn.execute(
+                "SELECT t.*, s.idx AS sent_idx FROM tokens t "
+                "JOIN sentences s ON t.sentence_id = s.id "
+                "WHERE s.document_id = ? ORDER BY s.idx, t.idx",
+                (document_id,)).fetchall()
+
     def count_tokens(self, document_id: int) -> int:
         with self._connect() as conn:
             return int(conn.execute(
