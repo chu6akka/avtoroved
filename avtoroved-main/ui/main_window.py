@@ -48,6 +48,7 @@ from ui.tabs.suitability_tab import SuitabilityTab
 from ui.tabs.separate_research_tab import SeparateResearchTab
 from ui.tabs.feature_map_tab import FeatureMapTab
 from ui.tabs.comparative_research_tab import ComparativeResearchTab
+from ui.tabs.conclusion_tab import ConclusionTab
 
 try:
     import matplotlib
@@ -497,6 +498,7 @@ class MainWindow(QMainWindow):
         _nav("🧩", "Раздельное исслед.", 13)
         _nav("🗺", "Карта признаков",  14)
         _nav("⚖", "Сравнительное исслед.", 15)
+        _nav("📜", "Вывод и заключение", 16)
 
         # ── Кнопка справочника словарей ───────────────────────────
         _divider()
@@ -765,6 +767,10 @@ class MainWindow(QMainWindow):
         # 15 — Сравнительное исследование: принятые признаки пары, без вывода
         self.tab_comparative = ComparativeResearchTab()
         self.stack.addWidget(self.tab_comparative)
+
+        # 16 — Вывод и заключение: правило Рубцовой + экспорт DOCX
+        self.tab_conclusion = ConclusionTab()
+        self.stack.addWidget(self.tab_conclusion)
 
         # ── Вертикальный сплиттер: текст ↕ страницы ──────────────────
         vsplit = QSplitter(Qt.Orientation.Vertical)

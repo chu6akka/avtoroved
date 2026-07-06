@@ -201,6 +201,46 @@ CREATE TABLE IF NOT EXISTS comparison_decisions (
   program_version TEXT
 );
 
+CREATE TABLE IF NOT EXISTS conclusions (
+  -- Текущий вывод по паре спорный↔образец (последнее решение эксперта).
+  id INTEGER PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  pair_doc_a INTEGER NOT NULL REFERENCES documents(id),
+  pair_doc_b INTEGER NOT NULL REFERENCES documents(id),
+  form TEXT NOT NULL,             -- форма вывода (см. protocol/conclusion.py)
+  justification TEXT,             -- обоснование эксперта
+  recommended_form TEXT,          -- авто-рекомендация на момент решения
+  stats_snapshot TEXT,            -- JSON: счётчики сравнения на момент решения
+  decided_at TEXT NOT NULL,
+  UNIQUE(pair_doc_a, pair_doc_b)
+);
+
+CREATE TABLE IF NOT EXISTS conclusion_decisions (
+  -- Append-only журнал всех решений о форме вывода.
+  id INTEGER PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  pair_doc_a INTEGER NOT NULL REFERENCES documents(id),
+  pair_doc_b INTEGER NOT NULL REFERENCES documents(id),
+  form TEXT NOT NULL,
+  justification TEXT,
+  recommended_form TEXT,
+  stats_snapshot TEXT,
+  decided_at TEXT NOT NULL,
+  program_version TEXT
+);
+
+CREATE TABLE IF NOT EXISTS reports (
+  -- Экспортированные заключения (файлы DOCX) — для воспроизводимости.
+  id INTEGER PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  pair_doc_a INTEGER REFERENCES documents(id),
+  pair_doc_b INTEGER REFERENCES documents(id),
+  filepath TEXT NOT NULL,
+  file_sha256 TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  program_version TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_documents_project ON documents(project_id);
 CREATE INDEX IF NOT EXISTS idx_fc_document ON feature_candidates(document_id);
 CREATE INDEX IF NOT EXISTS idx_fd_document ON feature_decisions(document_id);
@@ -208,6 +248,8 @@ CREATE INDEX IF NOT EXISTS idx_features_document ON features(document_id);
 CREATE INDEX IF NOT EXISTS idx_features_project ON features(project_id);
 CREATE INDEX IF NOT EXISTS idx_comparisons_pair ON comparisons(pair_doc_a, pair_doc_b);
 CREATE INDEX IF NOT EXISTS idx_cd_pair ON comparison_decisions(pair_doc_a, pair_doc_b);
+CREATE INDEX IF NOT EXISTS idx_conclusions_pair ON conclusions(pair_doc_a, pair_doc_b);
+CREATE INDEX IF NOT EXISTS idx_reports_project ON reports(project_id);
 CREATE INDEX IF NOT EXISTS idx_layers_document ON document_layers(document_id);
 CREATE INDEX IF NOT EXISTS idx_sentences_document ON sentences(document_id);
 CREATE INDEX IF NOT EXISTS idx_tokens_sentence ON tokens(sentence_id);
@@ -674,3 +716,72 @@ class ProtocolDB:
                 "SELECT * FROM comparison_decisions "
                 "WHERE pair_doc_a = ? AND pair_doc_b = ? ORDER BY id DESC",
                 (pair_doc_a, pair_doc_b)).fetchall()
+
+    # ── вывод по паре и экспорт заключений ───────────────────────────────────
+    def record_conclusion(
+        self,
+        project_id: int,
+        pair_doc_a: int,
+        pair_doc_b: int,
+        form: str,
+        justification: str = "",
+        recommended_form: str = "",
+        stats_snapshot: Optional[dict] = None,
+        program_version: Optional[str] = None,
+    ) -> int:
+        """Append-only запись решения о выводе + upsert текущего состояния."""
+        ts = _now()
+        snap = json.dumps(stats_snapshot, ensure_ascii=False) if stats_snapshot else None
+        with self._connect() as conn:
+            cur = conn.execute(
+                "INSERT INTO conclusion_decisions "
+                "(project_id, pair_doc_a, pair_doc_b, form, justification, "
+                " recommended_form, stats_snapshot, decided_at, program_version) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (project_id, pair_doc_a, pair_doc_b, form, justification,
+                 recommended_form, snap, ts, program_version))
+            conn.execute(
+                "DELETE FROM conclusions WHERE pair_doc_a = ? AND pair_doc_b = ?",
+                (pair_doc_a, pair_doc_b))
+            conn.execute(
+                "INSERT INTO conclusions "
+                "(project_id, pair_doc_a, pair_doc_b, form, justification, "
+                " recommended_form, stats_snapshot, decided_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (project_id, pair_doc_a, pair_doc_b, form, justification,
+                 recommended_form, snap, ts))
+            return int(cur.lastrowid)
+
+    def fetch_conclusion(self, pair_doc_a: int,
+                         pair_doc_b: int) -> Optional[sqlite3.Row]:
+        with self._connect() as conn:
+            return conn.execute(
+                "SELECT * FROM conclusions WHERE pair_doc_a = ? AND pair_doc_b = ?",
+                (pair_doc_a, pair_doc_b)).fetchone()
+
+    def fetch_conclusion_decisions(self, pair_doc_a: int,
+                                   pair_doc_b: int) -> list[sqlite3.Row]:
+        with self._connect() as conn:
+            return conn.execute(
+                "SELECT * FROM conclusion_decisions "
+                "WHERE pair_doc_a = ? AND pair_doc_b = ? ORDER BY id DESC",
+                (pair_doc_a, pair_doc_b)).fetchall()
+
+    def record_report(self, project_id: int, filepath: str, file_sha256: str,
+                      pair_doc_a: Optional[int] = None,
+                      pair_doc_b: Optional[int] = None,
+                      program_version: Optional[str] = None) -> int:
+        with self._connect() as conn:
+            cur = conn.execute(
+                "INSERT INTO reports (project_id, pair_doc_a, pair_doc_b, "
+                " filepath, file_sha256, created_at, program_version) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (project_id, pair_doc_a, pair_doc_b, filepath, file_sha256,
+                 _now(), program_version))
+            return int(cur.lastrowid)
+
+    def fetch_reports(self, project_id: int) -> list[sqlite3.Row]:
+        with self._connect() as conn:
+            return conn.execute(
+                "SELECT * FROM reports WHERE project_id = ? ORDER BY id DESC",
+                (project_id,)).fetchall()
