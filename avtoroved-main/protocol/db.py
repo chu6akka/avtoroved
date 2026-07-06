@@ -167,11 +167,47 @@ CREATE TABLE IF NOT EXISTS features (
   UNIQUE(document_id, candidate_key)
 );
 
+CREATE TABLE IF NOT EXISTS comparisons (
+  -- Текущее состояние сравнительного исследования пары спорный↔образец.
+  -- Строка = позиция сопоставления (признак/пара признаков по стабильному ключу).
+  id INTEGER PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  pair_doc_a INTEGER NOT NULL REFERENCES documents(id),   -- спорный
+  pair_doc_b INTEGER NOT NULL REFERENCES documents(id),   -- образец
+  position_key TEXT NOT NULL,     -- хэш (doc_a|doc_b|group|subgroup|label)
+  feature_key_a TEXT,             -- candidate_key признака спорного (NULL если нет)
+  feature_key_b TEXT,             -- candidate_key признака образца (NULL если нет)
+  group_name TEXT, subgroup TEXT, label TEXT,
+  value_a TEXT, value_b TEXT, fragment_a TEXT, fragment_b TEXT,
+  match_type TEXT NOT NULL,       -- 'совпадение'|'различие'|'только_у_спорного'|'только_у_образца'
+  level TEXT DEFAULT '',          -- уровень индивидуализации: 'НН'|'НС'|'НСВ'|'' (Рубцова 2007, с.11)
+  status TEXT NOT NULL DEFAULT 'авто',   -- 'авто' (черновик) | 'подтверждено' (эксперт)
+  expert_note TEXT,
+  created_at TEXT NOT NULL,
+  decided_at TEXT,
+  UNIQUE(pair_doc_a, pair_doc_b, position_key)
+);
+
+CREATE TABLE IF NOT EXISTS comparison_decisions (
+  -- Append-only журнал решений эксперта по позициям сопоставления.
+  id INTEGER PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  pair_doc_a INTEGER NOT NULL REFERENCES documents(id),
+  pair_doc_b INTEGER NOT NULL REFERENCES documents(id),
+  position_key TEXT NOT NULL,
+  match_type TEXT, level TEXT, expert_note TEXT,
+  status TEXT NOT NULL,           -- 'подтверждено' | 'сброшено'
+  decided_at TEXT NOT NULL,
+  program_version TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_documents_project ON documents(project_id);
 CREATE INDEX IF NOT EXISTS idx_fc_document ON feature_candidates(document_id);
 CREATE INDEX IF NOT EXISTS idx_fd_document ON feature_decisions(document_id);
 CREATE INDEX IF NOT EXISTS idx_features_document ON features(document_id);
 CREATE INDEX IF NOT EXISTS idx_features_project ON features(project_id);
+CREATE INDEX IF NOT EXISTS idx_comparisons_pair ON comparisons(pair_doc_a, pair_doc_b);
+CREATE INDEX IF NOT EXISTS idx_cd_pair ON comparison_decisions(pair_doc_a, pair_doc_b);
 CREATE INDEX IF NOT EXISTS idx_layers_document ON document_layers(document_id);
 CREATE INDEX IF NOT EXISTS idx_sentences_document ON sentences(document_id);
 CREATE INDEX IF NOT EXISTS idx_tokens_sentence ON tokens(sentence_id);
@@ -546,3 +582,95 @@ class ProtocolDB:
             return conn.execute(
                 "SELECT * FROM feature_decisions WHERE document_id = ? ORDER BY id DESC",
                 (document_id,)).fetchall()
+
+    # ── сравнительное исследование ───────────────────────────────────────────
+    def fetch_comparisons(self, pair_doc_a: int, pair_doc_b: int) -> list[sqlite3.Row]:
+        """Текущее состояние сопоставления пары (авто + подтверждённые)."""
+        with self._connect() as conn:
+            return conn.execute(
+                "SELECT * FROM comparisons WHERE pair_doc_a = ? AND pair_doc_b = ? "
+                "ORDER BY group_name, subgroup, label",
+                (pair_doc_a, pair_doc_b)).fetchall()
+
+    def replace_auto_comparisons(self, project_id: int, pair_doc_a: int,
+                                 pair_doc_b: int, positions: list[dict]) -> tuple[int, int]:
+        """
+        Пересобрать авто-позиции пары: строки status='авто' удаляются и
+        вставляются заново; подтверждённые экспертом строки НЕ трогаются
+        (позиция с тем же position_key, уже подтверждённая, пропускается).
+        Возвращает (вставлено_авто, сохранено_подтверждённых).
+        """
+        ts = _now()
+        with self._connect() as conn:
+            conn.execute(
+                "DELETE FROM comparisons WHERE pair_doc_a = ? AND pair_doc_b = ? "
+                "AND status = 'авто'", (pair_doc_a, pair_doc_b))
+            confirmed = {r["position_key"] for r in conn.execute(
+                "SELECT position_key FROM comparisons "
+                "WHERE pair_doc_a = ? AND pair_doc_b = ?",
+                (pair_doc_a, pair_doc_b)).fetchall()}
+            inserted = 0
+            for p in positions:
+                if p["position_key"] in confirmed:
+                    continue
+                conn.execute(
+                    "INSERT INTO comparisons "
+                    "(project_id, pair_doc_a, pair_doc_b, position_key, "
+                    " feature_key_a, feature_key_b, group_name, subgroup, label, "
+                    " value_a, value_b, fragment_a, fragment_b, match_type, "
+                    " level, status, expert_note, created_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', 'авто', NULL, ?)",
+                    (project_id, pair_doc_a, pair_doc_b, p["position_key"],
+                     p.get("feature_key_a"), p.get("feature_key_b"),
+                     p.get("group_name"), p.get("subgroup"), p.get("label"),
+                     p.get("value_a"), p.get("value_b"),
+                     p.get("fragment_a"), p.get("fragment_b"),
+                     p["match_type"], ts))
+                inserted += 1
+        return inserted, len(confirmed)
+
+    def record_comparison_decision(
+        self,
+        project_id: int,
+        pair_doc_a: int,
+        pair_doc_b: int,
+        position_key: str,
+        status: str,                      # 'подтверждено' | 'сброшено'
+        match_type: Optional[str] = None,
+        level: str = "",
+        expert_note: str = "",
+        program_version: Optional[str] = None,
+    ) -> int:
+        """Append-only запись решения + обновление текущего состояния позиции."""
+        ts = _now()
+        with self._connect() as conn:
+            cur = conn.execute(
+                "INSERT INTO comparison_decisions "
+                "(project_id, pair_doc_a, pair_doc_b, position_key, match_type, "
+                " level, expert_note, status, decided_at, program_version) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (project_id, pair_doc_a, pair_doc_b, position_key, match_type,
+                 level, expert_note, status, ts, program_version))
+            if status == "подтверждено":
+                conn.execute(
+                    "UPDATE comparisons SET match_type = COALESCE(?, match_type), "
+                    "level = ?, expert_note = ?, status = 'подтверждено', decided_at = ? "
+                    "WHERE pair_doc_a = ? AND pair_doc_b = ? AND position_key = ?",
+                    (match_type, level, expert_note, ts,
+                     pair_doc_a, pair_doc_b, position_key))
+            else:  # 'сброшено' — вернуть позицию в авто-состояние
+                conn.execute(
+                    "UPDATE comparisons SET level = '', expert_note = NULL, "
+                    "status = 'авто', decided_at = NULL "
+                    "WHERE pair_doc_a = ? AND pair_doc_b = ? AND position_key = ?",
+                    (pair_doc_a, pair_doc_b, position_key))
+            return int(cur.lastrowid)
+
+    def fetch_comparison_decisions(self, pair_doc_a: int,
+                                   pair_doc_b: int) -> list[sqlite3.Row]:
+        """История решений по паре (append-only, новые сверху)."""
+        with self._connect() as conn:
+            return conn.execute(
+                "SELECT * FROM comparison_decisions "
+                "WHERE pair_doc_a = ? AND pair_doc_b = ? ORDER BY id DESC",
+                (pair_doc_a, pair_doc_b)).fetchall()
