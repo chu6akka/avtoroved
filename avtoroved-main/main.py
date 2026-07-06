@@ -44,6 +44,12 @@ def main():
     window = MainWindow()
     window.show()
 
+    # Смоук-режим для автоматической проверки сборки (exe запускается,
+    # окно строится и через 6 секунд закрывается само): AVTOROVED_SMOKE=1
+    if os.environ.get("AVTOROVED_SMOKE") == "1":
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(6000, app.quit)
+
     sys.exit(app.exec())
 
 
