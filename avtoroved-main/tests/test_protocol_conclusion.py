@@ -201,3 +201,62 @@ def test_export_creates_docx_and_registers(pdb, tmp_path):
     assert reports[0]["file_sha256"] == summary["sha256"]
     actions = [r["action"] for r in pdb.fetch_audit_log(pid)]
     assert "экспортировано заключение" in actions
+
+
+def test_export_illustrates_positions_by_group(pdb, tmp_path):
+    """Стадия 3: позиции сгруппированы по группам признаков, каждая
+    иллюстрирована значениями и фрагментами из обоих текстов."""
+    from protocol.report import export_conclusion_docx
+    pid, a, b = _setup_pair(pdb)
+    pdb.replace_auto_comparisons(pid, a, b, [
+        {"position_key": cmp.position_key(a, b, "языковые", "лексические", "Жаргонизм"),
+         "feature_key_a": "fa1", "feature_key_b": "fb1",
+         "group_name": "языковые", "subgroup": "лексические",
+         "label": "Жаргонизм «движуха»",
+         "value_a": "3 употребления", "value_b": "2 употребления",
+         "fragment_a": "вся эта движуха вокруг дела",
+         "fragment_b": "опять началась движуха",
+         "match_type": cmp.MATCH_COINCIDENCE},
+        {"position_key": cmp.position_key(a, b, "смысловые", "", "Тема"),
+         "feature_key_a": "fa2", "feature_key_b": "fb2",
+         "group_name": "смысловые", "subgroup": "",
+         "label": "Доминирующая тема: право",
+         "value_a": "право", "value_b": "право",
+         "fragment_a": None, "fragment_b": None,
+         "match_type": cmp.MATCH_COINCIDENCE},
+    ])
+    for grp, sub, lbl in (("языковые", "лексические", "Жаргонизм"),
+                          ("смысловые", "", "Тема")):
+        pdb.record_comparison_decision(
+            pid, a, b, cmp.position_key(a, b, grp, sub, lbl), "подтверждено",
+            match_type=cmp.MATCH_COINCIDENCE, level="НС",
+            expert_note="устойчиво в обоих текстах")
+    concl.decide(pdb, pid, a, b, concl.FORM_POS_PROBABLE, program_version="5.0")
+
+    fp = str(tmp_path / "заключение.docx")
+    export_conclusion_docx(pdb, pid, a, b, fp, program_version="5.0")
+
+    from docx import Document
+    document = Document(fp)
+    headings = [p.text for p in document.paragraphs if p.style.name.startswith("Heading")]
+    # Группы идут в методическом порядке: смысловые раньше языковых.
+    assert "3.1. Признаки: смысловые" in headings
+    assert "3.2. Признаки: языковые" in headings
+    cells = "\n".join(c.text for t in document.tables
+                      for row in t.rows for c in row.cells)
+    assert "«вся эта движуха вокруг дела»" in cells      # иллюстрация спорного
+    assert "«опять началась движуха»" in cells           # иллюстрация образца
+    assert "3 употребления" in cells and "2 употребления" in cells
+    assert "уровень НС" in cells
+    assert "устойчиво в обоих текстах" in cells
+    assert "Жаргонизм «движуха» (лексические)" in cells
+
+
+def test_shorten_fragment_cuts_on_word_boundary():
+    from protocol.report import _shorten_fragment, _FRAGMENT_LIMIT
+    short = "короткая цитата"
+    assert _shorten_fragment(short) == short
+    long = "слово " * 80
+    out = _shorten_fragment(long)
+    assert len(out) <= _FRAGMENT_LIMIT + 1
+    assert out.endswith("…") and not out.endswith(" …")

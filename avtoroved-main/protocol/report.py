@@ -21,6 +21,41 @@ from protocol import detector_filter
 from protocol import feature_map as fm
 
 
+# Порядок групп признаков в разделе сравнительного исследования — как в
+# методике (4 группы); группы вне списка идут после, по алфавиту.
+_GROUP_ORDER = ("смысловые", "текстологические", "языковые",
+                "психолингвистические")
+
+# Иллюстрация длиннее не помогает читателю заключения — обрезаем по слову.
+_FRAGMENT_LIMIT = 220
+
+
+def _shorten_fragment(fragment: str) -> str:
+    frag = " ".join(fragment.split())
+    if len(frag) <= _FRAGMENT_LIMIT:
+        return frag
+    cut = frag[:_FRAGMENT_LIMIT].rsplit(" ", 1)[0]
+    return cut + "…"
+
+
+def _fill_illustrated(cell, value: Optional[str], fragment: Optional[str]) -> None:
+    """Ячейка таблицы сравнения: значение признака + цитата-иллюстрация."""
+    cell.text = value if value not in (None, "") else "—"
+    if fragment:
+        run = cell.add_paragraph().add_run(f"«{_shorten_fragment(fragment)}»")
+        run.italic = True
+
+
+def _by_group(rows) -> list[tuple[str, list]]:
+    """Сгруппировать позиции сравнения по группам в методическом порядке."""
+    grouped: dict[str, list] = {}
+    for r in rows:
+        grouped.setdefault(r["group_name"] or "прочие", []).append(r)
+    ordered = [g for g in _GROUP_ORDER if g in grouped]
+    ordered += sorted(g for g in grouped if g not in _GROUP_ORDER)
+    return [(g, grouped[g]) for g in ordered]
+
+
 def export_conclusion_docx(
     pdb: "protocol_db.ProtocolDB",
     project_id: int,
@@ -106,22 +141,39 @@ def export_conclusion_docx(
             f"{d['filename']}: профиль построен, кандидатов признаков {cand_total}, "
             f"принято экспертом {len(accepted)}.")
 
-    # Стадия 3: сравнительное исследование — таблица подтверждённых позиций.
+    # Стадия 3: сравнительное исследование — подтверждённые позиции по группам,
+    # каждая иллюстрируется проявлением признака в обоих текстах (методика
+    # требует показать признак цитатой, а не только назвать его).
     doc.add_heading("3. Сравнительное исследование", level=2)
     confirmed = [r for r in pdb.fetch_comparisons(doc_a, doc_b)
                  if r["status"] == cmp.STATUS_CONFIRMED]
     if confirmed:
-        table = doc.add_table(rows=1, cols=4)
-        table.style = "Table Grid"
-        hdr = table.rows[0].cells
-        for i, t in enumerate(("Признак", "Тип", "Уровень", "Примечание")):
-            hdr[i].text = t
-        for r in confirmed:
-            row = table.add_row().cells
-            row[0].text = r["label"] or ""
-            row[1].text = r["match_type"]
-            row[2].text = r["level"] or "—"
-            row[3].text = r["expert_note"] or ""
+        doc.add_paragraph(
+            "Сопоставление принятых экспертом признаков спорного текста и "
+            "образца. Для каждой позиции приводятся значение признака и "
+            "фрагмент-иллюстрация из соответствующего текста.")
+        for sec_no, (group, rows_g) in enumerate(_by_group(confirmed), start=1):
+            doc.add_heading(f"3.{sec_no}. Признаки: {group}", level=3)
+            table = doc.add_table(rows=1, cols=4)
+            table.style = "Table Grid"
+            hdr = table.rows[0].cells
+            for i, t in enumerate(("Признак", "Спорный текст",
+                                   "Образец", "Результат")):
+                hdr[i].text = t
+            for r in rows_g:
+                row = table.add_row().cells
+                label = r["label"] or ""
+                if r["subgroup"]:
+                    label += f" ({r['subgroup']})"
+                row[0].text = label
+                _fill_illustrated(row[1], r["value_a"], r["fragment_a"])
+                _fill_illustrated(row[2], r["value_b"], r["fragment_b"])
+                result = r["match_type"]
+                if r["level"]:
+                    result += f", уровень {r['level']}"
+                if r["expert_note"]:
+                    result += f". {r['expert_note']}"
+                row[3].text = result
     else:
         doc.add_paragraph("Подтверждённых позиций сравнения нет.")
 
