@@ -1,13 +1,17 @@
 """
-protocol/report.py — экспорт заключения эксперта в DOCX (стадия 4).
+protocol/report.py — экспорт отчёта исследования в DOCX.
 
-Структура — по Приложению 1 методики Рубцовой 2007 (с.108–109):
-вводная часть (эксперт, основание, объекты, вопросы) → ИССЛЕДОВАНИЕ
-(четыре стадии: пригодность, раздельное, сравнительное, оценка) → ВЫВОДЫ.
-В конце — техническая справка воспроизводимости (версии, хэши).
+Отчёт — вставляемая исследовательская часть заключения, а не целостное
+заключение: без титула, реквизитов дела и раздела ВЫВОДЫ (их эксперт
+оформляет в своём документе). Структура раздела ИССЛЕДОВАНИЕ — по методике
+Рубцовой 2007: объекты → четыре стадии (пригодность, раздельное,
+сравнительное, оценка результатов). В конце — техническая справка
+воспроизводимости (версии, хэши).
 
-Экспорт требует зафиксированного вывода (conclusions). Файл регистрируется
-в таблице reports с sha256 + запись в audit_log.
+Зафиксированный вывод не обязателен: если он есть, стадия 4 берёт
+счётчики из снапшота фиксации и упоминает форму; иначе — живой расчёт
+и авто-рекомендация. Файл регистрируется в таблице reports с sha256
++ запись в audit_log.
 """
 from __future__ import annotations
 
@@ -56,26 +60,19 @@ def _by_group(rows) -> list[tuple[str, list]]:
     return [(g, grouped[g]) for g in ordered]
 
 
-def export_conclusion_docx(
+def export_research_docx(
     pdb: "protocol_db.ProtocolDB",
     project_id: int,
     doc_a: int,
     doc_b: int,
     filepath: str,
-    header: Optional[dict] = None,     # {expert_name, case_number, questions}
     program_version: Optional[str] = None,
 ) -> dict:
-    """Собрать и сохранить заключение по паре. Возвращает сводку экспорта."""
+    """Собрать и сохранить отчёт исследования по паре. Возвращает сводку."""
     from docx import Document
     from docx.shared import Pt
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
 
     conclusion_row = pdb.fetch_conclusion(doc_a, doc_b)
-    if conclusion_row is None:
-        raise ValueError("Вывод по паре не зафиксирован — сначала зафиксируйте "
-                         "форму вывода во вкладке «Вывод и заключение».")
-
-    header = header or {}
     project = pdb.get_project(project_id)
     da, db_ = pdb.get_document(doc_a), pdb.get_document(doc_b)
 
@@ -84,33 +81,19 @@ def export_conclusion_docx(
     style.font.name = "Times New Roman"
     style.font.size = Pt(12)
 
-    # ── Вводная часть ────────────────────────────────────────────────────────
-    h = doc.add_heading("ЗАКЛЮЧЕНИЕ ЭКСПЕРТА", level=1)
-    h.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    if header.get("case_number"):
-        p = doc.add_paragraph(f"№ {header['case_number']}")
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    doc.add_paragraph(f"Проект: «{project['name']}» (создан {project['created_at']})")
-    expert = header.get("expert_name") or project["expert_name"] or "—"
-    doc.add_paragraph(f"Эксперт: {expert}")
-    doc.add_paragraph(f"Заключение сформировано программой «Авторовед» "
-                      f"v{program_version or project['program_version'] or '—'}, "
-                      f"дата фиксации вывода: {conclusion_row['decided_at']}.")
+    # ── ИССЛЕДОВАНИЕ (вставляемый фрагмент заключения) ───────────────────────
+    doc.add_heading("ИССЛЕДОВАНИЕ", level=1)
+    doc.add_paragraph(
+        f"Автороведческое исследование проведено с применением программы "
+        f"«Авторовед» v{program_version or project['program_version'] or '—'} "
+        f"(проект «{project['name']}»).")
 
-    doc.add_heading("На экспертизу представлены", level=2)
+    doc.add_heading("Объекты исследования", level=2)
     for d, role_note in ((da, "спорный текст"), (db_, "образец")):
         doc.add_paragraph(
             f"• {d['filename']} — {role_note}; происхождение: {d['provenance'] or '—'}; "
             f"жанр: {d['genre'] or '—'}; объём: {d['word_count'] or 0} словоформ; "
             f"SHA-256: {d['file_sha256']}")
-
-    doc.add_heading("Перед экспертом поставлены вопросы", level=2)
-    doc.add_paragraph(header.get("questions")
-                      or "Является ли автор спорного текста и лицо, выполнившее "
-                         "представленный образец, одним и тем же лицом?")
-
-    # ── ИССЛЕДОВАНИЕ ─────────────────────────────────────────────────────────
-    doc.add_heading("ИССЛЕДОВАНИЕ", level=1)
 
     # Стадия 1: пригодность.
     doc.add_heading("1. Оценка пригодности объектов", level=2)
@@ -177,9 +160,15 @@ def export_conclusion_docx(
     else:
         doc.add_paragraph("Подтверждённых позиций сравнения нет.")
 
-    # Стадия 4: оценка результатов.
+    # Стадия 4: оценка результатов. Форму вывода эксперт формулирует в своём
+    # заключении сам; здесь — счётчики и рекомендация методики (справочно).
     doc.add_heading("4. Оценка результатов", level=2)
-    bd = json.loads(conclusion_row["stats_snapshot"]) if conclusion_row["stats_snapshot"] else {}
+    if conclusion_row is not None:
+        bd = (json.loads(conclusion_row["stats_snapshot"])
+              if conclusion_row["stats_snapshot"] else {})
+        recommended = conclusion_row["recommended_form"]
+    else:
+        recommended, _reasons, bd = concl.recommend(pdb, project_id, doc_a, doc_b)
     if bd:
         coin, diff = bd.get("coincidence", {}), bd.get("difference", {})
         doc.add_paragraph(
@@ -189,17 +178,17 @@ def export_conclusion_docx(
             f"различий {bd.get('total_difference', 0)} "
             f"(НН {diff.get('НН', 0)}, НС {diff.get('НС', 0)}, НСВ {diff.get('НСВ', 0)}). "
             f"Методический порог: ≥{cmp.MIN_FEATURES_FOR_CONCLUSION} признаков.")
-    if conclusion_row["recommended_form"]:
+    if recommended:
         doc.add_paragraph(
             f"Рекомендация по правилу методики (с.85–86): "
-            f"{concl.FORM_LABELS.get(conclusion_row['recommended_form'], conclusion_row['recommended_form'])}.")
-
-    # ── ВЫВОДЫ ───────────────────────────────────────────────────────────────
-    doc.add_heading("ВЫВОДЫ", level=1)
-    doc.add_paragraph(concl.FORM_LABELS.get(conclusion_row["form"],
-                                            conclusion_row["form"]) + ".")
-    if conclusion_row["justification"]:
-        doc.add_paragraph(f"Обоснование эксперта: {conclusion_row['justification']}")
+            f"{concl.FORM_LABELS.get(recommended, recommended)}.")
+    if conclusion_row is not None:
+        doc.add_paragraph(
+            f"Экспертом зафиксирована форма вывода: "
+            f"{concl.FORM_LABELS.get(conclusion_row['form'], conclusion_row['form'])} "
+            f"({conclusion_row['decided_at']})."
+            + (f" Обоснование: {conclusion_row['justification']}"
+               if conclusion_row["justification"] else ""))
 
     # ── Техническая справка воспроизводимости ────────────────────────────────
     doc.add_heading("Техническая справка (воспроизводимость)", level=2)
@@ -219,12 +208,13 @@ def export_conclusion_docx(
     # Регистрация экспорта.
     from protocol.ingest import file_sha256
     sha = file_sha256(filepath)
+    fixed_form = conclusion_row["form"] if conclusion_row is not None else None
     pdb.record_report(project_id, filepath, sha, pair_doc_a=doc_a,
                       pair_doc_b=doc_b, program_version=program_version)
     pdb.log_action(
-        "экспортировано заключение", project_id=project_id,
+        "экспортирован отчёт исследования", project_id=project_id,
         details={"pair_doc_a": doc_a, "pair_doc_b": doc_b,
                  "файл": filepath, "sha256": sha,
-                 "форма_вывода": conclusion_row["form"]},
+                 "форма_вывода": fixed_form},
         program_version=program_version)
-    return {"filepath": filepath, "sha256": sha, "form": conclusion_row["form"]}
+    return {"filepath": filepath, "sha256": sha, "form": fixed_form}

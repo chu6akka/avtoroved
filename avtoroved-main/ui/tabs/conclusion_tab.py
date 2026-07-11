@@ -3,50 +3,21 @@ ui/tabs/conclusion_tab.py — вкладка «Вывод и заключени�
 
 Показывает сводку сравнительного исследования пары, авто-рекомендацию формы
 вывода по правилу Рубцовой 2007 (с.85–86) с обоснованием; эксперт фиксирует
-форму (несогласие с рекомендацией требует обоснования) и экспортирует
-заключение в DOCX по структуре Приложения 1.
+форму (несогласие с рекомендацией требует обоснования) и экспортирует отчёт
+исследования в DOCX — вставляемую исследовательскую часть заключения
+(титул, реквизиты и ВЫВОДЫ эксперт оформляет в своём документе).
 """
 from __future__ import annotations
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox,
-    QTextEdit, QMessageBox, QFileDialog, QDialog, QDialogButtonBox,
-    QFormLayout, QLineEdit,
+    QTextEdit, QMessageBox, QFileDialog,
 )
 
 from protocol import db as protocol_db
 from protocol import comparison as cmp_mod
 from protocol import conclusion as concl
 from protocol import PROGRAM_VERSION
-
-
-class _HeaderDialog(QDialog):
-    """Реквизиты заключения для экспорта."""
-
-    def __init__(self, default_expert: str, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Реквизиты заключения")
-        self.resize(480, 220)
-        form = QFormLayout(self)
-        self.expert_edit = QLineEdit(default_expert or "")
-        form.addRow("Эксперт (ФИО):", self.expert_edit)
-        self.case_edit = QLineEdit()
-        form.addRow("Номер заключения/дела:", self.case_edit)
-        self.questions_edit = QTextEdit()
-        self.questions_edit.setMaximumHeight(70)
-        self.questions_edit.setPlaceholderText(
-            "Вопросы перед экспертом (пусто — стандартный вопрос об авторстве)")
-        form.addRow("Вопросы:", self.questions_edit)
-        btns = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        btns.accepted.connect(self.accept)
-        btns.rejected.connect(self.reject)
-        form.addRow(btns)
-
-    def values(self) -> dict:
-        return {"expert_name": self.expert_edit.text().strip(),
-                "case_number": self.case_edit.text().strip(),
-                "questions": self.questions_edit.toPlainText().strip()}
 
 
 class ConclusionTab(QWidget):
@@ -110,7 +81,10 @@ class ConclusionTab(QWidget):
         self.btn_fix = QPushButton("📌 Зафиксировать вывод")
         self.btn_fix.clicked.connect(self._fix_conclusion)
         btns.addWidget(self.btn_fix)
-        self.btn_export = QPushButton("📄 Экспорт заключения (DOCX)")
+        self.btn_export = QPushButton("📄 Экспорт отчёта исследования (DOCX)")
+        self.btn_export.setToolTip(
+            "Исследовательская часть для вставки в заключение: объекты, "
+            "4 стадии с иллюстрациями признаков, техническая справка")
         self.btn_export.clicked.connect(self._export_docx)
         btns.addWidget(self.btn_export)
         btns.addStretch()
@@ -207,26 +181,19 @@ class ConclusionTab(QWidget):
         doc_a, doc_b = self._pair()
         if self._project_id is None or doc_a is None or doc_b is None:
             return
-        if self._pdb.fetch_conclusion(doc_a, doc_b) is None:
-            QMessageBox.warning(self, "Нет вывода",
-                                "Сначала зафиксируйте вывод по паре.")
-            return
-        project = self._pdb.get_project(self._project_id)
-        dlg = _HeaderDialog(project["expert_name"] or "", self)
-        if dlg.exec() != QDialog.DialogCode.Accepted:
-            return
         fp, _ = QFileDialog.getSaveFileName(
-            self, "Сохранить заключение", "заключение_эксперта.docx", "Word (*.docx)")
+            self, "Сохранить отчёт исследования", "отчет_исследования.docx",
+            "Word (*.docx)")
         if not fp:
             return
         try:
-            from protocol.report import export_conclusion_docx
-            summary = export_conclusion_docx(
+            from protocol.report import export_research_docx
+            summary = export_research_docx(
                 self._pdb, self._project_id, doc_a, doc_b, fp,
-                header=dlg.values(), program_version=PROGRAM_VERSION)
+                program_version=PROGRAM_VERSION)
         except Exception as e:  # noqa: BLE001
             QMessageBox.critical(self, "Ошибка экспорта", str(e))
             return
         QMessageBox.information(
-            self, "Заключение сохранено",
+            self, "Отчёт сохранён",
             f"{summary['filepath']}\nSHA-256: {summary['sha256'][:16]}…")

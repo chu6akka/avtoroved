@@ -164,49 +164,59 @@ def test_invalid_form(pdb):
         concl.decide(pdb, pid, a, b, "может_быть")
 
 
-# ── экспорт заключения ───────────────────────────────────────────────────────
-def test_export_requires_fixed_conclusion(pdb, tmp_path):
-    from protocol.report import export_conclusion_docx
+# ── экспорт отчёта исследования ──────────────────────────────────────────────
+def test_export_without_fixed_conclusion_uses_live_recommendation(pdb, tmp_path):
+    """Отчёт — вставляемый фрагмент: экспортируется и до фиксации вывода,
+    стадия 4 тогда содержит живую рекомендацию методики."""
+    from protocol.report import export_research_docx
     pid, a, b = _setup_pair(pdb)
-    with pytest.raises(ValueError, match="не зафиксирован"):
-        export_conclusion_docx(pdb, pid, a, b, str(tmp_path / "x.docx"))
+    _confirmed_position(pdb, pid, a, b, "Р1", cmp.MATCH_DIFFERENCE, "НН")
+
+    fp = str(tmp_path / "отчет.docx")
+    summary = export_research_docx(pdb, pid, a, b, fp, program_version="5.0")
+    assert summary["form"] is None
+
+    from docx import Document
+    text = "\n".join(p.text for p in Document(fp).paragraphs)
+    assert "Рекомендация по правилу методики" in text
+    assert "зафиксирована форма вывода" not in text
 
 
 def test_export_creates_docx_and_registers(pdb, tmp_path):
-    from protocol.report import export_conclusion_docx
+    from protocol.report import export_research_docx
     pid, a, b = _setup_pair(pdb)
     _confirmed_position(pdb, pid, a, b, "С1", cmp.MATCH_COINCIDENCE, "НН")
     concl.decide(pdb, pid, a, b, concl.FORM_POS_PROBABLE, program_version="5.0")
 
-    fp = str(tmp_path / "заключение.docx")
-    summary = export_conclusion_docx(
-        pdb, pid, a, b, fp,
-        header={"expert_name": "Иванов И.И.", "case_number": "1/2026",
-                "questions": "Кто автор?"},
-        program_version="5.0")
+    fp = str(tmp_path / "отчет.docx")
+    summary = export_research_docx(pdb, pid, a, b, fp, program_version="5.0")
     assert os.path.exists(fp)
     assert summary["sha256"] and len(summary["sha256"]) == 64
+    assert summary["form"] == concl.FORM_POS_PROBABLE
 
-    # Файл читается python-docx и содержит ключевые разделы.
+    # Вставляемая исследовательская часть: есть стадии, нет титула и ВЫВОДОВ.
     from docx import Document
     text = "\n".join(p.text for p in Document(fp).paragraphs)
-    assert "ЗАКЛЮЧЕНИЕ ЭКСПЕРТА" in text
     assert "ИССЛЕДОВАНИЕ" in text
-    assert "ВЫВОДЫ" in text
-    assert "Вероятный положительный" in text
+    assert "Объекты исследования" in text
+    assert "4. Оценка результатов" in text
+    assert "Вероятный положительный" in text          # зафиксированная форма
+    assert "ЗАКЛЮЧЕНИЕ ЭКСПЕРТА" not in text
+    assert "ВЫВОДЫ" not in text
+    assert "Перед экспертом поставлены вопросы" not in text
 
     # Зарегистрирован в reports + журнал.
     reports = pdb.fetch_reports(pid)
     assert len(reports) == 1
     assert reports[0]["file_sha256"] == summary["sha256"]
     actions = [r["action"] for r in pdb.fetch_audit_log(pid)]
-    assert "экспортировано заключение" in actions
+    assert "экспортирован отчёт исследования" in actions
 
 
 def test_export_illustrates_positions_by_group(pdb, tmp_path):
     """Стадия 3: позиции сгруппированы по группам признаков, каждая
     иллюстрирована значениями и фрагментами из обоих текстов."""
-    from protocol.report import export_conclusion_docx
+    from protocol.report import export_research_docx
     pid, a, b = _setup_pair(pdb)
     pdb.replace_auto_comparisons(pid, a, b, [
         {"position_key": cmp.position_key(a, b, "языковые", "лексические", "Жаргонизм"),
@@ -233,8 +243,8 @@ def test_export_illustrates_positions_by_group(pdb, tmp_path):
             expert_note="устойчиво в обоих текстах")
     concl.decide(pdb, pid, a, b, concl.FORM_POS_PROBABLE, program_version="5.0")
 
-    fp = str(tmp_path / "заключение.docx")
-    export_conclusion_docx(pdb, pid, a, b, fp, program_version="5.0")
+    fp = str(tmp_path / "отчет.docx")
+    export_research_docx(pdb, pid, a, b, fp, program_version="5.0")
 
     from docx import Document
     document = Document(fp)
