@@ -126,6 +126,57 @@ def test_pair_comparable_is_fit():
     assert verdict == su.VERDICT_FIT and flags == [] and blocks is False
 
 
+# ── знаменательные словоформы (методический минимум) ────────────────────────
+def test_sample_below_significant_minimum_flagged():
+    """Образец с 500 знаменательных словоформ — ниже минимума 600 → флаг."""
+    verdict, flags, metrics, blocks = su.evaluate_document(
+        make_doc(role=protocol_db.ROLE_SAMPLE, significant_count=500))
+    assert any(f["code"] == "объём_знаменательных" for f in flags)
+    assert verdict == su.VERDICT_LIMITED and blocks is True
+    assert metrics["significant_count"] == 500
+
+
+def test_sample_at_significant_minimum_ok():
+    _, flags, _, _ = su.evaluate_document(
+        make_doc(role=protocol_db.ROLE_SAMPLE,
+                 significant_count=su.MIN_SIGNIFICANT_SAMPLE))
+    assert not any(f["code"] == "объём_знаменательных" for f in flags)
+
+
+def test_disputed_threshold_is_lower():
+    """Для спорного текста минимум 100, а не 600."""
+    _, flags_ok, _, _ = su.evaluate_document(
+        make_doc(role=protocol_db.ROLE_DISPUTED, significant_count=150))
+    assert not any(f["code"] == "объём_знаменательных" for f in flags_ok)
+    _, flags_low, _, _ = su.evaluate_document(
+        make_doc(role=protocol_db.ROLE_DISPUTED, significant_count=99))
+    assert any(f["code"] == "объём_знаменательных" for f in flags_low)
+
+
+def test_no_parse_flag_when_tokens_missing():
+    """Есть текст, но нет NLP-разметки → флаг «нет_разметки», а не ложный недобор."""
+    _, flags, _, _ = su.evaluate_document(
+        make_doc(token_count=0, significant_count=0))
+    assert any(f["code"] == "нет_разметки" for f in flags)
+    assert not any(f["code"] == "объём_знаменательных" for f in flags)
+
+
+def test_count_tokens_by_pos(tmp_path):
+    pdb = protocol_db.ProtocolDB(str(tmp_path / "pos.db"))
+    pid = pdb.create_project("Дело")
+    did = pdb.add_document(pid, "a.txt", protocol_db.ROLE_SAMPLE, file_sha256="h")
+    pdb.save_parsed(did, [{
+        "idx": 0, "start_char": None, "end_char": None, "text": "Кот спит тихо.",
+        "tokens": [
+            {"idx": 0, "text": "Кот", "pos": "NOUN"},
+            {"idx": 1, "text": "спит", "pos": "VERB"},
+            {"idx": 2, "text": "тихо", "pos": "ADV"},
+            {"idx": 3, "text": "и", "pos": "CCONJ"},
+            {"idx": 4, "text": ".", "pos": "PUNCT"},
+        ]}])
+    assert pdb.count_tokens_by_pos(did, su.SIGNIFICANT_POS) == 3
+
+
 # ── интеграция: run_for_project пишет в БД и журнал ──────────────────────────
 @pytest.fixture()
 def pdb(tmp_path):

@@ -458,6 +458,18 @@ class ProtocolDB:
                 (document_id,),
             ).fetchone()[0])
 
+    def count_tokens_by_pos(self, document_id: int,
+                            pos_tags: tuple) -> int:
+        """Число токенов документа с UPOS из pos_tags (знаменательные и т.п.)."""
+        placeholders = ",".join("?" * len(pos_tags))
+        with self._connect() as conn:
+            return int(conn.execute(
+                "SELECT COUNT(*) FROM tokens t "
+                "JOIN sentences s ON t.sentence_id = s.id "
+                f"WHERE s.document_id = ? AND t.pos IN ({placeholders})",
+                (document_id, *pos_tags),
+            ).fetchone()[0])
+
     # ── журнал действий ─────────────────────────────────────────────────────
     def log_action(
         self,

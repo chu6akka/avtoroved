@@ -21,6 +21,14 @@ from protocol import db as protocol_db
 MIN_WORDS_SAMPLE = 100     # методический минимум образца (словоформы)
 MIN_WORDS_RELIABLE = 150   # объём, при котором признаки надёжны
 MIN_SENTENCES_RELIABLE = 10  # минимум предложений для устойчивых оценок
+
+# Методические минимумы по ЗНАМЕНАТЕЛЬНЫМ словоформам (UPOS из NLP-разметки):
+# спорный текст — от 100, каждый образец — от 600 [методика МИЦ/Минюста —
+# сверить точные значения]. Считаются по таблице tokens, поэтому проверка
+# возможна только после разметки документа.
+SIGNIFICANT_POS = ("NOUN", "VERB", "ADJ", "ADV", "PROPN")
+MIN_SIGNIFICANT_DISPUTED = 100
+MIN_SIGNIFICANT_SAMPLE = 600
 QUOTE_SHARE_FLAG = 0.30    # доля символов в цитатах выше → флаг «чужая речь»
 REPEAT_SHARE_FLAG = 0.30   # доля повторяющихся блоков выше → флаг «шаблон»
 SENT_LEN_RATIO_FLAG = 2.0  # различие средней длины предложения в паре выше → флаг
@@ -132,6 +140,24 @@ def evaluate_document(doc: dict[str, Any]) -> tuple[str, list[dict], dict, bool]
         flags.append(_flag("мало_предложений", LEVEL_LIMIT,
                            f"предложений {sc} ниже минимума ({MIN_SENTENCES_RELIABLE})"))
 
+    # 2а) Знаменательные словоформы (методический минимум; только при наличии
+    # разметки — ключ significant_count передаётся из _load_doc).
+    sig = doc.get("significant_count")
+    if sig is not None and wc > 0:
+        if tc == 0:
+            flags.append(_flag("нет_разметки", LEVEL_LIMIT,
+                               "NLP-разметка не выполнена — объём знаменательных "
+                               "словоформ не проверен"))
+        else:
+            role = doc.get("role") or ""
+            need = (MIN_SIGNIFICANT_DISPUTED if role == protocol_db.ROLE_DISPUTED
+                    else MIN_SIGNIFICANT_SAMPLE)
+            if int(sig) < need:
+                flags.append(_flag(
+                    "объём_знаменательных", LEVEL_LIMIT,
+                    f"знаменательных словоформ {sig} — ниже методического "
+                    f"минимума ({need} для роли «{role or 'образец'}»)"))
+
     # 3) Цитаты и повторы.
     if q_share >= QUOTE_SHARE_FLAG:
         flags.append(_flag("цитаты", LEVEL_LIMIT,
@@ -154,6 +180,7 @@ def evaluate_document(doc: dict[str, Any]) -> tuple[str, list[dict], dict, bool]
 
     metrics = {
         "word_count": wc, "sentence_count": sc, "token_count": tc,
+        "significant_count": sig,
         "extraction_status": extr_status,
         "quote_share": q_share, "repeat_share": r_share,
         "oral_markers": len(oral), "provenance": provenance,
@@ -229,6 +256,7 @@ def _load_doc(pdb: "protocol_db.ProtocolDB", doc_row) -> dict:
         "word_count": doc_row["word_count"],
         "sentence_count": pdb.count_sentences(did),
         "token_count": pdb.count_tokens(did),
+        "significant_count": pdb.count_tokens_by_pos(did, SIGNIFICANT_POS),
         "text": pdb.get_layer(did, protocol_db.LAYER_CLEANED) or "",
     }
 
