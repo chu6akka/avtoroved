@@ -128,13 +128,43 @@ def export_research_docx(
     # каждая иллюстрируется проявлением признака в обоих текстах (методика
     # требует показать признак цитатой, а не только назвать его).
     doc.add_heading("3. Сравнительное исследование", level=2)
+
+    # Общие признаки: объективное сопоставление степеней навыков с допусками
+    # методики СЭУ Минюста (с. 19); участвует в решающем правиле Вула.
+    gsv = cmp.general_skill_verdicts(pdb, doc_a, doc_b)
+    if gsv:
+        doc.add_heading("3.0. Общие признаки (степени развития навыков)", level=3)
+        doc.add_paragraph(
+            "Сопоставление по числу уникальных ошибок на 200 словоформ; "
+            "допуски: ±2 — грамматический и лексико-фразеологический, "
+            "±4 — орфографический и пунктуационный.")
+        table = doc.add_table(rows=1, cols=5)
+        table.style = "Table Grid"
+        hdr = table.rows[0].cells
+        for i, t in enumerate(("Навык", "Спорный текст", "Образец",
+                               "Δ (допуск)", "Вердикт")):
+            hdr[i].text = t
+        for skill in sorted(gsv):
+            v = gsv[skill]
+            row = table.add_row().cells
+            name = skill
+            if v["reliability_a"] == "низкая" or v["reliability_b"] == "низкая":
+                name += " (ненадёжен: автокоррекция)"
+            row[0].text = name
+            row[1].text = v["value_a"] or "—"
+            row[2].text = v["value_b"] or "—"
+            row[3].text = f"{v['delta']:+.1f} (±{v['tolerance']:g})"
+            row[4].text = v["verdict"].replace("_", " ")
+
     confirmed = [r for r in pdb.fetch_comparisons(doc_a, doc_b)
                  if r["status"] == cmp.STATUS_CONFIRMED]
     if confirmed:
         doc.add_paragraph(
             "Сопоставление принятых экспертом признаков спорного текста и "
             "образца. Для каждой позиции приводятся значение признака и "
-            "фрагмент-иллюстрация из соответствующего текста.")
+            "фрагмент-иллюстрация из соответствующего текста. Уровень "
+            "индивидуализации признака: НН < НС < НСВ, по возрастанию "
+            "(Рубцова 2007, с. 11).")
         for sec_no, (group, rows_g) in enumerate(_by_group(confirmed), start=1):
             doc.add_heading(f"3.{sec_no}. Признаки: {group}", level=3)
             table = doc.add_table(rows=1, cols=4)
@@ -178,6 +208,36 @@ def export_research_docx(
             f"различий {bd.get('total_difference', 0)} "
             f"(НН {diff.get('НН', 0)}, НС {diff.get('НС', 0)}, НСВ {diff.get('НСВ', 0)}). "
             f"Методический порог: ≥{cmp.MIN_FEATURES_FOR_CONCLUSION} признаков.")
+    # Покатегорийные минимумы (Моисеева/Огорелков 2021, с. 89–93): из снапшота
+    # фиксации, а для незафиксированного вывода — живой расчёт.
+    buckets = bd.get("buckets") or cmp.bucket_breakdown(pdb, doc_a, doc_b)
+    if buckets:
+        doc.add_paragraph("Подтверждённые совпадения по группам признаков и "
+                          "покатегорийные минимумы (Моисеева/Огорелков):")
+        table = doc.add_table(rows=1, cols=4)
+        table.style = "Table Grid"
+        hdr = table.rows[0].cells
+        for i, t in enumerate(("Группа", "Подтверждено",
+                               "Мин. категорический", "Мин. вероятный")):
+            hdr[i].text = t
+        for b in buckets:
+            row = table.add_row().cells
+            row[0].text = b["bucket"]
+            row[1].text = str(b["confirmed"])
+            row[2].text = (f"{b['threshold_categorical']} "
+                           f"({'достигнут' if b['meets_categorical'] else 'не достигнут'})")
+            row[3].text = (f"{b['threshold_probable']} "
+                           f"({'достигнут' if b['meets_probable'] else 'не достигнут'})")
+
+    vul = [s for s in ("грамматический", "лексико-фразеологический")
+           if s in gsv and gsv[s]["verdict"] == cmp.GENERAL_VERDICT_HIGHER_A]
+    if vul:
+        doc.add_paragraph(
+            "Решающее правило Вула: степень развития навыка "
+            f"({', '.join(vul)}) в спорном тексте выше, чем в образце, за "
+            "пределами допуска — основание категорического отрицательного "
+            "вывода [Минюст, с. 19; Вул 2007, с. 38].")
+
     if recommended:
         doc.add_paragraph(
             f"Рекомендация по правилу методики (с.85–86): "

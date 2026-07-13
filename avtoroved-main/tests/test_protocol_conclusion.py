@@ -435,7 +435,33 @@ def test_export_illustrates_positions_by_group(pdb, tmp_path):
     assert "Жаргонизм «движуха» (лексические)" in cells
 
 
-def test_shorten_fragment_cuts_on_word_boundary():
+def test_export_includes_general_skills_and_buckets(pdb, tmp_path):
+    """Отчёт содержит таблицу общих признаков (3.0), таблицу корзин,
+    легенду НН/НС/НСВ и упоминание правила Вула при его срабатывании."""
+    from protocol.report import export_research_docx
+    pid, a, b = _setup_pair(pdb)
+    _mark_fit(pdb, pid, a, b)
+    _add_general(pdb, a, "грамматический", 0.5, level="высокая")
+    _add_general(pdb, b, "грамматический", 4.0, level="средняя")
+    _confirmed_position(pdb, pid, a, b, "С1", cmp.MATCH_COINCIDENCE, "НН",
+                        group="языковые", subgroup="лексические")
+
+    fp = str(tmp_path / "отчет.docx")
+    export_research_docx(pdb, pid, a, b, fp, program_version="5.0")
+
+    from docx import Document
+    document = Document(fp)
+    text = "\n".join(p.text for p in document.paragraphs)
+    cells = "\n".join(c.text for t in document.tables
+                      for row in t.rows for c in row.cells)
+    assert "3.0. Общие признаки" in "\n".join(
+        p.text for p in document.paragraphs if p.style.name.startswith("Heading"))
+    assert "выше в спорном" in cells                    # вердикт навыка
+    assert "-3.5 (±2)" in cells                          # дельта и допуск
+    assert "языковые: лексические" in cells              # корзина
+    assert "не достигнут" in cells                       # статус порога
+    assert "НН < НС < НСВ" in text                       # легенда уровней
+    assert "правило Вула" in text
     from protocol.report import _shorten_fragment, _FRAGMENT_LIMIT
     short = "короткая цитата"
     assert _shorten_fragment(short) == short
