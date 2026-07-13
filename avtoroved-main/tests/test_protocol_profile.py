@@ -173,6 +173,32 @@ def test_general_skill_empty_text():
     assert pf.general_skill_candidates([_FakeError()], total_words=0) == []
 
 
+def test_general_skill_lt_unused_marks_unreliable():
+    """Без LT орфографический/грамматический/лексико-фразеологический и
+    общий уровень — ненадёжны с пометкой; пунктуационный (свои правила) — нет."""
+    out = pf.general_skill_candidates([], total_words=200, lt_used=False)
+    by_sub = {c["subgroup"]: c for c in out}
+    for skill in ("орфографический", "грамматический",
+                  "лексико-фразеологический", pf.GENERAL_OVERALL_SUBGROUP):
+        assert by_sub[skill].get("reliability") == "низкая", skill
+        assert pf.NOTE_LT_UNUSED in by_sub[skill]["value"], skill
+    assert by_sub["пунктуационный"].get("reliability", "") == ""
+    assert pf.NOTE_LT_UNUSED not in by_sub["пунктуационный"]["value"]
+    # Формат value остаётся парсируемым для стадии сравнения.
+    from protocol import comparison as cmp
+    assert cmp.parse_general_rate(by_sub["грамматический"]["value"]) == 0.0
+
+
+def test_error_candidates_unknown_type_goes_to_other():
+    """Неопознанный тип ошибки (категория LT вне маппинга) → подгруппа
+    «прочие», а не «орфографические» — корзина орф+пункт не искажается."""
+    err = _FakeError(error_type="LanguageTool", subtype="misc")
+    out = pf.error_candidates([err], autocorrect_unreliable=False)
+    assert out[0]["subgroup"] == pf.SUB_OTHER
+    from protocol import comparison as cmp
+    assert cmp.bucket_of("языковые", pf.SUB_OTHER) is None
+
+
 def test_build_profile_includes_general_skills():
     profile = pf.build_profile("Первое предложение здесь. Второе тоже тут.",
                                metrics={}, errors=[_FakeError()])

@@ -254,14 +254,14 @@ def test_unfit_beats_vul_rule(pdb):
 from protocol import profile as prof
 
 
-def _add_general(pdb, did, skill, rate, level="средняя"):
+def _add_general(pdb, did, skill, rate, level="средняя", reliability=""):
     pdb.save_feature_candidates(did, [{
         "group_name": "языковые", "subgroup": skill, "kind": prof.KIND_GENERAL,
         "label": f"{prof.GENERAL_LABEL_PREFIX}{skill} навык",
         "value": prof.GENERAL_VALUE_FMT.format(level=level, rate=rate,
                                                count=int(rate)),
         "fragment": None, "source": "errors.scale", "id_value": "",
-        "reliability": ""}])
+        "reliability": reliability}])
 
 
 def test_vul_rule_grammar_higher_fires_categorical_negative(pdb):
@@ -305,6 +305,19 @@ def test_vul_rule_lexical_lower_does_not_fire(pdb):
     _add_general(pdb, a, "лексико-фразеологический", 8.0)
     _add_general(pdb, b, "лексико-фразеологический", 1.0)
     form, reasons, _ = concl.recommend(pdb, pid, a, b)
+    assert not any("Вула" in r for r in reasons)
+
+
+def test_vul_rule_skips_unreliable_skill(pdb):
+    """Признак с надёжностью «низкая» (напр., LT не использован у одного из
+    документов) в решающем правиле не участвует — асимметрия детекторов не
+    должна давать ложный категорический вывод."""
+    pid, a, b = _setup_pair(pdb)
+    _mark_fit(pdb, pid, a, b)
+    _add_general(pdb, a, "грамматический", 0.0, reliability="низкая")
+    _add_general(pdb, b, "грамматический", 7.0)
+    form, reasons, _ = concl.recommend(pdb, pid, a, b)
+    assert form != concl.FORM_NEG_CATEGORICAL
     assert not any("Вула" in r for r in reasons)
 
 

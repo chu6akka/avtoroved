@@ -33,6 +33,7 @@ SUB_SYNTACTIC = "синтаксические"
 SUB_ORTHOGRAPHIC = "орфографические"
 SUB_PUNCTUATION = "пунктуационные"
 SUB_GRAMMAR = "грамматические"
+SUB_OTHER = "прочие"   # неопознанный тип ошибки; в корзины Огорелкова не входит
 
 # ── Виды элементов ───────────────────────────────────────────────────────────
 KIND_COUNTER = "счётчик"
@@ -59,6 +60,12 @@ GENERAL_OVERALL_SUBGROUP = "общий уровень"
 GENERAL_VALUE_FMT = "{level} · {rate:.1f} ош./200 сл. · уникальных {count}"
 # Навыки, ненадёжные при автокоррекции (цифровое/опубликованное происхождение).
 _AUTOCORRECT_SENSITIVE_SKILLS = ("орфографический", "пунктуационный")
+# Навыки, детектируемые только LanguageTool: собственных локальных правил
+# для них нет (локально — лишь пунктуация). Без LT их счётчик всегда 0 —
+# признак неинформативен и помечается ненадёжным.
+_LT_DEPENDENT_SKILLS = ("орфографический", "грамматический",
+                        "лексико-фразеологический")
+NOTE_LT_UNUSED = "LT не использован"
 
 # Пометки надёжности для кандидатов ошибок.
 NOTE_NEEDS_REVIEW = "требует проверки"
@@ -221,7 +228,9 @@ def error_candidates(errors: list, autocorrect_unreliable: bool,
     out: list[dict] = []
     note = NOTE_UNRELIABLE_AUTOCORRECT if autocorrect_unreliable else NOTE_NEEDS_REVIEW
     for i, err in enumerate(errors or []):
-        subgroup = _ERROR_SUBGROUP.get(err.error_type, SUB_ORTHOGRAPHIC)
+        # Неопознанный тип (например, категория LT вне маппинга) не должен
+        # искажать корзину «орфографические+пунктуационные».
+        subgroup = _ERROR_SUBGROUP.get(err.error_type, SUB_OTHER)
         desc = err.description or err.subtype or err.error_type
         rel = reliabilities[i] if reliabilities and i < len(reliabilities) else ""
         if autocorrect_unreliable:
@@ -243,7 +252,8 @@ def error_candidates(errors: list, autocorrect_unreliable: bool,
 
 # ── 3д. Общие признаки: степени развития навыков (уровень НН) ────────────────
 def general_skill_candidates(errors: list, total_words: int,
-                             autocorrect_unreliable: bool = False) -> list[dict]:
+                             autocorrect_unreliable: bool = False,
+                             lt_used: bool = True) -> list[dict]:
     """
     Степени развития 4 навыков (орфографический, пунктуационный,
     грамматический, лексико-фразеологический) + общий уровень грамотности
@@ -267,20 +277,29 @@ def general_skill_candidates(errors: list, total_words: int,
         unique = deduplicate_errors(groups[skill])
         count = len(unique)
         level, _desc = get_skill_level(count, total_words)
+        value = GENERAL_VALUE_FMT.format(
+            level=level, rate=round(count * norm, 1), count=count)
         c = _c(GROUP_LINGUISTIC, KIND_GENERAL,
                f"{GENERAL_LABEL_PREFIX}{skill} навык",
-               value=GENERAL_VALUE_FMT.format(
-                   level=level, rate=round(count * norm, 1), count=count),
-               subgroup=skill, source="errors.scale", id_value="")
+               value=value, subgroup=skill, source="errors.scale", id_value="")
         if autocorrect_unreliable and skill in _AUTOCORRECT_SENSITIVE_SKILLS:
+            c["reliability"] = "низкая"
+        if not lt_used and skill in _LT_DEPENDENT_SKILLS:
+            c["value"] = f"{value} · {NOTE_LT_UNUSED}"
             c["reliability"] = "низкая"
         out.append(c)
     g_level, _g_desc, g_total = calculate_general_skill(errors or [], total_words)
-    out.append(_c(GROUP_LINGUISTIC, KIND_GENERAL,
-                  f"{GENERAL_LABEL_PREFIX}общий уровень грамотности",
-                  value=GENERAL_VALUE_FMT.format(
-                      level=g_level, rate=round(g_total * norm, 1), count=g_total),
-                  subgroup=GENERAL_OVERALL_SUBGROUP, source="errors.scale"))
+    g_value = GENERAL_VALUE_FMT.format(
+        level=g_level, rate=round(g_total * norm, 1), count=g_total)
+    g = _c(GROUP_LINGUISTIC, KIND_GENERAL,
+           f"{GENERAL_LABEL_PREFIX}общий уровень грамотности",
+           value=g_value, subgroup=GENERAL_OVERALL_SUBGROUP,
+           source="errors.scale")
+    if not lt_used:
+        # Без LT общий уровень отражает почти только пунктуацию.
+        g["value"] = f"{g_value} · {NOTE_LT_UNUSED}"
+        g["reliability"] = "низкая"
+    out.append(g)
     return out
 
 
@@ -316,7 +335,8 @@ def build_profile(text: str, metrics: dict,
                   thematic_result: Any = None, strat_result: Any = None,
                   errors: Optional[list] = None, internet_profile: Any = None,
                   autocorrect_unreliable: bool = False,
-                  error_reliabilities: Optional[list[str]] = None) -> list[dict]:
+                  error_reliabilities: Optional[list[str]] = None,
+                  lt_used: bool = True) -> list[dict]:
     """Собрать полный профиль (4 группы) из результатов существующих модулей."""
     profile: list[dict] = []
     profile += semantic_candidates(thematic_result)
@@ -328,7 +348,8 @@ def build_profile(text: str, metrics: dict,
                                 reliabilities=error_reliabilities)
     total_words = len(_WORD_RE.findall(text or ""))
     profile += general_skill_candidates(errors or [], total_words,
-                                        autocorrect_unreliable)
+                                        autocorrect_unreliable,
+                                        lt_used=lt_used)
     profile += psycho_candidates(strat_result)
     return profile
 
@@ -453,7 +474,8 @@ def run_for_document(
         thematic_result=thematic_result, strat_result=strat_result,
         errors=errors, internet_profile=internet_profile,
         autocorrect_unreliable=autocorrect,
-        error_reliabilities=error_reliabilities)
+        error_reliabilities=error_reliabilities,
+        lt_used=(lt_meta.get("режим") == "local"))
 
     pdb.clear_feature_candidates(document_id)
     n = pdb.save_feature_candidates(document_id, profile)

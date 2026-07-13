@@ -149,7 +149,8 @@ def export_research_docx(
             row = table.add_row().cells
             name = skill
             if v["reliability_a"] == "низкая" or v["reliability_b"] == "низкая":
-                name += " (ненадёжен: автокоррекция)"
+                # Причина в value признака: автокоррекция или LT не использован.
+                name += " (надёжность: низкая)"
             row[0].text = name
             row[1].text = v["value_a"] or "—"
             row[2].text = v["value_b"] or "—"

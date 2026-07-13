@@ -126,8 +126,13 @@ def recommend(pdb: "protocol_db.ProtocolDB", project_id: int,
     # спорном тексте выше, чем в образце, за пределами допуска. Работает по
     # объективным общим признакам, подтверждения позиций не требует.
     # Орфографический и пунктуационный навыки не участвуют (автокоррекция).
+    # Ненадёжный признак (LT не использован хотя бы у одного документа) в
+    # решающем правиле не участвует: асимметрия детекторов между документами
+    # не должна давать ложный категорический вывод.
     vul_hits = [(s, gsv[s]) for s in ("грамматический", "лексико-фразеологический")
-                if s in gsv and gsv[s]["verdict"] == cmp.GENERAL_VERDICT_HIGHER_A]
+                if s in gsv and gsv[s]["verdict"] == cmp.GENERAL_VERDICT_HIGHER_A
+                and gsv[s]["reliability_a"] != "низкая"
+                and gsv[s]["reliability_b"] != "низкая"]
     if vul_hits:
         for skill, v in vul_hits:
             reasons.append(
