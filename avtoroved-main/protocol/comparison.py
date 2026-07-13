@@ -314,18 +314,36 @@ def reset(
         program_version=program_version)
 
 
+def pair_suitability_status(pdb: "protocol_db.ProtocolDB", project_id: int,
+                            doc_a: int, doc_b: int) -> dict:
+    """
+    Итог стадии пригодности для пары по строкам suitability самой пары и
+    обоих документов: {has_rows, blocks, unfit}. has_rows=False означает,
+    что стадия по паре вообще не проводилась (нарушение стадийности —
+    категорические формы недоступны); unfit — хотя бы один объект признан
+    непригодным (исследование по паре не проводится, вывод НПВ).
+    """
+    has_rows = blocks = unfit = False
+    for r in pdb.fetch_suitability(project_id):
+        hit_pair = (r["pair_doc_a"] == doc_a and r["pair_doc_b"] == doc_b)
+        hit_doc = r["document_id"] in (doc_a, doc_b)
+        if not (hit_pair or hit_doc):
+            continue
+        has_rows = True
+        if r["blocks_strong_conclusion"]:
+            blocks = True
+        if r["verdict"] == "непригоден":
+            unfit = True
+    return {"has_rows": has_rows, "blocks": blocks, "unfit": unfit}
+
+
 def pair_blocks_strong_conclusion(pdb: "protocol_db.ProtocolDB",
                                   project_id: int, doc_a: int, doc_b: int) -> bool:
     """
     Заблокирован ли категорический вывод для пары: смотрим строки suitability
     самой пары и обоих документов (любой blocks_strong_conclusion=1 → блок).
     """
-    for r in pdb.fetch_suitability(project_id):
-        hit_pair = (r["pair_doc_a"] == doc_a and r["pair_doc_b"] == doc_b)
-        hit_doc = r["document_id"] in (doc_a, doc_b)
-        if (hit_pair or hit_doc) and r["blocks_strong_conclusion"]:
-            return True
-    return False
+    return pair_suitability_status(pdb, project_id, doc_a, doc_b)["blocks"]
 
 
 def stats(pdb: "protocol_db.ProtocolDB", project_id: int,
@@ -348,8 +366,9 @@ def stats(pdb: "protocol_db.ProtocolDB", project_id: int,
                 st[f"уровень_{r['level']}"] += 1
     st["порог_методики"] = MIN_FEATURES_FOR_CONCLUSION
     st["до_порога"] = max(0, MIN_FEATURES_FOR_CONCLUSION - st["подтверждено"])
-    st["blocks_strong_conclusion"] = pair_blocks_strong_conclusion(
-        pdb, project_id, doc_a, doc_b)
+    su = pair_suitability_status(pdb, project_id, doc_a, doc_b)
+    st["blocks_strong_conclusion"] = su["blocks"]
+    st["пригодность_проведена"] = su["has_rows"]
     st["общие_признаки"] = general_skill_verdicts(pdb, doc_a, doc_b)
     st["разбивка_по_группам"] = bucket_breakdown(pdb, doc_a, doc_b)
     return st

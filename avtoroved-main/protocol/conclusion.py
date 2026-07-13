@@ -89,14 +89,30 @@ def recommend(pdb: "protocol_db.ProtocolDB", project_id: int,
     Возвращает (форма, обоснование по пунктам, breakdown-словарь).
     """
     bd = _level_breakdown(pdb, doc_a, doc_b)
-    blocks = cmp.pair_blocks_strong_conclusion(pdb, project_id, doc_a, doc_b)
+    su = cmp.pair_suitability_status(pdb, project_id, doc_a, doc_b)
+    # Стадийность: непроведённая пригодность блокирует категорические формы
+    # так же, как ограничения из проведённой стадии.
+    blocks = su["blocks"] or not su["has_rows"]
     bd["blocks_strong_conclusion"] = blocks
+    bd["suitability_done"] = su["has_rows"]
     gsv = cmp.general_skill_verdicts(pdb, doc_a, doc_b)
     buckets = cmp.bucket_breakdown(pdb, doc_a, doc_b)
     bd["general_verdicts"] = {s: v["verdict"] for s, v in gsv.items()}
     bd["buckets"] = buckets
     reasons: list[str] = []
     coin, diff = bd["coincidence"], bd["difference"]
+
+    # 00) Непригодный объект: исследование по паре не проводится (методика —
+    # непригодность основания для НПВ, а не для смягчения формы).
+    if su["unfit"]:
+        reasons.append("Объект пары признан непригодным на стадии пригодности — "
+                       "идентификационное исследование по паре не проводится, "
+                       "вывод: не представляется возможным.")
+        return FORM_NPV, reasons, bd
+    if not su["has_rows"]:
+        reasons.append("Стадия оценки пригодности по паре НЕ ПРОВОДИЛАСЬ — "
+                       "категорические формы недоступны до её проведения "
+                       "(вкладка «Пригодность»).")
 
     # 0) Решающее правило Вула [Минюст, с. 19; Вул 2007, с. 38]: степень
     # развития грамматического и/или лексико-фразеологического навыка в

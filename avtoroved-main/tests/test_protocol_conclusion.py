@@ -24,6 +24,16 @@ def _setup_pair(pdb):
     return pid, a, b
 
 
+def _mark_fit(pdb, pid, a, b):
+    """Стадия пригодности проведена, ограничений нет (для категорических форм)."""
+    for did in (a, b):
+        pdb.save_suitability(pid, verdict="пригоден",
+                             blocks_strong_conclusion=False, document_id=did,
+                             flags=[], metrics={})
+    pdb.save_suitability(pid, verdict="пригоден", blocks_strong_conclusion=False,
+                         pair_doc_a=a, pair_doc_b=b, flags=[], metrics={})
+
+
 def _confirmed_position(pdb, pid, a, b, label, match_type, level,
                         group="языковые", subgroup="п"):
     """Создать подтверждённую позицию сравнения напрямую."""
@@ -73,6 +83,7 @@ def test_no_positions_npv(pdb):
 
 def test_nn_difference_categorical_negative(pdb):
     pid, a, b = _setup_pair(pdb)
+    _mark_fit(pdb, pid, a, b)
     _confirmed_position(pdb, pid, a, b, "Р1", cmp.MATCH_DIFFERENCE, "НН")
     form, reasons, _ = concl.recommend(pdb, pid, a, b)
     assert form == concl.FORM_NEG_CATEGORICAL
@@ -98,6 +109,7 @@ def test_only_confirmed_difference_wins_over_coincidences(pdb):
 def test_all_levels_thresholds_and_buckets_categorical_positive(pdb):
     """Категорический положительный: все уровни + ≥20 суммарно + корзины."""
     pid, a, b = _setup_pair(pdb)
+    _mark_fit(pdb, pid, a, b)
     _fill_buckets(pdb, pid, a, b, cmp.THRESHOLDS_CATEGORICAL)
     form, _, bd = concl.recommend(pdb, pid, a, b)
     assert bd["total_coincidence"] >= cmp.MIN_FEATURES_FOR_CONCLUSION
@@ -161,6 +173,52 @@ def test_below_probable_buckets_npv(pdb):
     assert any("текстологические" in r for r in reasons)
 
 
+# ── гейты стадийности ────────────────────────────────────────────────────────
+def test_no_suitability_blocks_categorical(pdb):
+    """Стадия пригодности не проводилась → категорическая форма недоступна,
+    в пояснении — прямое указание провести стадию."""
+    pid, a, b = _setup_pair(pdb)
+    _fill_buckets(pdb, pid, a, b, cmp.THRESHOLDS_CATEGORICAL)
+    form, reasons, bd = concl.recommend(pdb, pid, a, b)
+    assert form == concl.FORM_POS_PROBABLE
+    assert bd["suitability_done"] is False
+    assert any("НЕ ПРОВОДИЛАСЬ" in r for r in reasons)
+
+
+def test_unfit_document_forces_npv(pdb):
+    """Непригодный объект → НПВ, а не смягчённая форма."""
+    pid, a, b = _setup_pair(pdb)
+    _fill_buckets(pdb, pid, a, b, cmp.THRESHOLDS_CATEGORICAL)
+    pdb.save_suitability(pid, verdict="непригоден",
+                         blocks_strong_conclusion=True, document_id=b,
+                         flags=[], metrics={})
+    form, reasons, _ = concl.recommend(pdb, pid, a, b)
+    assert form == concl.FORM_NPV
+    assert any("непригодным" in r for r in reasons)
+
+
+def test_unfit_beats_vul_rule(pdb):
+    """Непригодность важнее правила Вула: сравнивать нечего → НПВ."""
+    pid, a, b = _setup_pair(pdb)
+    # Данные для правила Вула есть...
+    pdb.save_feature_candidates(a, [{
+        "group_name": "языковые", "subgroup": "грамматический",
+        "kind": "общий_признак", "label": "Общий признак: грамматический навык",
+        "value": "высокая · 0.5 ош./200 сл. · уникальных 0", "fragment": None,
+        "source": "errors.scale", "id_value": "", "reliability": ""}])
+    pdb.save_feature_candidates(b, [{
+        "group_name": "языковые", "subgroup": "грамматический",
+        "kind": "общий_признак", "label": "Общий признак: грамматический навык",
+        "value": "низкая · 7.0 ош./200 сл. · уникальных 7", "fragment": None,
+        "source": "errors.scale", "id_value": "", "reliability": ""}])
+    # ...но образец непригоден.
+    pdb.save_suitability(pid, verdict="непригоден",
+                         blocks_strong_conclusion=True, document_id=b,
+                         flags=[], metrics={})
+    form, _, _ = concl.recommend(pdb, pid, a, b)
+    assert form == concl.FORM_NPV
+
+
 # ── решающее правило Вула (Минюст с.19; Вул 2007 с.38) ───────────────────────
 from protocol import profile as prof
 
@@ -179,6 +237,7 @@ def test_vul_rule_grammar_higher_fires_categorical_negative(pdb):
     """Грамматический навык в спорном выше допуска ±2 → категорический
     отрицательный, в пояснении — навык и дельта."""
     pid, a, b = _setup_pair(pdb)
+    _mark_fit(pdb, pid, a, b)
     _add_general(pdb, a, "грамматический", 0.5)
     _add_general(pdb, b, "грамматический", 4.0)
     form, reasons, bd = concl.recommend(pdb, pid, a, b)
@@ -234,6 +293,7 @@ def test_vul_rule_degrades_when_blocked(pdb):
 # ── фиксация вывода экспертом ────────────────────────────────────────────────
 def test_decide_matching_recommendation(pdb):
     pid, a, b = _setup_pair(pdb)
+    _mark_fit(pdb, pid, a, b)
     _confirmed_position(pdb, pid, a, b, "Р", cmp.MATCH_DIFFERENCE, "НН")
     out = concl.decide(pdb, pid, a, b, concl.FORM_NEG_CATEGORICAL,
                        program_version="5.0")
@@ -257,6 +317,7 @@ def test_decide_disagreement_requires_justification(pdb):
 
 def test_decide_append_only_history(pdb):
     pid, a, b = _setup_pair(pdb)
+    _mark_fit(pdb, pid, a, b)
     _confirmed_position(pdb, pid, a, b, "Р", cmp.MATCH_DIFFERENCE, "НН")
     concl.decide(pdb, pid, a, b, concl.FORM_NEG_CATEGORICAL)
     concl.decide(pdb, pid, a, b, concl.FORM_NEG_PROBABLE, justification="осторожность")
