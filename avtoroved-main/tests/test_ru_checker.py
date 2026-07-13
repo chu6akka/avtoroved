@@ -51,6 +51,22 @@ def test_tsya_correct_forms_not_flagged():
     assert rc.tsya_errors("надо учиться каждый день") == []
 
 
+def test_tsya_expanded_markers():
+    """Расширенный словарь маркеров инфинитива."""
+    for text in ("придётся учится заново", "можно ошибится легко",
+                 "устал старатся впустую", "рекомендуется обратится к юристу",
+                 "запрещено купатся здесь"):
+        assert rc.tsya_errors(text), text
+
+
+def test_tsya_pronoun_inversion_guard():
+    """Инверсия: инфинитив после местоимения корректен, если дальше
+    отрицание или маркер («Он учиться не хочет») — не флагуем."""
+    assert rc.tsya_errors("Он учиться не хочет.") == []
+    assert rc.tsya_errors("Он учиться будет завтра.") == []
+    assert rc.tsya_errors("он учиться в школе")   # без инверсии — ошибка
+
+
 # ── грамматика: согласование ─────────────────────────────────────────────────
 def _tok(text, pos, sid, tid, cs, ce):
     return TokenInfo(text=text, lemma=text, pos=pos, pos_label="", feats="",
@@ -85,6 +101,17 @@ def test_agreement_requires_adjacency_same_sentence():
 def test_pleonasm():
     errs = rc.lexical_errors("у нас есть свободная вакансия для юриста")
     assert any("Плеоназм" in e.subtype for e in errs)
+
+
+def test_pleonasm_expanded_dictionary():
+    for text in ("это был неожиданный сюрприз", "встреча в мае месяце",
+                 "самый оптимальный вариант", "прейскурант цен на услуги",
+                 "он кивнул головой"):
+        errs = rc.lexical_errors(text)
+        assert any("Плеоназм" in e.subtype for e in errs), text
+    # «месяц» без названия месяца — не плеоназм.
+    assert not any("месяц" in e.subtype
+                   for e in rc.lexical_errors("прошёл целый месяц ожидания"))
 
 
 def test_tautology_same_lemma_in_window():
