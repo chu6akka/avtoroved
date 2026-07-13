@@ -37,6 +37,28 @@ SUB_GRAMMAR = "грамматические"
 # ── Виды элементов ───────────────────────────────────────────────────────────
 KIND_COUNTER = "счётчик"
 KIND_CANDIDATE = "кандидат_признак"
+KIND_GENERAL = "общий_признак"   # степень развития навыка (уровень НН)
+
+# ── Общие признаки: степени развития навыков ─────────────────────────────────
+# Наименование степени — по единой шкале Рубцовой 2007, с. 13 (высокая <4,
+# средняя 4–6, низкая >6 ошибок на 200 словоформ); дифференцированная таблица
+# Вула по категориям в кодовой базе отсутствует [нужны пороги — сверить с
+# Вул 2007]. Решающее правило Вула (стадия 4) работает по числам на 200
+# словоформ и допускам, от наименования степени не зависит.
+GENERAL_SKILLS = ("орфографический", "пунктуационный",
+                  "грамматический", "лексико-фразеологический")
+_SKILL_BY_ERROR_TYPE = {
+    "Орфографическая": "орфографический",
+    "Пунктуационная": "пунктуационный",
+    "Грамматическая": "грамматический",
+    "Лексическая": "лексико-фразеологический",
+}
+GENERAL_LABEL_PREFIX = "Общий признак: "
+GENERAL_OVERALL_SUBGROUP = "общий уровень"
+# Формат value парсится стадией сравнения (comparison.parse_general_rate).
+GENERAL_VALUE_FMT = "{level} · {rate:.1f} ош./200 сл. · уникальных {count}"
+# Навыки, ненадёжные при автокоррекции (цифровое/опубликованное происхождение).
+_AUTOCORRECT_SENSITIVE_SKILLS = ("орфографический", "пунктуационный")
 
 # Пометки надёжности для кандидатов ошибок.
 NOTE_NEEDS_REVIEW = "требует проверки"
@@ -219,6 +241,49 @@ def error_candidates(errors: list, autocorrect_unreliable: bool,
     return out
 
 
+# ── 3д. Общие признаки: степени развития навыков (уровень НН) ────────────────
+def general_skill_candidates(errors: list, total_words: int,
+                             autocorrect_unreliable: bool = False) -> list[dict]:
+    """
+    Степени развития 4 навыков (орфографический, пунктуационный,
+    грамматический, лексико-фразеологический) + общий уровень грамотности
+    (Рубцова 2007, с. 13). Считаются от того же потока ошибок, что и кандидаты
+    (после слоя фильтрации); дедупликация — по с. 14. Это общие признаки
+    уровня НН — они минуют карту признаков и сопоставляются напрямую
+    (comparison.general_skill_verdicts) с допусками Минюста.
+    """
+    if total_words <= 0:
+        return []
+    from analyzer.errors import (deduplicate_errors, get_skill_level,
+                                 calculate_general_skill)
+    out: list[dict] = []
+    groups: dict[str, list] = {s: [] for s in GENERAL_SKILLS}
+    for e in errors or []:
+        skill = _SKILL_BY_ERROR_TYPE.get(e.error_type)
+        if skill:
+            groups[skill].append(e)
+    norm = 200 / total_words
+    for skill in GENERAL_SKILLS:
+        unique = deduplicate_errors(groups[skill])
+        count = len(unique)
+        level, _desc = get_skill_level(count, total_words)
+        c = _c(GROUP_LINGUISTIC, KIND_GENERAL,
+               f"{GENERAL_LABEL_PREFIX}{skill} навык",
+               value=GENERAL_VALUE_FMT.format(
+                   level=level, rate=round(count * norm, 1), count=count),
+               subgroup=skill, source="errors.scale", id_value="")
+        if autocorrect_unreliable and skill in _AUTOCORRECT_SENSITIVE_SKILLS:
+            c["reliability"] = "низкая"
+        out.append(c)
+    g_level, _g_desc, g_total = calculate_general_skill(errors or [], total_words)
+    out.append(_c(GROUP_LINGUISTIC, KIND_GENERAL,
+                  f"{GENERAL_LABEL_PREFIX}общий уровень грамотности",
+                  value=GENERAL_VALUE_FMT.format(
+                      level=g_level, rate=round(g_total * norm, 1), count=g_total),
+                  subgroup=GENERAL_OVERALL_SUBGROUP, source="errors.scale"))
+    return out
+
+
 # ── 4. Психолингвистические: только подсветка, интерпретация — эксперту ──────
 def psycho_candidates(strat_result: Any) -> list[dict]:
     """
@@ -261,6 +326,9 @@ def build_profile(text: str, metrics: dict,
     profile += syntactic_candidates(metrics, text)
     profile += error_candidates(errors or [], autocorrect_unreliable,
                                 reliabilities=error_reliabilities)
+    total_words = len(_WORD_RE.findall(text or ""))
+    profile += general_skill_candidates(errors or [], total_words,
+                                        autocorrect_unreliable)
     profile += psycho_candidates(strat_result)
     return profile
 

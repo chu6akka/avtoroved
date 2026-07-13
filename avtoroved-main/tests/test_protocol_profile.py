@@ -127,6 +127,61 @@ def test_psycho_candidates_minimal_no_interpretation():
     assert c["id_value"] == ""          # автоматической оценки нет
 
 
+# ── общие признаки: степени развития навыков (уровень НН) ───────────────────
+def test_general_skill_candidates_five_rows():
+    """4 навыка + общий уровень; формат value парсится стадией сравнения."""
+    errors = [_FakeError("Орфографическая", f"тип{i}") for i in range(3)]
+    out = pf.general_skill_candidates(errors, total_words=200)
+    assert len(out) == 5
+    assert all(c["kind"] == pf.KIND_GENERAL for c in out)
+    assert all(c["group_name"] == pf.GROUP_LINGUISTIC for c in out)
+    by_sub = {c["subgroup"]: c for c in out}
+    assert set(by_sub) == set(pf.GENERAL_SKILLS) | {pf.GENERAL_OVERALL_SUBGROUP}
+    # 3 уникальных орфографических ошибки на 200 словоформ → высокая (<4).
+    orf = by_sub["орфографический"]
+    assert orf["value"].startswith("высокая · 3.0 ош./200 сл.")
+    # Навык без ошибок — высокая, 0 ошибок.
+    assert by_sub["грамматический"]["value"].startswith("высокая · 0.0")
+    # Общий уровень суммирует все категории.
+    assert by_sub[pf.GENERAL_OVERALL_SUBGROUP]["value"].endswith("уникальных 3")
+
+
+def test_general_skill_scale_boundaries():
+    """Шкала Рубцовой с.13: средняя 4–6, низкая >6 (на 200 словоформ)."""
+    errs = [_FakeError("Пунктуационная", f"т{i}") for i in range(5)]
+    out = pf.general_skill_candidates(errs, total_words=200)
+    punct = next(c for c in out if c["subgroup"] == "пунктуационный")
+    assert punct["value"].startswith("средняя")
+    errs = [_FakeError("Пунктуационная", f"т{i}") for i in range(7)]
+    out = pf.general_skill_candidates(errs, total_words=200)
+    punct = next(c for c in out if c["subgroup"] == "пунктуационный")
+    assert punct["value"].startswith("низкая")
+
+
+def test_general_skill_autocorrect_lowers_reliability():
+    """При автокоррекции орф./пункт. ненадёжны; грамм./лекс.-фраз. — нет."""
+    out = pf.general_skill_candidates([], total_words=200,
+                                      autocorrect_unreliable=True)
+    by_sub = {c["subgroup"]: c for c in out}
+    assert by_sub["орфографический"].get("reliability") == "низкая"
+    assert by_sub["пунктуационный"].get("reliability") == "низкая"
+    assert by_sub["грамматический"].get("reliability", "") == ""
+    assert by_sub["лексико-фразеологический"].get("reliability", "") == ""
+
+
+def test_general_skill_empty_text():
+    assert pf.general_skill_candidates([_FakeError()], total_words=0) == []
+
+
+def test_build_profile_includes_general_skills():
+    profile = pf.build_profile("Первое предложение здесь. Второе тоже тут.",
+                               metrics={}, errors=[_FakeError()])
+    kinds = {c["kind"] for c in profile}
+    assert pf.KIND_GENERAL in kinds
+    generals = [c for c in profile if c["kind"] == pf.KIND_GENERAL]
+    assert len(generals) == 5
+
+
 # ── запись профиля в БД и журнал ─────────────────────────────────────────────
 @pytest.fixture()
 def pdb(tmp_path):
@@ -172,7 +227,8 @@ def test_run_for_document_writes_profile_and_log(pdb):
     assert pf.GROUP_TEXTOLOGICAL in groups
     assert pf.GROUP_LINGUISTIC in groups
     # Обязательные поля заполнены.
-    assert all(r["kind"] in (pf.KIND_COUNTER, pf.KIND_CANDIDATE) for r in rows)
+    assert all(r["kind"] in (pf.KIND_COUNTER, pf.KIND_CANDIDATE,
+                             pf.KIND_GENERAL) for r in rows)
     assert all(r["source"] for r in rows)
     assert all(r["created_at"] for r in rows)
     # Журнал.
