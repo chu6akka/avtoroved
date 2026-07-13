@@ -462,6 +462,9 @@ def test_export_includes_general_skills_and_buckets(pdb, tmp_path):
     assert "не достигнут" in cells                       # статус порога
     assert "НН < НС < НСВ" in text                       # легенда уровней
     assert "правило Вула" in text
+
+
+def test_shorten_fragment_cuts_on_word_boundary():
     from protocol.report import _shorten_fragment, _FRAGMENT_LIMIT
     short = "короткая цитата"
     assert _shorten_fragment(short) == short
