@@ -184,6 +184,8 @@ def export_research_docx(
                 result = r["match_type"]
                 if r["level"]:
                     result += f", уровень {r['level']}"
+                if r["explained"]:
+                    result += " — признано объяснимым (из правила вывода исключено)"
                 if r["expert_note"]:
                     result += f". {r['expert_note']}"
                 row[3].text = result

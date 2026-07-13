@@ -231,6 +231,36 @@ def test_auto_match_adds_general_positions(pdb):
         cmp.GENERAL_VERDICT_HIGHER_A
 
 
+# ── объяснимые различия ──────────────────────────────────────────────────────
+def test_explained_difference_requires_note(pdb):
+    pid, a, b = _setup_pair(pdb)
+    _accept_feature(pdb, pid, a, "П1")
+    cmp.auto_match(pdb, pid, a, b)
+    key = pdb.fetch_comparisons(a, b)[0]["position_key"]
+    with pytest.raises(ValueError, match="пояснения"):
+        cmp.decide(pdb, pid, a, b, key, match_type=cmp.MATCH_ONLY_A,
+                   explained=True)
+    with pytest.raises(ValueError, match="различие"):
+        cmp.decide(pdb, pid, a, b, key, match_type=cmp.MATCH_COINCIDENCE,
+                   expert_note="жанр", explained=True)
+    cmp.decide(pdb, pid, a, b, key, match_type=cmp.MATCH_ONLY_A, level="НС",
+               expert_note="объясняется жанровыми условиями", explained=True)
+    row = pdb.fetch_comparisons(a, b)[0]
+    assert row["explained"] == 1 and row["status"] == cmp.STATUS_CONFIRMED
+
+
+def test_reset_clears_explained(pdb):
+    pid, a, b = _setup_pair(pdb)
+    _accept_feature(pdb, pid, a, "П1")
+    cmp.auto_match(pdb, pid, a, b)
+    key = pdb.fetch_comparisons(a, b)[0]["position_key"]
+    cmp.decide(pdb, pid, a, b, key, match_type=cmp.MATCH_ONLY_A,
+               expert_note="жанр", explained=True)
+    cmp.reset(pdb, pid, a, b, key)
+    row = pdb.fetch_comparisons(a, b)[0]
+    assert row["explained"] == 0 and row["status"] == cmp.STATUS_AUTO
+
+
 # ── корзины Огорелкова ───────────────────────────────────────────────────────
 def test_bucket_of_mapping():
     assert cmp.bucket_of("смысловые", None) == "смысловые"

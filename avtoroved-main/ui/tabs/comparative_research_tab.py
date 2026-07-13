@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox,
     QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView,
     QMessageBox, QDialog, QDialogButtonBox, QFormLayout, QTextEdit, QSplitter,
+    QCheckBox,
 )
 
 from protocol import db as protocol_db
@@ -47,8 +48,15 @@ class _ConfirmDialog(QDialog):
         for lv in cmp_mod.LEVELS:
             self.level_combo.addItem(lv, lv)
         form.addRow("Уровень (НН/НС/НСВ):", self.level_combo)
+        self.explained_check = QCheckBox(
+            "различие объяснимо (жанр, время, состояние) — исключить из правила вывода")
+        self.explained_check.setToolTip(
+            "Позиция остаётся в отчёте с пояснением, но не учитывается "
+            "правилом рекомендации формы вывода. Требует пояснения ниже.")
+        form.addRow("", self.explained_check)
         self.note_edit = QTextEdit()
-        self.note_edit.setPlaceholderText("Примечание эксперта (необязательно)…")
+        self.note_edit.setPlaceholderText(
+            "Примечание эксперта (обязательно для объяснимого различия)…")
         self.note_edit.setMaximumHeight(80)
         form.addRow("Примечание:", self.note_edit)
         btns = QDialogButtonBox(
@@ -57,10 +65,11 @@ class _ConfirmDialog(QDialog):
         btns.rejected.connect(self.reject)
         form.addRow(btns)
 
-    def values(self) -> tuple[str, str, str]:
+    def values(self) -> tuple[str, str, str, bool]:
         return (self.type_combo.currentText(),
                 self.level_combo.currentData() or "",
-                self.note_edit.toPlainText().strip())
+                self.note_edit.toPlainText().strip(),
+                self.explained_check.isChecked())
 
 
 class ComparativeResearchTab(QWidget):
@@ -291,11 +300,12 @@ class ComparativeResearchTab(QWidget):
     def _add_row(self, r):
         row = self.table.rowCount()
         self.table.insertRow(row)
+        mtype_text = r["match_type"] + (" (объяснимо)" if r["explained"] else "")
         cells = [
             r["label"], r["group_name"] or "",
             r["value_a"] or ("—" if r["match_type"] == cmp_mod.MATCH_ONLY_B else ""),
             r["value_b"] or ("—" if r["match_type"] == cmp_mod.MATCH_ONLY_A else ""),
-            r["match_type"], r["level"] or "", r["status"],
+            mtype_text, r["level"] or "", r["status"],
         ]
         for col, text in enumerate(cells):
             item = QTableWidgetItem(str(text))
@@ -344,11 +354,15 @@ class ComparativeResearchTab(QWidget):
         dlg = _ConfirmDialog(sel[0]["match_type"], self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
-        mtype, level, note = dlg.values()
-        for r in sel:
-            cmp_mod.decide(self._pdb, self._project_id, doc_a, doc_b,
-                           r["position_key"], match_type=mtype, level=level,
-                           expert_note=note, program_version=PROGRAM_VERSION)
+        mtype, level, note, explained = dlg.values()
+        try:
+            for r in sel:
+                cmp_mod.decide(self._pdb, self._project_id, doc_a, doc_b,
+                               r["position_key"], match_type=mtype, level=level,
+                               expert_note=note, explained=explained,
+                               program_version=PROGRAM_VERSION)
+        except ValueError as e:   # объяснимое различие без пояснения и т.п.
+            QMessageBox.warning(self, "Недопустимое решение", str(e))
         self._reload_table()
 
     def _reset_selected(self):

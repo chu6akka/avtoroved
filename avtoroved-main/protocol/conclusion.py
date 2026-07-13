@@ -58,6 +58,7 @@ def _level_breakdown(pdb: "protocol_db.ProtocolDB",
     diff = {lv: 0 for lv in cmp.LEVELS}
     coin_nolevel = diff_nolevel = 0
     total_confirmed = 0
+    explained_count = 0
     for r in pdb.fetch_comparisons(doc_a, doc_b):
         if r["status"] != cmp.STATUS_CONFIRMED:
             continue
@@ -69,6 +70,11 @@ def _level_breakdown(pdb: "protocol_db.ProtocolDB",
             else:
                 coin_nolevel += 1
         elif r["match_type"] in _DIFF_TYPES:
+            # Различие, признанное экспертом объяснимым (жанр, время,
+            # состояние), в правило вывода не входит — только в отчёт.
+            if r["explained"]:
+                explained_count += 1
+                continue
             if lv in diff:
                 diff[lv] += 1
             else:
@@ -79,6 +85,7 @@ def _level_breakdown(pdb: "protocol_db.ProtocolDB",
         "total_confirmed": total_confirmed,
         "total_coincidence": sum(coin.values()) + coin_nolevel,
         "total_difference": sum(diff.values()) + diff_nolevel,
+        "difference_explained": explained_count,
     }
 
 
@@ -160,6 +167,12 @@ def recommend(pdb: "protocol_db.ProtocolDB", project_id: int,
         reasons.append("Выявлены различия (" + ", ".join(parts) + ") при отсутствии "
                        "различий на НН — вероятный отрицательный вывод.")
         return FORM_NEG_PROBABLE, reasons, bd
+
+    if bd["difference_explained"]:
+        reasons.append(
+            f"Различий, признанных экспертом объяснимыми: "
+            f"{bd['difference_explained']} — исключены из правила вывода, "
+            f"отражены в отчёте с пояснениями.")
 
     # 3) Только совпадения: суммарный порог Рубцовой (с.85) + покатегорийные
     # минимумы Огорелкова (2021, с. 89–93 [сверить]) — дополнение, не замена.

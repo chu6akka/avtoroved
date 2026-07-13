@@ -173,6 +173,37 @@ def test_below_probable_buckets_npv(pdb):
     assert any("текстологические" in r for r in reasons)
 
 
+# ── объяснимые различия в правиле вывода ─────────────────────────────────────
+def test_explained_difference_excluded_from_rule(pdb):
+    """Объяснимое различие не валит положительную ветку, но упомянуто
+    в пояснении; счётчики отражают исключение."""
+    pid, a, b = _setup_pair(pdb)
+    _mark_fit(pdb, pid, a, b)
+    _fill_buckets(pdb, pid, a, b, cmp.THRESHOLDS_CATEGORICAL)
+    # Различие на НН, признанное объяснимым.
+    key = _confirmed_position(pdb, pid, a, b, "Р-объясн", cmp.MATCH_DIFFERENCE,
+                              "НН")
+    pdb.record_comparison_decision(
+        pid, a, b, key, "подтверждено", match_type=cmp.MATCH_DIFFERENCE,
+        level="НН", expert_note="объясняется временным разрывом",
+        explained=True)
+    form, reasons, bd = concl.recommend(pdb, pid, a, b)
+    assert form == concl.FORM_POS_CATEGORICAL       # различие исключено
+    assert bd["difference_explained"] == 1
+    assert bd["total_difference"] == 0
+    assert any("объяснимыми" in r for r in reasons)
+
+
+def test_unexplained_difference_still_wins(pdb):
+    """Без флага то же различие на НН даёт категорический отрицательный."""
+    pid, a, b = _setup_pair(pdb)
+    _mark_fit(pdb, pid, a, b)
+    _fill_buckets(pdb, pid, a, b, cmp.THRESHOLDS_CATEGORICAL)
+    _confirmed_position(pdb, pid, a, b, "Р-необъясн", cmp.MATCH_DIFFERENCE, "НН")
+    form, _, _ = concl.recommend(pdb, pid, a, b)
+    assert form == concl.FORM_NEG_CATEGORICAL
+
+
 # ── гейты стадийности ────────────────────────────────────────────────────────
 def test_no_suitability_blocks_categorical(pdb):
     """Стадия пригодности не проводилась → категорическая форма недоступна,

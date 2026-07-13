@@ -277,22 +277,36 @@ def decide(
     match_type: Optional[str] = None,
     level: str = "",
     expert_note: str = "",
+    explained: bool = False,
     program_version: Optional[str] = None,
 ) -> None:
-    """Подтвердить позицию: тип (совпадение/различие), уровень НН/НС/НСВ, примечание."""
+    """
+    Подтвердить позицию: тип (совпадение/различие), уровень НН/НС/НСВ,
+    примечание. explained=True помечает различие объяснимым (жанр, время,
+    состояние автора): позиция остаётся в отчёте, но исключается из правила
+    вывода — обязательно письменное пояснение в expert_note.
+    """
     if match_type is not None and match_type not in MATCH_TYPES:
         raise ValueError(f"Недопустимый тип сопоставления: {match_type}")
     if level and level not in LEVELS:
         raise ValueError(f"Недопустимый уровень: {level}")
+    if explained:
+        if match_type == MATCH_COINCIDENCE:
+            raise ValueError("Объяснимым может быть только различие, "
+                             "не совпадение.")
+        if not expert_note.strip():
+            raise ValueError("Различие, признанное объяснимым, требует "
+                             "письменного пояснения эксперта.")
     pdb.record_comparison_decision(
         project_id, doc_a, doc_b, pos_key, STATUS_CONFIRMED,
         match_type=match_type, level=level, expert_note=expert_note,
-        program_version=program_version)
+        explained=explained, program_version=program_version)
     pdb.log_action(
         "сравнение: позиция подтверждена", project_id=project_id,
         details={"pair_doc_a": doc_a, "pair_doc_b": doc_b,
                  "position_key": pos_key, "тип": match_type,
-                 "уровень": level or None, "примечание": expert_note or None},
+                 "уровень": level or None, "примечание": expert_note or None,
+                 "различие_объяснимо": bool(explained)},
         program_version=program_version)
 
 

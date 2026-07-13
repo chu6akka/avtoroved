@@ -183,6 +183,8 @@ CREATE TABLE IF NOT EXISTS comparisons (
   level TEXT DEFAULT '',          -- уровень индивидуализации: 'НН'|'НС'|'НСВ'|'' (Рубцова 2007, с.11)
   status TEXT NOT NULL DEFAULT 'авто',   -- 'авто' (черновик) | 'подтверждено' (эксперт)
   expert_note TEXT,
+  explained INTEGER NOT NULL DEFAULT 0,  -- различие признано объяснимым (жанр, время, состояние):
+                                         -- остаётся в отчёте, но исключается из правила вывода
   created_at TEXT NOT NULL,
   decided_at TEXT,
   UNIQUE(pair_doc_a, pair_doc_b, position_key)
@@ -196,6 +198,7 @@ CREATE TABLE IF NOT EXISTS comparison_decisions (
   pair_doc_b INTEGER NOT NULL REFERENCES documents(id),
   position_key TEXT NOT NULL,
   match_type TEXT, level TEXT, expert_note TEXT,
+  explained INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL,           -- 'подтверждено' | 'сброшено'
   decided_at TEXT NOT NULL,
   program_version TEXT
@@ -293,6 +296,13 @@ class ProtocolDB:
             if "reliability" not in cols:
                 conn.execute(
                     "ALTER TABLE feature_candidates ADD COLUMN reliability TEXT DEFAULT ''")
+            # Миграция: флаг объяснимого различия (исключается из правила вывода).
+            for table in ("comparisons", "comparison_decisions"):
+                cols = {r["name"] for r in conn.execute(
+                    f"PRAGMA table_info({table})").fetchall()}
+                if "explained" not in cols:
+                    conn.execute(f"ALTER TABLE {table} "
+                                 "ADD COLUMN explained INTEGER NOT NULL DEFAULT 0")
 
     # ── проекты ─────────────────────────────────────────────────────────────
     def create_project(
@@ -702,6 +712,7 @@ class ProtocolDB:
         match_type: Optional[str] = None,
         level: str = "",
         expert_note: str = "",
+        explained: bool = False,
         program_version: Optional[str] = None,
     ) -> int:
         """Append-only запись решения + обновление текущего состояния позиции."""
@@ -710,21 +721,22 @@ class ProtocolDB:
             cur = conn.execute(
                 "INSERT INTO comparison_decisions "
                 "(project_id, pair_doc_a, pair_doc_b, position_key, match_type, "
-                " level, expert_note, status, decided_at, program_version) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " level, expert_note, explained, status, decided_at, program_version) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (project_id, pair_doc_a, pair_doc_b, position_key, match_type,
-                 level, expert_note, status, ts, program_version))
+                 level, expert_note, int(explained), status, ts, program_version))
             if status == "подтверждено":
                 conn.execute(
                     "UPDATE comparisons SET match_type = COALESCE(?, match_type), "
-                    "level = ?, expert_note = ?, status = 'подтверждено', decided_at = ? "
+                    "level = ?, expert_note = ?, explained = ?, "
+                    "status = 'подтверждено', decided_at = ? "
                     "WHERE pair_doc_a = ? AND pair_doc_b = ? AND position_key = ?",
-                    (match_type, level, expert_note, ts,
+                    (match_type, level, expert_note, int(explained), ts,
                      pair_doc_a, pair_doc_b, position_key))
             else:  # 'сброшено' — вернуть позицию в авто-состояние
                 conn.execute(
                     "UPDATE comparisons SET level = '', expert_note = NULL, "
-                    "status = 'авто', decided_at = NULL "
+                    "explained = 0, status = 'авто', decided_at = NULL "
                     "WHERE pair_doc_a = ? AND pair_doc_b = ? AND position_key = ?",
                     (pair_doc_a, pair_doc_b, position_key))
             return int(cur.lastrowid)
