@@ -167,6 +167,7 @@ class ComparativeResearchTab(QWidget):
 
         self.progress_label = QLabel("")
         self.progress_label.setObjectName("caption")
+        self.progress_label.setWordWrap(True)
         layout.addWidget(self.progress_label)
 
     # ── выбор проекта/пары ───────────────────────────────────────────────────
@@ -262,14 +263,30 @@ class ComparativeResearchTab(QWidget):
             self.progress_label.setText(
                 "Позиций нет — нажмите «Сопоставить автоматически».")
         else:
-            self.progress_label.setText(
+            lines = [
                 f"Позиций {st['всего']}: совпадений {st[cmp_mod.MATCH_COINCIDENCE]}, "
                 f"различий {st[cmp_mod.MATCH_DIFFERENCE]}, "
                 f"только у спорного {st[cmp_mod.MATCH_ONLY_A]}, "
                 f"только у образца {st[cmp_mod.MATCH_ONLY_B]}. "
                 f"Подтверждено {st['подтверждено']} "
                 f"(НН {st['уровень_НН']}, НС {st['уровень_НС']}, НСВ {st['уровень_НСВ']}). "
-                f"До методического порога ≥{st['порог_методики']}: {st['до_порога']}.")
+                f"До методического порога ≥{st['порог_методики']}: {st['до_порога']}."
+            ]
+            # Общие признаки: вердикты по навыкам с допусками Минюста (с. 19).
+            gsv = st.get("общие_признаки") or {}
+            if gsv:
+                parts = [f"{s}: {v['verdict'].replace('_', ' ')} "
+                         f"(Δ{v['delta']:+.1f}, допуск ±{v['tolerance']:g})"
+                         for s, v in sorted(gsv.items())]
+                lines.append("Общие признаки — " + "; ".join(parts) + ".")
+            # Корзины Огорелкова: показываем недобранные до категорического.
+            short = [f"{b['bucket']} {b['confirmed']}/{b['threshold_categorical']}"
+                     for b in st.get("разбивка_по_группам", [])
+                     if not b["meets_categorical"]]
+            if short:
+                lines.append("До покатегорийных минимумов категорического "
+                             "вывода: " + "; ".join(short) + ".")
+            self.progress_label.setText("\n".join(lines))
 
     def _add_row(self, r):
         row = self.table.rowCount()

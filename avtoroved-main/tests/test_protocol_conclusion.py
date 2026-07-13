@@ -24,18 +24,43 @@ def _setup_pair(pdb):
     return pid, a, b
 
 
-def _confirmed_position(pdb, pid, a, b, label, match_type, level):
+def _confirmed_position(pdb, pid, a, b, label, match_type, level,
+                        group="языковые", subgroup="п"):
     """Создать подтверждённую позицию сравнения напрямую."""
-    key = cmp.position_key(a, b, "языковые", "п", label)
+    key = cmp.position_key(a, b, group, subgroup or "", label)
     pdb.replace_auto_comparisons(pid, a, b, [{
         "position_key": key, "feature_key_a": "fa", "feature_key_b": "fb",
-        "group_name": "языковые", "subgroup": "п", "label": label,
+        "group_name": group, "subgroup": subgroup, "label": label,
         "value_a": "v", "value_b": "v", "fragment_a": None, "fragment_b": None,
         "match_type": match_type,
     }])
     pdb.record_comparison_decision(pid, a, b, key, "подтверждено",
                                    match_type=match_type, level=level)
     return key
+
+
+# Представитель каждой корзины Огорелкова: (group_name, subgroup).
+_BUCKET_REPR = {
+    "смысловые": ("смысловые", "тематические"),
+    "текстологические": ("текстологические", "архитектоника"),
+    "языковые: лексические": ("языковые", "лексические"),
+    "языковые: стилистические": ("языковые", "стилистические"),
+    "языковые: синтаксические": ("языковые", "синтаксические"),
+    cmp.BUCKET_ORTH_PUNCT: ("языковые", "пунктуационные"),
+    "психолингвистические": ("психолингвистические", None),
+}
+
+
+def _fill_buckets(pdb, pid, a, b, thresholds, levels=("НН", "НС", "НСВ")):
+    """Подтверждённые совпадения, добирающие каждую корзину до её порога."""
+    i = 0
+    for bucket, need in thresholds.items():
+        group, sub = _BUCKET_REPR[bucket]
+        for j in range(need):
+            _confirmed_position(pdb, pid, a, b, f"С-{bucket}-{j}",
+                                cmp.MATCH_COINCIDENCE, levels[i % len(levels)],
+                                group=group, subgroup=sub)
+            i += 1
 
 
 # ── правило вывода: все ветки ────────────────────────────────────────────────
@@ -70,23 +95,33 @@ def test_only_confirmed_difference_wins_over_coincidences(pdb):
     assert form == concl.FORM_NEG_PROBABLE     # только_у_* — различие
 
 
-def test_all_levels_and_threshold_categorical_positive(pdb):
+def test_all_levels_thresholds_and_buckets_categorical_positive(pdb):
+    """Категорический положительный: все уровни + ≥20 суммарно + корзины."""
+    pid, a, b = _setup_pair(pdb)
+    _fill_buckets(pdb, pid, a, b, cmp.THRESHOLDS_CATEGORICAL)
+    form, _, bd = concl.recommend(pdb, pid, a, b)
+    assert bd["total_coincidence"] >= cmp.MIN_FEATURES_FOR_CONCLUSION
+    assert form == concl.FORM_POS_CATEGORICAL
+
+
+def test_twenty_coincidences_one_group_not_categorical(pdb):
+    """20 совпадений одной группы НЕ дают категорический — недобранные
+    корзины Огорелкова перечислены в пояснении (критерий задачи)."""
     pid, a, b = _setup_pair(pdb)
     levels = ["НН", "НС", "НСВ"]
     for i in range(cmp.MIN_FEATURES_FOR_CONCLUSION):
         _confirmed_position(pdb, pid, a, b, f"С{i}", cmp.MATCH_COINCIDENCE,
-                            levels[i % 3])
-    form, _, bd = concl.recommend(pdb, pid, a, b)
-    assert bd["total_coincidence"] == cmp.MIN_FEATURES_FOR_CONCLUSION
-    assert form == concl.FORM_POS_CATEGORICAL
+                            levels[i % 3], group="языковые",
+                            subgroup="лексические")
+    form, reasons, _ = concl.recommend(pdb, pid, a, b)
+    assert form != concl.FORM_POS_CATEGORICAL
+    assert any("Покатегорийные минимумы" in r for r in reasons)
+    assert any("психолингвистические" in r for r in reasons)
 
 
 def test_blocks_degrades_categorical_positive(pdb):
     pid, a, b = _setup_pair(pdb)
-    levels = ["НН", "НС", "НСВ"]
-    for i in range(cmp.MIN_FEATURES_FOR_CONCLUSION):
-        _confirmed_position(pdb, pid, a, b, f"С{i}", cmp.MATCH_COINCIDENCE,
-                            levels[i % 3])
+    _fill_buckets(pdb, pid, a, b, cmp.THRESHOLDS_CATEGORICAL)
     pdb.save_suitability(pid, verdict="пригоден_с_ограничениями",
                          blocks_strong_conclusion=True, document_id=a,
                          flags=[], metrics={})
@@ -106,21 +141,94 @@ def test_blocks_degrades_categorical_negative(pdb):
 
 
 def test_nn_ns_only_probable_positive(pdb):
+    """Половинные корзины добраны, но совпадения лишь на НН и НС —
+    вероятный положительный с указанием недостающей ступени."""
     pid, a, b = _setup_pair(pdb)
-    _confirmed_position(pdb, pid, a, b, "С1", cmp.MATCH_COINCIDENCE, "НН")
-    _confirmed_position(pdb, pid, a, b, "С2", cmp.MATCH_COINCIDENCE, "НС")
+    _fill_buckets(pdb, pid, a, b, cmp.THRESHOLDS_PROBABLE, levels=("НН", "НС"))
     form, reasons, _ = concl.recommend(pdb, pid, a, b)
     assert form == concl.FORM_POS_PROBABLE
     assert any("НСВ" in r for r in reasons)     # указана недостающая ступень
 
 
-def test_below_threshold_probable_positive(pdb):
+def test_below_probable_buckets_npv(pdb):
+    """Совпадений мало (половинные корзины не добраны) → НПВ с перечнем."""
     pid, a, b = _setup_pair(pdb)
     for i, lv in enumerate(("НН", "НС", "НСВ")):
         _confirmed_position(pdb, pid, a, b, f"С{i}", cmp.MATCH_COINCIDENCE, lv)
     form, reasons, _ = concl.recommend(pdb, pid, a, b)
-    assert form == concl.FORM_POS_PROBABLE
-    assert any("порог" in r.lower() for r in reasons)
+    assert form == concl.FORM_NPV
+    assert any("половинные" in r for r in reasons)
+    assert any("текстологические" in r for r in reasons)
+
+
+# ── решающее правило Вула (Минюст с.19; Вул 2007 с.38) ───────────────────────
+from protocol import profile as prof
+
+
+def _add_general(pdb, did, skill, rate, level="средняя"):
+    pdb.save_feature_candidates(did, [{
+        "group_name": "языковые", "subgroup": skill, "kind": prof.KIND_GENERAL,
+        "label": f"{prof.GENERAL_LABEL_PREFIX}{skill} навык",
+        "value": prof.GENERAL_VALUE_FMT.format(level=level, rate=rate,
+                                               count=int(rate)),
+        "fragment": None, "source": "errors.scale", "id_value": "",
+        "reliability": ""}])
+
+
+def test_vul_rule_grammar_higher_fires_categorical_negative(pdb):
+    """Грамматический навык в спорном выше допуска ±2 → категорический
+    отрицательный, в пояснении — навык и дельта."""
+    pid, a, b = _setup_pair(pdb)
+    _add_general(pdb, a, "грамматический", 0.5)
+    _add_general(pdb, b, "грамматический", 4.0)
+    form, reasons, bd = concl.recommend(pdb, pid, a, b)
+    assert form == concl.FORM_NEG_CATEGORICAL
+    assert any("Вула" in r and "грамматический" in r for r in reasons)
+    assert bd["general_verdicts"]["грамматический"] == cmp.GENERAL_VERDICT_HIGHER_A
+
+
+def test_vul_rule_within_tolerance_does_not_fire(pdb):
+    """Разница в пределах допуска ±2 → правило не срабатывает."""
+    pid, a, b = _setup_pair(pdb)
+    _add_general(pdb, a, "грамматический", 2.0)
+    _add_general(pdb, b, "грамматический", 3.5)
+    form, reasons, _ = concl.recommend(pdb, pid, a, b)
+    assert form != concl.FORM_NEG_CATEGORICAL
+    assert not any("Вула" in r for r in reasons)
+
+
+def test_vul_rule_ignores_orthographic_and_punctuation(pdb):
+    """Орфографический/пунктуационный навыки в правиле не участвуют."""
+    pid, a, b = _setup_pair(pdb)
+    _add_general(pdb, a, "орфографический", 0.0)
+    _add_general(pdb, b, "орфографический", 9.0)     # выше в спорном, за ±4
+    _add_general(pdb, a, "пунктуационный", 0.0)
+    _add_general(pdb, b, "пунктуационный", 9.0)
+    form, reasons, _ = concl.recommend(pdb, pid, a, b)
+    assert form != concl.FORM_NEG_CATEGORICAL
+    assert not any("Вула" in r for r in reasons)
+
+
+def test_vul_rule_lexical_lower_does_not_fire(pdb):
+    """Навык в спорном НИЖЕ образца — основания для правила нет."""
+    pid, a, b = _setup_pair(pdb)
+    _add_general(pdb, a, "лексико-фразеологический", 8.0)
+    _add_general(pdb, b, "лексико-фразеологический", 1.0)
+    form, reasons, _ = concl.recommend(pdb, pid, a, b)
+    assert not any("Вула" in r for r in reasons)
+
+
+def test_vul_rule_degrades_when_blocked(pdb):
+    pid, a, b = _setup_pair(pdb)
+    _add_general(pdb, a, "лексико-фразеологический", 0.5)
+    _add_general(pdb, b, "лексико-фразеологический", 5.0)
+    pdb.save_suitability(pid, verdict="пригоден_с_ограничениями",
+                         blocks_strong_conclusion=True, document_id=b,
+                         flags=[], metrics={})
+    form, reasons, _ = concl.recommend(pdb, pid, a, b)
+    assert form == concl.FORM_NEG_PROBABLE
+    assert any("Вула" in r for r in reasons)
+    assert any("ЗАБЛОКИРОВАНА" in r for r in reasons)
 
 
 # ── фиксация вывода экспертом ────────────────────────────────────────────────
@@ -186,7 +294,9 @@ def test_export_creates_docx_and_registers(pdb, tmp_path):
     from protocol.report import export_research_docx
     pid, a, b = _setup_pair(pdb)
     _confirmed_position(pdb, pid, a, b, "С1", cmp.MATCH_COINCIDENCE, "НН")
-    concl.decide(pdb, pid, a, b, concl.FORM_POS_PROBABLE, program_version="5.0")
+    concl.decide(pdb, pid, a, b, concl.FORM_POS_PROBABLE,
+                 justification="Тестовая фиксация вопреки рекомендации.",
+                 program_version="5.0")
 
     fp = str(tmp_path / "отчет.docx")
     summary = export_research_docx(pdb, pid, a, b, fp, program_version="5.0")
@@ -241,7 +351,9 @@ def test_export_illustrates_positions_by_group(pdb, tmp_path):
             pid, a, b, cmp.position_key(a, b, grp, sub, lbl), "подтверждено",
             match_type=cmp.MATCH_COINCIDENCE, level="НС",
             expert_note="устойчиво в обоих текстах")
-    concl.decide(pdb, pid, a, b, concl.FORM_POS_PROBABLE, program_version="5.0")
+    concl.decide(pdb, pid, a, b, concl.FORM_POS_PROBABLE,
+                 justification="Тестовая фиксация вопреки рекомендации.",
+                 program_version="5.0")
 
     fp = str(tmp_path / "отчет.docx")
     export_research_docx(pdb, pid, a, b, fp, program_version="5.0")

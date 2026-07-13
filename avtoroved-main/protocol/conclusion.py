@@ -1,15 +1,21 @@
 """
 protocol/conclusion.py — стадия 4: оценка результатов и вывод (Рубцова 2007).
 
-Авто-рекомендация формы вывода по правилу методики (с.85–86) поверх
-ПОДТВЕРЖДЁННЫХ экспертом позиций сравнительного исследования:
+Авто-рекомендация формы вывода поверх ПОДТВЕРЖДЁННЫХ экспертом позиций
+сравнительного исследования и объективных общих признаков:
 
+  • решающее правило Вула: грамматический и/или лексико-фразеологический
+    навык в спорном тексте ВЫШЕ, чем в образце, за пределами допуска
+    → категорический отрицательный [Минюст, с. 19; Вул 2007, с. 38];
+    орфографический и пунктуационный навыки в правиле НЕ участвуют
+    (ненадёжны при автокоррекции цифровых текстов);
   • различие на уровне НН            → категорический отрицательный;
   • различия на НС и/или НСВ         → вероятный отрицательный;
-  • совпадения на всех трёх уровнях, нет значимых различий и
-    ≥ MIN_FEATURES_FOR_CONCLUSION признаков → категорический положительный;
-  • совпадения только на НН и НС     → вероятный положительный;
-  • данных недостаточно              → НПВ (не представляется возможным).
+  • совпадения на всех трёх уровнях, ≥ MIN_FEATURES_FOR_CONCLUSION
+    признаков суммарно И покатегорийные минимумы Огорелкова
+    → категорический положительный;
+  • половинные покатегорийные пороги → вероятный положительный;
+  • пороги не добраны / данных нет   → НПВ (не представляется возможным).
 
 Флаг blocks_strong_conclusion из стадии пригодности ДЕГРАДИРУЕТ категорические
 формы до вероятных. Рекомендация — только подсказка: форму вывода фиксирует
@@ -85,8 +91,34 @@ def recommend(pdb: "protocol_db.ProtocolDB", project_id: int,
     bd = _level_breakdown(pdb, doc_a, doc_b)
     blocks = cmp.pair_blocks_strong_conclusion(pdb, project_id, doc_a, doc_b)
     bd["blocks_strong_conclusion"] = blocks
+    gsv = cmp.general_skill_verdicts(pdb, doc_a, doc_b)
+    buckets = cmp.bucket_breakdown(pdb, doc_a, doc_b)
+    bd["general_verdicts"] = {s: v["verdict"] for s, v in gsv.items()}
+    bd["buckets"] = buckets
     reasons: list[str] = []
     coin, diff = bd["coincidence"], bd["difference"]
+
+    # 0) Решающее правило Вула [Минюст, с. 19; Вул 2007, с. 38]: степень
+    # развития грамматического и/или лексико-фразеологического навыка в
+    # спорном тексте выше, чем в образце, за пределами допуска. Работает по
+    # объективным общим признакам, подтверждения позиций не требует.
+    # Орфографический и пунктуационный навыки не участвуют (автокоррекция).
+    vul_hits = [(s, gsv[s]) for s in ("грамматический", "лексико-фразеологический")
+                if s in gsv and gsv[s]["verdict"] == cmp.GENERAL_VERDICT_HIGHER_A]
+    if vul_hits:
+        for skill, v in vul_hits:
+            reasons.append(
+                f"Решающее правило Вула: {skill} навык в спорном тексте выше, "
+                f"чем в образце ({v['rate_a']} против {v['rate_b']} ошибок на "
+                f"200 словоформ; дельта {v['delta']}, допуск ±{v['tolerance']:g}) "
+                f"— основание категорического отрицательного вывода "
+                f"[Минюст, с. 19; Вул 2007, с. 38].")
+        form = FORM_NEG_CATEGORICAL
+        if blocks:
+            reasons.append("Категорическая форма ЗАБЛОКИРОВАНА стадией пригодности "
+                           "(blocks_strong_conclusion=1) — форма понижена до вероятной.")
+            form = FORM_NEG_PROBABLE
+        return form, reasons, bd
 
     if bd["total_confirmed"] == 0:
         reasons.append("Нет ни одной подтверждённой экспертом позиции сравнения — "
@@ -113,18 +145,22 @@ def recommend(pdb: "protocol_db.ProtocolDB", project_id: int,
                        "различий на НН — вероятный отрицательный вывод.")
         return FORM_NEG_PROBABLE, reasons, bd
 
-    # 3) Только совпадения.
+    # 3) Только совпадения: суммарный порог Рубцовой (с.85) + покатегорийные
+    # минимумы Огорелкова (2021, с. 89–93 [сверить]) — дополнение, не замена.
     all_levels = all(coin[lv] > 0 for lv in cmp.LEVELS)
     enough = bd["total_coincidence"] >= cmp.MIN_FEATURES_FOR_CONCLUSION
+    buckets_categorical = all(b["meets_categorical"] for b in buckets)
+    buckets_probable = all(b["meets_probable"] for b in buckets)
     reasons.append(
         f"Значимых различий не выявлено; совпадений {bd['total_coincidence']} "
         f"(НН: {coin['НН']}, НС: {coin['НС']}, НСВ: {coin['НСВ']}"
         + (f", без уровня: {bd['coincidence_nolevel']}" if bd["coincidence_nolevel"] else "")
         + ").")
 
-    if all_levels and enough:
-        reasons.append(f"Совпадения на всех трёх уровнях и достигнут методический порог "
-                       f"≥{cmp.MIN_FEATURES_FOR_CONCLUSION} — категорический положительный вывод.")
+    if all_levels and enough and buckets_categorical:
+        reasons.append(f"Совпадения на всех трёх уровнях, достигнуты методический порог "
+                       f"≥{cmp.MIN_FEATURES_FOR_CONCLUSION} и покатегорийные минимумы "
+                       f"— категорический положительный вывод.")
         form = FORM_POS_CATEGORICAL
         if blocks:
             reasons.append("Категорическая форма ЗАБЛОКИРОВАНА стадией пригодности — "
@@ -135,11 +171,25 @@ def recommend(pdb: "protocol_db.ProtocolDB", project_id: int,
     if not all_levels:
         missing = [lv for lv in cmp.LEVELS if coin[lv] == 0]
         reasons.append(f"Совпадения не охватывают все уровни (нет: {', '.join(missing)}) — "
-                       "категорическая форма недоступна, вероятный положительный вывод.")
+                       "категорическая форма недоступна.")
     if not enough:
         reasons.append(f"Порог ≥{cmp.MIN_FEATURES_FOR_CONCLUSION} не достигнут "
                        f"({bd['total_coincidence']}) — категорическая форма недоступна.")
-    return FORM_POS_PROBABLE, reasons, bd
+    if not buckets_categorical:
+        short = [f"{b['bucket']}: {b['confirmed']}/{b['threshold_categorical']}"
+                 for b in buckets if not b["meets_categorical"]]
+        reasons.append("Покатегорийные минимумы категорического вывода не достигнуты "
+                       "(Моисеева/Огорелков): " + "; ".join(short) + ".")
+
+    if buckets_probable:
+        return FORM_POS_PROBABLE, reasons, bd
+
+    short_prob = [f"{b['bucket']}: {b['confirmed']}/{b['threshold_probable']}"
+                  for b in buckets if not b["meets_probable"]]
+    reasons.append("Не достигнуты и половинные покатегорийные пороги вероятного "
+                   "вывода: " + "; ".join(short_prob) +
+                   " — рекомендуется НПВ (совокупность совпадений недостаточна).")
+    return FORM_NPV, reasons, bd
 
 
 def decide(
