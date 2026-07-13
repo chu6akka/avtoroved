@@ -200,6 +200,25 @@ def test_general_verdicts_tolerance(pdb):
     assert v["пунктуационный"]["verdict"] == cmp.GENERAL_VERDICT_EQUAL
 
 
+def test_general_verdicts_detector_asymmetry_unreliable(pdb):
+    """LT только у одного документа → счётчики несопоставимы: вердикт
+    помечается ненадёжным (правило Вула его игнорирует)."""
+    pid, a, b = _setup_pair(pdb)
+    _add_general(pdb, a, "грамматический", 0.0)
+    pdb.save_feature_candidates(b, [{
+        "group_name": "языковые", "subgroup": "грамматический",
+        "kind": prof.KIND_GENERAL,
+        "label": f"{prof.GENERAL_LABEL_PREFIX}грамматический навык",
+        "value": prof.GENERAL_VALUE_FMT.format(level="низкая", rate=7.0, count=7)
+                 + f" · {prof.NOTE_LT_UNUSED}",
+        "fragment": None, "source": "errors.scale", "id_value": "",
+        "reliability": ""}])
+    v = cmp.general_skill_verdicts(pdb, a, b)
+    g = v["грамматический"]
+    assert g["verdict"] == cmp.GENERAL_VERDICT_HIGHER_A
+    assert g["reliability_a"] == "низкая" and g["reliability_b"] == "низкая"
+
+
 def test_general_verdicts_missing_side_skipped(pdb):
     pid, a, b = _setup_pair(pdb)
     _add_general(pdb, a, "грамматический", 1.0)

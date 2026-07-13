@@ -151,12 +151,19 @@ def general_skill_verdicts(pdb: "protocol_db.ProtocolDB",
             verdict = GENERAL_VERDICT_HIGHER_A
         else:
             verdict = GENERAL_VERDICT_LOWER_A
+        rel_a = a["reliability"] or ""
+        rel_b = b["reliability"] or ""
+        # Асимметрия детекторов: профили построены разным набором (LT только
+        # у одного документа) — счётчики несопоставимы, вердикт ненадёжен
+        # (правило Вула такие навыки игнорирует).
+        if (prof.NOTE_LT_UNUSED in (a["value"] or "")) != \
+                (prof.NOTE_LT_UNUSED in (b["value"] or "")):
+            rel_a = rel_b = "низкая"
         out[skill] = {
             "verdict": verdict, "rate_a": rate_a, "rate_b": rate_b,
             "delta": delta, "tolerance": tol,
             "value_a": a["value"], "value_b": b["value"],
-            "reliability_a": a["reliability"] or "",
-            "reliability_b": b["reliability"] or "",
+            "reliability_a": rel_a, "reliability_b": rel_b,
         }
     return out
 

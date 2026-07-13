@@ -60,11 +60,11 @@ GENERAL_OVERALL_SUBGROUP = "общий уровень"
 GENERAL_VALUE_FMT = "{level} · {rate:.1f} ош./200 сл. · уникальных {count}"
 # Навыки, ненадёжные при автокоррекции (цифровое/опубликованное происхождение).
 _AUTOCORRECT_SENSITIVE_SKILLS = ("орфографический", "пунктуационный")
-# Навыки, детектируемые только LanguageTool: собственных локальных правил
-# для них нет (локально — лишь пунктуация). Без LT их счётчик всегда 0 —
-# признак неинформативен и помечается ненадёжным.
-_LT_DEPENDENT_SKILLS = ("орфографический", "грамматический",
-                        "лексико-фразеологический")
+# Пометка состава детекторов: без LT счётчики строятся только на собственных
+# правилах (ru_checker + punct_checker) — само по себе это допустимо, но
+# сопоставлять общий признак можно лишь с документом, размеченным тем же
+# набором детекторов. Асимметрию ловит comparison.general_skill_verdicts
+# по наличию этой пометки в value.
 NOTE_LT_UNUSED = "LT не использован"
 
 # Пометки надёжности для кандидатов ошибок.
@@ -284,9 +284,8 @@ def general_skill_candidates(errors: list, total_words: int,
                value=value, subgroup=skill, source="errors.scale", id_value="")
         if autocorrect_unreliable and skill in _AUTOCORRECT_SENSITIVE_SKILLS:
             c["reliability"] = "низкая"
-        if not lt_used and skill in _LT_DEPENDENT_SKILLS:
+        if not lt_used:
             c["value"] = f"{value} · {NOTE_LT_UNUSED}"
-            c["reliability"] = "низкая"
         out.append(c)
     g_level, _g_desc, g_total = calculate_general_skill(errors or [], total_words)
     g_value = GENERAL_VALUE_FMT.format(
@@ -296,9 +295,7 @@ def general_skill_candidates(errors: list, total_words: int,
            value=g_value, subgroup=GENERAL_OVERALL_SUBGROUP,
            source="errors.scale")
     if not lt_used:
-        # Без LT общий уровень отражает почти только пунктуацию.
         g["value"] = f"{g_value} · {NOTE_LT_UNUSED}"
-        g["reliability"] = "низкая"
     out.append(g)
     return out
 
@@ -412,6 +409,15 @@ def run_for_document(
         errors = punct_checker.check_with_tokens(text, tokens) or []
     except Exception:
         pass
+    # Собственные офлайн-детекторы (орфография, грамматика, лексика) —
+    # протокол не зависит от LanguageTool.
+    ru_rules_version = ""
+    try:
+        from analyzer import ru_checker
+        ru_rules_version = getattr(ru_checker, "RULES_VERSION", "")
+        errors += ru_checker.check(text, tokens) or []
+    except Exception:
+        pass
 
     lt_meta = {"режим": "не использован", "версия": ""}
     if use_lt:
@@ -488,6 +494,7 @@ def run_for_document(
                  # Воспроизводимость: версии движков и конфига фильтра.
                  "фильтр_конфиг_hash": filter_hash,
                  "версия_правил_пунктуации": punct_rules_version,
+                 "версия_правил_ru": ru_rules_version,
                  "languagetool": lt_meta,
                  # Подавленные срабатывания не исчезают бесследно.
                  "срабатываний_детектора": filtered.total_in,

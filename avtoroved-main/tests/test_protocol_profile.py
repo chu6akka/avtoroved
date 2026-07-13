@@ -173,20 +173,20 @@ def test_general_skill_empty_text():
     assert pf.general_skill_candidates([_FakeError()], total_words=0) == []
 
 
-def test_general_skill_lt_unused_marks_unreliable():
-    """Без LT орфографический/грамматический/лексико-фразеологический и
-    общий уровень — ненадёжны с пометкой; пунктуационный (свои правила) — нет."""
+def test_general_skill_lt_unused_marks_detector_set():
+    """Без LT каждый общий признак несёт пометку состава детекторов —
+    сравнение по ней ловит асимметрию; надёжность не занижается (есть
+    собственные офлайн-детекторы ru_checker)."""
     out = pf.general_skill_candidates([], total_words=200, lt_used=False)
-    by_sub = {c["subgroup"]: c for c in out}
-    for skill in ("орфографический", "грамматический",
-                  "лексико-фразеологический", pf.GENERAL_OVERALL_SUBGROUP):
-        assert by_sub[skill].get("reliability") == "низкая", skill
-        assert pf.NOTE_LT_UNUSED in by_sub[skill]["value"], skill
-    assert by_sub["пунктуационный"].get("reliability", "") == ""
-    assert pf.NOTE_LT_UNUSED not in by_sub["пунктуационный"]["value"]
+    for c in out:
+        assert pf.NOTE_LT_UNUSED in c["value"], c["subgroup"]
+        assert c.get("reliability", "") == ""
     # Формат value остаётся парсируемым для стадии сравнения.
     from protocol import comparison as cmp
-    assert cmp.parse_general_rate(by_sub["грамматический"]["value"]) == 0.0
+    assert cmp.parse_general_rate(out[0]["value"]) == 0.0
+    # С LT пометки нет.
+    out_lt = pf.general_skill_candidates([], total_words=200, lt_used=True)
+    assert all(pf.NOTE_LT_UNUSED not in c["value"] for c in out_lt)
 
 
 def test_error_candidates_unknown_type_goes_to_other():
