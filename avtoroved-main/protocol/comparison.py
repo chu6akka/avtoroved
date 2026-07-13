@@ -17,10 +17,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
+import re
 from typing import Any, Optional
 
 from protocol import db as protocol_db
 from protocol import feature_map as fm
+from protocol import profile as prof
 
 # ── Типы сопоставления ───────────────────────────────────────────────────────
 MATCH_COINCIDENCE = "совпадение"
@@ -39,6 +42,50 @@ MIN_FEATURES_FOR_CONCLUSION = 20
 STATUS_AUTO = "авто"
 STATUS_CONFIRMED = "подтверждено"
 STATUS_RESET = "сброшено"
+
+# ── Общие признаки: допуски сопоставления степеней навыков ───────────────────
+# Допуск — по числу ошибок на 200 словоформ (методика СЭУ Минюста, с. 19
+# [сверить]): ±2 для грамматического и лексико-фразеологического, ±4 для
+# орфографического и пунктуационного. Сопоставление общих признаков идёт на
+# уровне НН; общий уровень грамотности с допуском не сопоставляется (справочен).
+GENERAL_TOLERANCE = {
+    "грамматический": 2.0,
+    "лексико-фразеологический": 2.0,
+    "орфографический": 4.0,
+    "пунктуационный": 4.0,
+}
+
+GENERAL_VERDICT_EQUAL = "совпадает"
+GENERAL_VERDICT_HIGHER_A = "выше_в_спорном"   # ошибок меньше → навык выше
+GENERAL_VERDICT_LOWER_A = "ниже_в_спорном"
+
+# Формат value общего признака — profile.GENERAL_VALUE_FMT.
+_GENERAL_RATE_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*ош\./200")
+
+# ── Покатегорийные пороги подтверждённых совпадений ──────────────────────────
+# Моисеева/Огорелков 2021, с. 89–93 [сверить]. Дополнение к суммарному порогу
+# ≥20 (Рубцова, с. 85), не замена. Грамматические и общие признаки в корзины
+# не входят — учитываются только в суммарном счётчике.
+BUCKET_ORTH_PUNCT = "языковые: орфографические+пунктуационные"
+THRESHOLDS_CATEGORICAL = {
+    "смысловые": 3,
+    "текстологические": 5,
+    "языковые: лексические": 10,
+    "языковые: стилистические": 10,
+    "языковые: синтаксические": 10,
+    BUCKET_ORTH_PUNCT: 5,
+    "психолингвистические": 5,
+}
+# Вероятный вывод — половина категорических порогов, округление вверх.
+THRESHOLDS_PROBABLE = {k: math.ceil(v / 2) for k, v in THRESHOLDS_CATEGORICAL.items()}
+
+_LINGUISTIC_SUBGROUP_BUCKET = {
+    prof.SUB_LEXICAL: "языковые: лексические",
+    prof.SUB_STYLISTIC: "языковые: стилистические",
+    prof.SUB_SYNTACTIC: "языковые: синтаксические",
+    prof.SUB_ORTHOGRAPHIC: BUCKET_ORTH_PUNCT,
+    prof.SUB_PUNCTUATION: BUCKET_ORTH_PUNCT,
+}
 
 
 def position_key(doc_a: int, doc_b: int, group: str, subgroup: str, label: str) -> str:
@@ -65,6 +112,86 @@ def _accepted_features(pdb: "protocol_db.ProtocolDB", document_id: int) -> dict:
         if f["fragment"]:
             slot["fragments"].append(f["fragment"])
     return by_key
+
+
+def parse_general_rate(value: Optional[str]) -> Optional[float]:
+    """Число ошибок на 200 словоформ из value общего признака."""
+    if not value:
+        return None
+    m = _GENERAL_RATE_RE.search(value)
+    return float(m.group(1).replace(",", ".")) if m else None
+
+
+def general_skill_verdicts(pdb: "protocol_db.ProtocolDB",
+                           doc_a: int, doc_b: int) -> dict[str, dict]:
+    """
+    Сопоставление общих признаков пары по 4 навыкам с допусками Минюста.
+    Читает feature_candidates (kind='общий_признак') обоих документов —
+    карту признаков общие признаки минуют. Возвращает
+    {навык: {verdict, rate_a, rate_b, delta, tolerance,
+             value_a, value_b, reliability_a, reliability_b}}.
+    """
+    def _generals(did: int) -> dict[str, Any]:
+        return {c["subgroup"]: c for c in pdb.fetch_feature_candidates(did)
+                if c["kind"] == prof.KIND_GENERAL}
+
+    ga, gb = _generals(doc_a), _generals(doc_b)
+    out: dict[str, dict] = {}
+    for skill, tol in GENERAL_TOLERANCE.items():
+        a, b = ga.get(skill), gb.get(skill)
+        if a is None or b is None:
+            continue
+        rate_a, rate_b = parse_general_rate(a["value"]), parse_general_rate(b["value"])
+        if rate_a is None or rate_b is None:
+            continue
+        delta = round(rate_a - rate_b, 1)
+        if abs(delta) <= tol:
+            verdict = GENERAL_VERDICT_EQUAL
+        elif rate_a < rate_b:      # в спорном ошибок меньше → навык выше
+            verdict = GENERAL_VERDICT_HIGHER_A
+        else:
+            verdict = GENERAL_VERDICT_LOWER_A
+        out[skill] = {
+            "verdict": verdict, "rate_a": rate_a, "rate_b": rate_b,
+            "delta": delta, "tolerance": tol,
+            "value_a": a["value"], "value_b": b["value"],
+            "reliability_a": a["reliability"] or "",
+            "reliability_b": b["reliability"] or "",
+        }
+    return out
+
+
+def bucket_of(group_name: Optional[str], subgroup: Optional[str]) -> Optional[str]:
+    """Корзина Огорелкова для позиции; None — только в суммарный счётчик."""
+    g = group_name or ""
+    if g in ("смысловые", "текстологические", "психолингвистические"):
+        return g
+    if g == "языковые":
+        return _LINGUISTIC_SUBGROUP_BUCKET.get(subgroup or "")
+    return None
+
+
+def bucket_breakdown(pdb: "protocol_db.ProtocolDB",
+                     doc_a: int, doc_b: int) -> list[dict]:
+    """
+    Подтверждённые СОВПАДЕНИЯ пары по корзинам Огорелкова: сколько набрано,
+    пороги категорического/вероятного вывода и их достижение.
+    """
+    counts = {b: 0 for b in THRESHOLDS_CATEGORICAL}
+    for r in pdb.fetch_comparisons(doc_a, doc_b):
+        if r["status"] != STATUS_CONFIRMED or r["match_type"] != MATCH_COINCIDENCE:
+            continue
+        b = bucket_of(r["group_name"], r["subgroup"])
+        if b:
+            counts[b] += 1
+    return [{
+        "bucket": b,
+        "confirmed": counts[b],
+        "threshold_categorical": THRESHOLDS_CATEGORICAL[b],
+        "threshold_probable": THRESHOLDS_PROBABLE[b],
+        "meets_categorical": counts[b] >= THRESHOLDS_CATEGORICAL[b],
+        "meets_probable": counts[b] >= THRESHOLDS_PROBABLE[b],
+    } for b in THRESHOLDS_CATEGORICAL]
 
 
 def auto_match(
@@ -104,6 +231,26 @@ def auto_match(
             "match_type": mtype,
         })
 
+    # Общие признаки (степени навыков): сопоставляются автоматически с
+    # допусками Минюста, минуя карту признаков — черновик «совпадение» или
+    # «различие» по вердикту, дельта видна в value обеих сторон.
+    gsv = general_skill_verdicts(pdb, doc_a, doc_b)
+    for skill in sorted(gsv):
+        v = gsv[skill]
+        label = f"{prof.GENERAL_LABEL_PREFIX}{skill} навык"
+        positions.append({
+            "position_key": position_key(doc_a, doc_b, prof.GROUP_LINGUISTIC,
+                                         skill, label),
+            "feature_key_a": None, "feature_key_b": None,
+            "group_name": prof.GROUP_LINGUISTIC, "subgroup": skill,
+            "label": label,
+            "value_a": v["value_a"], "value_b": v["value_b"],
+            "fragment_a": None, "fragment_b": None,
+            "match_type": (MATCH_COINCIDENCE
+                           if v["verdict"] == GENERAL_VERDICT_EQUAL
+                           else MATCH_DIFFERENCE),
+        })
+
     inserted, confirmed_kept = pdb.replace_auto_comparisons(
         project_id, doc_a, doc_b, positions)
     pdb.log_action(
@@ -111,10 +258,14 @@ def auto_match(
         details={"pair_doc_a": doc_a, "pair_doc_b": doc_b,
                  "позиций_всего": len(positions), "вставлено_авто": inserted,
                  "сохранено_подтверждённых": confirmed_kept,
-                 "признаков_спорного": len(fa), "признаков_образца": len(fb)},
+                 "признаков_спорного": len(fa), "признаков_образца": len(fb),
+                 "общие_признаки": {s: {"вердикт": v["verdict"],
+                                        "дельта": v["delta"],
+                                        "допуск": v["tolerance"]}
+                                    for s, v in gsv.items()}},
         program_version=program_version)
     return {"positions": len(positions), "inserted_auto": inserted,
-            "confirmed_kept": confirmed_kept}
+            "confirmed_kept": confirmed_kept, "general_verdicts": gsv}
 
 
 def decide(
@@ -199,4 +350,6 @@ def stats(pdb: "protocol_db.ProtocolDB", project_id: int,
     st["до_порога"] = max(0, MIN_FEATURES_FOR_CONCLUSION - st["подтверждено"])
     st["blocks_strong_conclusion"] = pair_blocks_strong_conclusion(
         pdb, project_id, doc_a, doc_b)
+    st["общие_признаки"] = general_skill_verdicts(pdb, doc_a, doc_b)
+    st["разбивка_по_группам"] = bucket_breakdown(pdb, doc_a, doc_b)
     return st
