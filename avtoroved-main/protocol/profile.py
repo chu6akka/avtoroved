@@ -441,6 +441,21 @@ def run_for_document(
         except Exception:
             lt_meta = {"режим": "ошибка инициализации", "версия": ""}
 
+    # Импортированная офлайн-база правил LanguageTool (data/lt_rules_ru.json):
+    # запускается только когда живой LT-сервер недоступен — у живого LT те же
+    # id правил, дублировать срабатывания нельзя.
+    ltx_meta = {"использована": False}
+    if lt_meta.get("режим") != "local":
+        try:
+            from analyzer import lt_offline_rules
+            errors += lt_offline_rules.check(text) or []
+            n_rules, n_reps = lt_offline_rules.rules_count()
+            ltx_meta = {"использована": True, "правил": n_rules,
+                        "замен": n_reps,
+                        "версия_базы": lt_offline_rules.data_version()}
+        except Exception:
+            ltx_meta = {"использована": False, "ошибка_загрузки": True}
+
     # Слой фильтрации (единственная точка между детектором и feature_candidates).
     _status("Фильтрация срабатываний детектора...")
     filter_config, filter_hash = detector_filter.load_config()
@@ -496,6 +511,7 @@ def run_for_document(
                  "версия_правил_пунктуации": punct_rules_version,
                  "версия_правил_ru": ru_rules_version,
                  "languagetool": lt_meta,
+                 "правила_LT_офлайн": ltx_meta,
                  # Подавленные срабатывания не исчезают бесследно.
                  "срабатываний_детектора": filtered.total_in,
                  "подавлено_всего": filtered.total_suppressed,

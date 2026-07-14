@@ -1,0 +1,5767 @@
+{
+ "meta": {
+  "source": "LanguageTool (languagetool-org/languagetool), модуль ru",
+  "license": "LGPL-2.1-or-later",
+  "attribution": "https://github.com/languagetool-org/languagetool",
+  "imported_at": "2026-07-14T09:04:10+00:00",
+  "grammar_sha256": "e9bfa390cc417b07a72a762b14097451892355172d65dbe80e979251da2647ec",
+  "replace_sha256": "38bfd8fc096dd0581d4213847c39ee51bc9b5ef3f63b9663900de8da2b091829",
+  "rules": 209,
+  "replacements": 288,
+  "note": "Только правила без postag/exception/antipattern и без неограниченных шаблонов — исполняются офлайн (analyzer/lt_offline_rules.py)."
+ },
+ "rules": [
+  {
+   "id": "INVALID_DATE[1]",
+   "name": "Неверная дата, например: «31 февраля 2014»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "31",
+     "regexp": false
+    },
+    {
+     "text": "апрель|апр|апреля|июнь|июня|сен|сентября|сентябрь|ноябрь|ноября|ноя",
+     "regexp": true
+    }
+   ],
+   "message": "В только 30 дней."
+  },
+  {
+   "id": "INVALID_DATE[2]",
+   "name": "Неверная дата, например: «31 февраля 2014»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "3[01]",
+     "regexp": true
+    },
+    {
+     "text": "февраля|фев|февраль",
+     "regexp": true
+    }
+   ],
+   "message": "В феврале бывает только 28 дней, или 29 дней в високосном году."
+  },
+  {
+   "id": "YEAR_20001",
+   "name": "«Май 20001 (Май 2001)»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "январь|февраль|март|апрель|май|июнь|июль|август|сентябрь|октябрь|ноябрь|декабрь|января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря|год",
+     "regexp": true
+    },
+    {
+     "text": "200\\d\\d",
+     "regexp": true
+    }
+   ],
+   "message": "Действительно \\2? или ?"
+  },
+  {
+   "id": "zadat_test",
+   "name": "Опечатка: «задать тест»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "задать",
+     "regexp": false
+    },
+    {
+     "text": "тест",
+     "regexp": false
+    }
+   ],
+   "message": "Опечатка: предложить тест"
+  },
+  {
+   "id": "perehodny_peshehod",
+   "name": "Опечатка: «пешеходный переход»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "переходный",
+     "regexp": false
+    },
+    {
+     "text": "пешеход",
+     "regexp": false
+    }
+   ],
+   "message": "Опечатка: пешеходный переход"
+  },
+  {
+   "id": "plohoj_den",
+   "name": "Опечатка: «плохой день»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "плахой",
+     "regexp": false
+    },
+    {
+     "text": "день",
+     "regexp": false
+    }
+   ],
+   "message": "Опечатка: плохой день"
+  },
+  {
+   "id": "odin_za_odnim",
+   "name": "Опечатка: «один за одним» или «один за другим»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "один",
+     "regexp": false
+    },
+    {
+     "text": "за",
+     "regexp": false
+    },
+    {
+     "text": "одним",
+     "regexp": false
+    }
+   ],
+   "message": "Опечатка: \\1 \\2 другим"
+  },
+  {
+   "id": "na_poverku[1]",
+   "name": "Логические ошибки: «на поверку» или «на проверку»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "на",
+     "regexp": false
+    },
+    {
+     "text": "проверку",
+     "regexp": false
+    },
+    {
+     "text": "оказалось",
+     "regexp": false
+    }
+   ],
+   "message": "Имелось в виду \\1 поверку \\3 ?"
+  },
+  {
+   "id": "giloj_gilichnij[1]",
+   "name": "Логические ошибки: «жилой» или «жилищный»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "жилищный",
+     "regexp": false
+    },
+    {
+     "text": "дом|строение|помещение",
+     "regexp": true
+    }
+   ],
+   "message": "Имелось в виду: жилой ?"
+  },
+  {
+   "id": "vlasti_priderjashie[1]",
+   "name": "Логические ошибки: «власти предержащие»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "власть",
+     "regexp": false
+    },
+    {
+     "text": "предержащие",
+     "regexp": false
+    }
+   ],
+   "message": "Имелось в виду власти \\2 ?"
+  },
+  {
+   "id": "sdelat_ukol[1]",
+   "name": "Логические ошибки: «сделать укол»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "поставить",
+     "regexp": false
+    },
+    {
+     "text": "укол",
+     "regexp": false
+    }
+   ],
+   "message": "Имелось в виду сделать \\2 ?"
+  },
+  {
+   "id": "prinat_tabеletku[1]",
+   "name": "Логические ошибки: «принять таблетку»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "выпить",
+     "regexp": false
+    },
+    {
+     "text": "таблетку",
+     "regexp": false
+    }
+   ],
+   "message": "Имелось в виду принять \\2 ?"
+  },
+  {
+   "id": "solnij_instrument[1]",
+   "name": "Логические ошибки: «сольный инструмент»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "сольный",
+     "regexp": false
+    },
+    {
+     "text": "инструмент",
+     "regexp": false
+    }
+   ],
+   "message": "Имелось в виду солирующий \\2 ?"
+  },
+  {
+   "id": "skrepja_serdce[1]",
+   "name": "Логические ошибки: «скрепя сердце»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "скрипя",
+     "regexp": false
+    },
+    {
+     "text": "сердцем",
+     "regexp": false
+    }
+   ],
+   "message": "Имелось в виду: скрепя сердце ?"
+  },
+  {
+   "id": "predstavlennie_neudobstva[1]",
+   "name": "Логические ошибки: «представленные неудобства»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "предоставленные|представленные",
+     "regexp": true
+    },
+    {
+     "text": "неудобства",
+     "regexp": false
+    }
+   ],
+   "message": "Должно быть: доставленные ?"
+  },
+  {
+   "id": "bolshinstvo_vremeni[1]",
+   "name": "Логические ошибки: «большинство времени»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "большинство",
+     "regexp": false
+    },
+    {
+     "text": "времени",
+     "regexp": false
+    }
+   ],
+   "message": "Должно быть: большая часть ?"
+  },
+  {
+   "id": "sud_da_delo[1]",
+   "name": "Логические ошибки: «суд да дело»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "суть",
+     "regexp": false
+    },
+    {
+     "text": "да",
+     "regexp": false
+    },
+    {
+     "text": "дело",
+     "regexp": false
+    }
+   ],
+   "message": "Имелось в виду суд \\2 \\3 ?"
+  },
+  {
+   "id": "KWT.H[1]",
+   "name": "Обозначение физических величин: «кВт⋅ч»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "кВт",
+     "regexp": false
+    },
+    {
+     "text": "/",
+     "regexp": false
+    },
+    {
+     "text": "ч",
+     "regexp": false
+    }
+   ],
+   "message": "Имелось в виду кВт⋅ч ?"
+  },
+  {
+   "id": "KWT.H[2]",
+   "name": "Обозначение физических величин: «кВт⋅ч»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "kW",
+     "regexp": false
+    },
+    {
+     "text": "/",
+     "regexp": false
+    },
+    {
+     "text": "h",
+     "regexp": false
+    }
+   ],
+   "message": "Имелось в виду kW·h ?"
+  },
+  {
+   "id": "А.H[1]",
+   "name": "Обозначение физических величин: «А⋅ч»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "А",
+     "regexp": false
+    },
+    {
+     "text": "/",
+     "regexp": false
+    },
+    {
+     "text": "ч",
+     "regexp": false
+    }
+   ],
+   "message": "Имелось в виду А⋅ч ?"
+  },
+  {
+   "id": "А.H[2]",
+   "name": "Обозначение физических величин: «А⋅ч»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "A",
+     "regexp": false
+    },
+    {
+     "text": "/",
+     "regexp": false
+    },
+    {
+     "text": "h",
+     "regexp": false
+    }
+   ],
+   "message": "Имелось в виду A⋅h ?"
+  },
+  {
+   "id": "А.H[3]",
+   "name": "Обозначение физических величин: «А⋅ч»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "мА",
+     "regexp": false
+    },
+    {
+     "text": "/",
+     "regexp": false
+    },
+    {
+     "text": "ч",
+     "regexp": false
+    }
+   ],
+   "message": "Имелось в виду мА⋅ч ?"
+  },
+  {
+   "id": "А.H[4]",
+   "name": "Обозначение физических величин: «А⋅ч»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "mA",
+     "regexp": false
+    },
+    {
+     "text": "/",
+     "regexp": false
+    },
+    {
+     "text": "h",
+     "regexp": false
+    }
+   ],
+   "message": "Имелось в виду mA⋅h ?"
+  },
+  {
+   "id": "V.А[1]",
+   "name": "Обозначение физических величин: «В⋅А»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "В",
+     "regexp": false
+    },
+    {
+     "text": "/",
+     "regexp": false
+    },
+    {
+     "text": "А",
+     "regexp": false
+    }
+   ],
+   "message": "Имелось в виду В⋅А ?"
+  },
+  {
+   "id": "V.А[2]",
+   "name": "Обозначение физических величин: «В⋅А»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "V",
+     "regexp": false
+    },
+    {
+     "text": "/",
+     "regexp": false
+    },
+    {
+     "text": "A",
+     "regexp": false
+    }
+   ],
+   "message": "Имелось в виду V⋅A ?"
+  },
+  {
+   "id": "V.А[3]",
+   "name": "Обозначение физических величин: «В⋅А»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "ВА",
+     "regexp": false
+    }
+   ],
+   "message": "Имелось в виду В⋅А ?"
+  },
+  {
+   "id": "BOLSHAJA_POLOVINA[1]",
+   "name": "Словосочетание: «большая или меньшая половина»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "большая|меньшая",
+     "regexp": true
+    },
+    {
+     "text": "половина",
+     "regexp": false
+    }
+   ],
+   "message": "Имелось в виду \\1 часть ?"
+  },
+  {
+   "id": "KRUG_KRUGLIJ[1]",
+   "name": "Тавтология: «круг круглый»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "круг",
+     "regexp": false
+    },
+    {
+     "text": "круглый",
+     "regexp": false
+    }
+   ],
+   "message": "Языковая избыточность (плеоназм): \\1 ?"
+  },
+  {
+   "id": "KRUG_KRUGLIJ[2]",
+   "name": "Тавтология: «круг круглый»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "масло",
+     "regexp": false
+    },
+    {
+     "text": "масляное",
+     "regexp": false
+    }
+   ],
+   "message": "Языковая избыточность (плеоназм): \\1 ?"
+  },
+  {
+   "id": "LICHNO_JA[1]",
+   "name": "Тавтология: «лично я»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "лично",
+     "regexp": false
+    },
+    {
+     "text": "я",
+     "regexp": false
+    }
+   ],
+   "message": "Языковая избыточность (плеоназм): \\2 ?"
+  },
+  {
+   "id": "BLIZKIJ_BLIZHNIJ[1]",
+   "name": "Употребление слов: «близкий» и «ближний»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "близкий",
+     "regexp": false
+    },
+    {
+     "text": "свет",
+     "regexp": false
+    }
+   ],
+   "message": "Имелось в виду: ближний \\2 ?"
+  },
+  {
+   "id": "BLIZKIJ_BLIZHNIJ[2]",
+   "name": "Употребление слов: «близкий» и «ближний»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "ближний",
+     "regexp": false
+    },
+    {
+     "text": "человек|друг|товарищ",
+     "regexp": true
+    }
+   ],
+   "message": "Имелось в виду: близкий \\2 ?"
+  },
+  {
+   "id": "BLIZKIJ_BLIZHNIJ[3]",
+   "name": "Употребление слов: «близкий» и «ближний»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "дальние",
+     "regexp": false
+    },
+    {
+     "text": "выводы|перспективы",
+     "regexp": true
+    }
+   ],
+   "message": "Имелось в виду: далёкие \\2 ?"
+  },
+  {
+   "id": "BLIZKIJ_BLIZHNIJ[4]",
+   "name": "Употребление слов: «близкий» и «ближний»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "дальнее",
+     "regexp": false
+    },
+    {
+     "text": "прошлое|будущее",
+     "regexp": true
+    }
+   ],
+   "message": "Имелось в виду: далёкое \\2 ?"
+  },
+  {
+   "id": "BLIZKIJ_BLIZHNIJ[5]",
+   "name": "Употребление слов: «близкий» и «ближний»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "дальний",
+     "regexp": false
+    },
+    {
+     "text": "день|час",
+     "regexp": true
+    }
+   ],
+   "message": "Имелось в виду: далёкий \\2 ?"
+  },
+  {
+   "id": "BLIZKIJ_BLIZHNIJ[6]",
+   "name": "Употребление слов: «близкий» и «ближний»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "дальняя",
+     "regexp": false
+    },
+    {
+     "text": "дата",
+     "regexp": false
+    }
+   ],
+   "message": "Имелось в виду: далёкая \\2 ?"
+  },
+  {
+   "id": "BLIZKIJ_BLIZHNIJ[7]",
+   "name": "Употребление слов: «близкий» и «ближний»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "далекая|далёкая",
+     "regexp": true
+    },
+    {
+     "text": "родственница|сестра|родня",
+     "regexp": true
+    }
+   ],
+   "message": "Имелось в виду: дальняя \\2 ?"
+  },
+  {
+   "id": "BLIZKIJ_BLIZHNIJ[8]",
+   "name": "Употребление слов: «близкий» и «ближний»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "далекий|далёкий",
+     "regexp": true
+    },
+    {
+     "text": "родственник|брат",
+     "regexp": true
+    }
+   ],
+   "message": "Имелось в виду: дальний \\2 ?"
+  },
+  {
+   "id": "BLIZKIJ_BLIZHNIJ[9]",
+   "name": "Употребление слов: «близкий» и «ближний»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "далекие|далёкие",
+     "regexp": true
+    },
+    {
+     "text": "родственники|братья|сёстры|сестры",
+     "regexp": true
+    }
+   ],
+   "message": "Имелось в виду: дальние \\2 ?"
+  },
+  {
+   "id": "Stolko_mnogo[1]",
+   "name": "Словосочетание: «столько много»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "столько",
+     "regexp": false
+    },
+    {
+     "text": "много",
+     "regexp": false
+    }
+   ],
+   "message": "Имелось в виду: так \\2 ?"
+  },
+  {
+   "id": "Stolko_mnogo[2]",
+   "name": "Словосочетание: «столько много»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "сколько",
+     "regexp": false
+    },
+    {
+     "text": "много",
+     "regexp": false
+    }
+   ],
+   "message": "Имелось в виду: как \\2 ?"
+  },
+  {
+   "id": "Logical_reshit_zatanuvshujusa_problemu[1]",
+   "name": "Логические ошибки: «он решит эту затянувшуюся проблему»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "решит",
+     "regexp": false
+    },
+    {
+     "text": "эту",
+     "regexp": false
+    },
+    {
+     "text": "затянувшуюся",
+     "regexp": false
+    },
+    {
+     "text": "проблему",
+     "regexp": false
+    }
+   ],
+   "message": "Логическая ошибка: ускорит затянувшееся решение проблемы ?"
+  },
+  {
+   "id": "Logical_reshit_zatanuvshujusa_problemu[2]",
+   "name": "Логические ошибки: «он решит эту затянувшуюся проблему»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "решит",
+     "regexp": false
+    },
+    {
+     "text": "затянувшуюся",
+     "regexp": false
+    },
+    {
+     "text": "проблему",
+     "regexp": false
+    }
+   ],
+   "message": "Логическая ошибка: ускорит затянувшееся решение проблемы ?"
+  },
+  {
+   "id": "Logical_podorojali_ceny[1]",
+   "name": "Логические ошибки: «подорожали цены»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "подорожали",
+     "regexp": false
+    },
+    {
+     "text": "цены",
+     "regexp": false
+    }
+   ],
+   "message": "Логическая ошибка: цены выросли ?"
+  },
+  {
+   "id": "Logical_podorojali_ceny[2]",
+   "name": "Логические ошибки: «подорожали цены»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "дорогие",
+     "regexp": false
+    },
+    {
+     "text": "цены",
+     "regexp": false
+    }
+   ],
+   "message": "Логическая ошибка: высокие цены ?"
+  },
+  {
+   "id": "Logical_podorojali_ceny[3]",
+   "name": "Логические ошибки: «подорожали цены»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "деш[её]вые",
+     "regexp": true
+    },
+    {
+     "text": "цены",
+     "regexp": false
+    }
+   ],
+   "message": "Логическая ошибка: низкие цены ?"
+  },
+  {
+   "id": "Logical_podorojali_ceny[4]",
+   "name": "Логические ошибки: «подорожали цены»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "дешёвая",
+     "regexp": false
+    },
+    {
+     "text": "стоимость",
+     "regexp": false
+    }
+   ],
+   "message": "Логическая ошибка: низкая стоимость ?"
+  },
+  {
+   "id": "Logical_podorojali_ceny[5]",
+   "name": "Логические ошибки: «подорожали цены»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "дорогая",
+     "regexp": false
+    },
+    {
+     "text": "стоимость",
+     "regexp": false
+    }
+   ],
+   "message": "Логическая ошибка: высокая стоимость ?"
+  },
+  {
+   "id": "Logical_segodnyashnij_den",
+   "name": "Логические ошибки: «сегодняшний день»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "сегодняшний",
+     "regexp": false
+    },
+    {
+     "text": "день",
+     "regexp": false
+    }
+   ],
+   "message": "Логическая ошибка: сегодня ?"
+  },
+  {
+   "id": "Tavtology_neskolko_pobistree",
+   "name": "Тавтология: «несколько побыстрее»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "несколько",
+     "regexp": false
+    },
+    {
+     "text": "побыстрее",
+     "regexp": false
+    }
+   ],
+   "message": "Языковая избыточность: \\2 ?"
+  },
+  {
+   "id": "Tavtology_v_xx_mesjatse",
+   "name": "Тавтология: «в апреле месяце»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "в",
+     "regexp": false
+    },
+    {
+     "text": "январе|феврале|марте|апреле|мае|июне|июле|августе|сентябре|октябре|ноябре|декабре",
+     "regexp": true
+    },
+    {
+     "text": "месяце",
+     "regexp": false
+    }
+   ],
+   "message": "Языковая избыточность: \\1 \\2 ?"
+  },
+  {
+   "id": "Logical_samij_gigantskij",
+   "name": "Логические ошибки: «самый гигантский»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "самый",
+     "regexp": false
+    },
+    {
+     "text": "гигантский",
+     "regexp": false
+    }
+   ],
+   "message": "Логическая ошибка: \\1 большой ."
+  },
+  {
+   "id": "Logical_podnjal_tost",
+   "name": "Логические ошибки: «поднял тост»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "поднял",
+     "regexp": false
+    },
+    {
+     "text": "тост",
+     "regexp": false
+    }
+   ],
+   "message": "Логическая ошибка: произнёс тост ?"
+  },
+  {
+   "id": "Logical_uluchshenie_otmechennih_nedostatkov",
+   "name": "Логические ошибки: «улучшение отмеченных недостатков»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "улучшение",
+     "regexp": false
+    },
+    {
+     "text": "отмеченных",
+     "regexp": false
+    },
+    {
+     "text": "недостатков",
+     "regexp": false
+    }
+   ],
+   "message": "Логическая ошибка: устранение отмеченных недостатков ?"
+  },
+  {
+   "id": "V_etoj_svyazy",
+   "name": "Логические ошибки: «в этой связи»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "в",
+     "regexp": false
+    },
+    {
+     "text": "этой",
+     "regexp": false
+    },
+    {
+     "text": "связи",
+     "regexp": false
+    }
+   ],
+   "message": "Логическая ошибка: в связи с этим ?"
+  },
+  {
+   "id": "Genitsya[1]",
+   "name": "Ошибки в употреблении: «жениться» или «выйти замуж»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "он",
+     "regexp": false
+    },
+    {
+     "text": "вышел",
+     "regexp": false
+    },
+    {
+     "text": "замуж",
+     "regexp": false
+    }
+   ],
+   "message": "«Выйти замуж» употребляется только со словами женского рода: \\1 женился"
+  },
+  {
+   "id": "Genitsya[3]",
+   "name": "Ошибки в употреблении: «жениться» или «выйти замуж»",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "она",
+     "regexp": false
+    },
+    {
+     "text": "женилась",
+     "regexp": false
+    }
+   ],
+   "message": "«Жениться» употребляется только со словами мужского рода: \\1 вышла замуж"
+  },
+  {
+   "id": "Nazv_org[1]",
+   "name": "Названия организаций и структурных подразделений",
+   "category": "Логические ошибки",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "ЕврАзЭС",
+     "regexp": false
+    }
+   ],
+   "message": "Организация больше не существует. Возможно, имелся в виду ЕАЭС ?"
+  },
+  {
+   "id": "Missing_punct_colon",
+   "name": "Пропущено двоеточие",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "принципе",
+     "regexp": false
+    },
+    {
+     "text": "согласно",
+     "regexp": false
+    }
+   ],
+   "message": "Пропущено двоеточие: \\1: \\2"
+  },
+  {
+   "id": "takim_obrazom_chto",
+   "name": "Запятая в обороте «таким образом, что»",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "таким",
+     "regexp": false
+    },
+    {
+     "text": "образом",
+     "regexp": false
+    },
+    {
+     "text": "что|чтобы|как",
+     "regexp": true
+    }
+   ],
+   "message": "Пропущена запятая: \\1 \\2, \\3 ."
+  },
+  {
+   "id": "Nesmotrja_na_to_chto[3]",
+   "name": "Выражение «несмотря на то, что ...»",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "лучше|хуже",
+     "regexp": true
+    },
+    {
+     "text": "чем",
+     "regexp": false
+    }
+   ],
+   "message": "Нужна запятая: \\1, \\2"
+  },
+  {
+   "id": "Privet_druzja[1]",
+   "name": "Пунктуация: «привет, друзья!»",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "привет",
+     "regexp": false
+    },
+    {
+     "text": "друзья",
+     "regexp": false
+    }
+   ],
+   "message": "Пропущена запятая: \\1, \\2"
+  },
+  {
+   "id": "Kak_bi_to_ni_bilo[1]",
+   "name": "Устойчивое выражение: «как бы то ни было», ...",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "как",
+     "regexp": false
+    },
+    {
+     "text": "бы",
+     "regexp": false
+    },
+    {
+     "text": "то",
+     "regexp": false
+    },
+    {
+     "text": "не",
+     "regexp": false
+    },
+    {
+     "text": "было",
+     "regexp": false
+    }
+   ],
+   "message": "Устойчивое выражение: \\1 \\2 \\3 ни \\5"
+  },
+  {
+   "id": "Kak_bi_to_ni_bilo[2]",
+   "name": "Устойчивое выражение: «как бы то ни было», ...",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "как",
+     "regexp": false
+    },
+    {
+     "text": "бы-то",
+     "regexp": false
+    },
+    {
+     "text": "н[еи]",
+     "regexp": true
+    },
+    {
+     "text": "было",
+     "regexp": false
+    }
+   ],
+   "message": "Устойчивое выражение: \\1 бы то ни \\4"
+  },
+  {
+   "id": "Kak_bi_to_ni_bilo[3]",
+   "name": "Устойчивое выражение: «как бы то ни было», ...",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "как-бы",
+     "regexp": false
+    },
+    {
+     "text": "то",
+     "regexp": false
+    }
+   ],
+   "message": "Устойчивое выражение: как бы \\2"
+  },
+  {
+   "id": "CHAS_PIK[1]",
+   "name": "Правописание: «час пик»",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": true,
+   "tokens": [
+    {
+     "text": "час-пик",
+     "regexp": false
+    }
+   ],
+   "message": "Дефис не нужен: час пик ."
+  },
+  {
+   "id": "Po-bystromu[1]",
+   "name": "Правописание наречия «по-быстрому»",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": true,
+   "tokens": [
+    {
+     "text": "по",
+     "regexp": false
+    },
+    {
+     "text": "быстрому|новому",
+     "regexp": true
+    },
+    {
+     "text": ".",
+     "regexp": false
+    }
+   ],
+   "message": "Наречие пишется через дефис: \\1-\\2 ."
+  },
+  {
+   "id": "Oborot_ne_kto_inoj_kak[1]",
+   "name": "Запятая в сравнительных оборотах",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "не",
+     "regexp": false
+    },
+    {
+     "text": "[кч]то",
+     "regexp": true
+    },
+    {
+     "text": "ино[йе]",
+     "regexp": true
+    },
+    {
+     "text": "как",
+     "regexp": false
+    }
+   ],
+   "message": "Пропущена запятая: \\1 \\2 \\3, \\4 ."
+  },
+  {
+   "id": "DEFIS_COMMA",
+   "name": "Дефис и запятая",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "[-—–]",
+     "regexp": true
+    },
+    {
+     "text": ",",
+     "regexp": false
+    }
+   ],
+   "message": "Запятая должна стоять перед тире: \\2 \\1"
+  },
+  {
+   "id": "COMMA_DEFIS",
+   "name": "Запятая и дефис",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "-",
+     "regexp": false
+    }
+   ],
+   "message": "После запятой должно стоять тире: \\1 —"
+  },
+  {
+   "id": "Teper_tak_kak",
+   "name": "Цельное выражение: «теперь так как»",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "Теперь",
+     "regexp": false
+    },
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "так",
+     "regexp": false
+    },
+    {
+     "text": "как",
+     "regexp": false
+    }
+   ],
+   "message": "Запятая не нужна: \\1 \\3 \\4"
+  },
+  {
+   "id": "NO_KAK_POPALO[1]",
+   "name": "Словосочетания: «что угодно», «как попало»",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "что|как|кто|какой|где|куда|откуда",
+     "regexp": true
+    },
+    {
+     "text": "попало|угодно",
+     "regexp": true
+    }
+   ],
+   "message": "Запятая не нужна: \\2 \\3 ."
+  },
+  {
+   "id": "BUD_CHTO_BUDET[1]",
+   "name": "Словосочетания: «будь что будет», ...",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "бери|делай|будь|ешь",
+     "regexp": true
+    },
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "что",
+     "regexp": false
+    },
+    {
+     "text": "будет|дают|хочешь|нравится",
+     "regexp": true
+    }
+   ],
+   "message": "Запятая не нужна: \\1 \\3 \\4 ."
+  },
+  {
+   "id": "CHTO_PRAVDA_TO_PRAVDA[1]",
+   "name": "Словосочетания: «что правда, то правда»",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "что",
+     "regexp": false
+    },
+    {
+     "text": "правда",
+     "regexp": false
+    },
+    {
+     "text": "то",
+     "regexp": false
+    },
+    {
+     "text": "правда",
+     "regexp": false
+    }
+   ],
+   "message": "Запятая нужна: \\1 \\2, \\3 \\4 ."
+  },
+  {
+   "id": "COMPLEX_SOUZ_NO_COMMA[1]",
+   "name": "Сложные союзы не разделяются: «тогда как», «словно как», ...",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "тогда|словно",
+     "regexp": true
+    },
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "как",
+     "regexp": false
+    }
+   ],
+   "message": "Запятая не нужна: \\1 \\3 ."
+  },
+  {
+   "id": "COMPLEX_SOUZ_NO_COMMA[3]",
+   "name": "Сложные союзы не разделяются: «тогда как», «словно как», ...",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "даже",
+     "regexp": false
+    },
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "если",
+     "regexp": false
+    }
+   ],
+   "message": "Запятая не нужна: \\1 \\3 ."
+  },
+  {
+   "id": "COMPLEX_SOUZ_NO_COMMA[4]",
+   "name": "Сложные союзы не разделяются: «тогда как», «словно как», ...",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "лишь",
+     "regexp": false
+    },
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "когда",
+     "regexp": false
+    }
+   ],
+   "message": "Запятая не нужна: \\1 \\3 ."
+  },
+  {
+   "id": "NO_NE_KAK[1]",
+   "name": "«Почти как», «не как», ...",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "не|совсем|совершенно|почти|именно|вроде|точь-в-точь",
+     "regexp": true
+    },
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "как",
+     "regexp": false
+    }
+   ],
+   "message": "Запятая не нужна: \\1 \\3 ."
+  },
+  {
+   "id": "NI_CHTO_NE",
+   "name": "Словосочетания: «ничто не»",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "ни",
+     "regexp": false
+    },
+    {
+     "text": "что",
+     "regexp": false
+    },
+    {
+     "text": "не",
+     "regexp": false
+    }
+   ],
+   "message": "Оборот: ни\\2 \\3 ."
+  },
+  {
+   "id": "NO_NE_TO_CHTO[2]",
+   "name": "Словосочетания: «не то что», «не так чтобы», «не иначе как»",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "не",
+     "regexp": false
+    },
+    {
+     "text": "так",
+     "regexp": false
+    },
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "чтобы",
+     "regexp": false
+    }
+   ],
+   "message": "Запятая не нужна: \\1 \\2 \\4 ."
+  },
+  {
+   "id": "I_TO_I_SE[1]",
+   "name": "Цельные выражения: «ни рыба ни мясо», ...",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "и|ни",
+     "regexp": true
+    },
+    {
+     "text": "то",
+     "regexp": false
+    },
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "и|ни",
+     "regexp": true
+    },
+    {
+     "text": "се|сё|то",
+     "regexp": true
+    }
+   ],
+   "message": "Запятая не нужна: \\1 \\2 \\4 \\5 ."
+  },
+  {
+   "id": "I_TO_I_SE[2]",
+   "name": "Цельные выражения: «ни рыба ни мясо», ...",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "ни",
+     "regexp": false
+    },
+    {
+     "text": "свет|рыба|жив|дать|кафтан",
+     "regexp": true
+    },
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "ни",
+     "regexp": false
+    },
+    {
+     "text": "заря|мясо|мертв|мёртв|взять|ряса",
+     "regexp": true
+    }
+   ],
+   "message": "Запятая не нужна: \\1 \\2 \\4 \\5 ."
+  },
+  {
+   "id": "I_TO_I_SE[3]",
+   "name": "Цельные выражения: «ни рыба ни мясо», ...",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "и",
+     "regexp": false
+    },
+    {
+     "text": "так|туда",
+     "regexp": true
+    },
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "и",
+     "regexp": false
+    },
+    {
+     "text": "сяк|сюда|этак",
+     "regexp": true
+    }
+   ],
+   "message": "Запятая не нужна: \\1 \\2 \\4 \\5 ."
+  },
+  {
+   "id": "VSE_KAK_NA_PODBOR[1]",
+   "name": "Цельные выражения: «все как на подбор», ...",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "все",
+     "regexp": false
+    },
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "как",
+     "regexp": false
+    },
+    {
+     "text": "на",
+     "regexp": false
+    },
+    {
+     "text": "подбор",
+     "regexp": false
+    }
+   ],
+   "message": "Запятая не нужна: \\1 \\3 \\4 \\5 ."
+  },
+  {
+   "id": "VSE_KAK_NA_PODBOR[4]",
+   "name": "Цельные выражения: «все как на подбор», ...",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "седой",
+     "regexp": false
+    },
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "как",
+     "regexp": false
+    },
+    {
+     "text": "лунь",
+     "regexp": false
+    }
+   ],
+   "message": "Запятая не нужна: \\1 \\3 \\4 ."
+  },
+  {
+   "id": "VSE_KAK_NA_PODBOR[14]",
+   "name": "Цельные выражения: «все как на подбор», ...",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "гол",
+     "regexp": false
+    },
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "как",
+     "regexp": false
+    },
+    {
+     "text": "сокол",
+     "regexp": false
+    }
+   ],
+   "message": "Запятая не нужна: \\1 \\3 \\4 ."
+  },
+  {
+   "id": "VSE_KAK_NA_PODBOR[16]",
+   "name": "Цельные выражения: «все как на подбор», ...",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "нужен",
+     "regexp": false
+    },
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "как",
+     "regexp": false
+    },
+    {
+     "text": "воздух",
+     "regexp": false
+    }
+   ],
+   "message": "Запятая не нужна: \\1 \\3 \\4 ."
+  },
+  {
+   "id": "NEUJTO",
+   "name": "Наречие «неужто»",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "не",
+     "regexp": false
+    },
+    {
+     "text": "уж",
+     "regexp": false
+    },
+    {
+     "text": "то",
+     "regexp": false
+    }
+   ],
+   "message": "Пишется слитно:"
+  },
+  {
+   "id": "Punct_skazano_sdelano",
+   "name": "Сказано – сделано",
+   "category": "Пунктуация",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "cказано",
+     "regexp": false
+    },
+    {
+     "text": "сделано",
+     "regexp": false
+    }
+   ],
+   "message": "Пропущено тире: \\1 – \\2 ."
+  },
+  {
+   "id": "DOUBL_KAVITCHKI[1]",
+   "name": "Двойные кавычки",
+   "category": "Типографика",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "«",
+     "regexp": false
+    },
+    {
+     "text": "«",
+     "regexp": false
+    }
+   ],
+   "message": "Кавычки не соответствуют нормам типографики. Кавычки одного рисунка рядом не повторяются: « ."
+  },
+  {
+   "id": "DOUBL_KAVITCHKI[2]",
+   "name": "Двойные кавычки",
+   "category": "Типографика",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "»",
+     "regexp": false
+    },
+    {
+     "text": "»",
+     "regexp": false
+    }
+   ],
+   "message": "Кавычки не соответствуют нормам типографики. Кавычки одного рисунка рядом не повторяются: » ."
+  },
+  {
+   "id": "postscriptum",
+   "name": "«P.S.»",
+   "category": "Типографика",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "P",
+     "regexp": false
+    },
+    {
+     "text": ".",
+     "regexp": false
+    },
+    {
+     "text": "S",
+     "regexp": false
+    },
+    {
+     "text": ".",
+     "regexp": false
+    }
+   ],
+   "message": "«P.S.» пробелом не разделяется: P.S."
+  },
+  {
+   "id": "KAVITCHKI",
+   "name": "” → „",
+   "category": "Типографика",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "“",
+     "regexp": false
+    }
+   ],
+   "message": "Кавычки не соответствуют нормам типографики: „ пример ” ."
+  },
+  {
+   "id": "Three_dot",
+   "name": "... → …",
+   "category": "Типографика",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": ".",
+     "regexp": false
+    },
+    {
+     "text": ".",
+     "regexp": false
+    },
+    {
+     "text": ".",
+     "regexp": false
+    }
+   ],
+   "message": "Заменить на типографский символ многоточия? …"
+  },
+  {
+   "id": "Wrong_group_punct[1]",
+   "name": "Неправильное сочетание знаков препинания",
+   "category": "Типографика",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "?",
+     "regexp": false
+    },
+    {
+     "text": "!",
+     "regexp": false
+    },
+    {
+     "text": "!",
+     "regexp": false
+    }
+   ],
+   "message": "Неправильное сочетание знаков препинания. Возможная замена: ?!"
+  },
+  {
+   "id": "Wrong_group_punct[2]",
+   "name": "Неправильное сочетание знаков препинания",
+   "category": "Типографика",
+   "error_type": "Пунктуационная",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "!",
+     "regexp": false
+    },
+    {
+     "text": "?",
+     "regexp": false
+    }
+   ],
+   "message": "Неправильное сочетание знаков препинания. Возможная замена: ?!"
+  },
+  {
+   "id": "PREP_PNN[1]",
+   "name": "Правописание предлогов с местоимениями",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "у",
+     "regexp": false
+    },
+    {
+     "text": "никого",
+     "regexp": false
+    }
+   ],
+   "message": "Предлог ставится между частицей и местоимением: ни у кого ."
+  },
+  {
+   "id": "PREP_PNN[2]",
+   "name": "Правописание предлогов с местоимениями",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "с",
+     "regexp": false
+    },
+    {
+     "text": "нечем",
+     "regexp": false
+    }
+   ],
+   "message": "Предлог ставится между частицей и местоимением: не с чем ."
+  },
+  {
+   "id": "PREP_PNN[3]",
+   "name": "Правописание предлогов с местоимениями",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "с",
+     "regexp": false
+    },
+    {
+     "text": "никаким",
+     "regexp": false
+    }
+   ],
+   "message": "Предлог ставится между частицей и местоимением: ни с каким ."
+  },
+  {
+   "id": "PREP_PNN[4]",
+   "name": "Правописание предлогов с местоимениями",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "при",
+     "regexp": false
+    },
+    {
+     "text": "никаких",
+     "regexp": false
+    }
+   ],
+   "message": "Предлог ставится между частицей и местоимением: ни при каких ."
+  },
+  {
+   "id": "Com_Num[5]",
+   "name": "Собирательные числительные",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "двое",
+     "regexp": false
+    },
+    {
+     "text": "волков|медведей|котов|кабанов",
+     "regexp": true
+    }
+   ],
+   "message": "Собирательные числительные (двое, трое, четверо, пятеро, шестеро, семеро) не употребляются с названиями взрослых особей животных: два"
+  },
+  {
+   "id": "Com_Num[6]",
+   "name": "Собирательные числительные",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "трое",
+     "regexp": false
+    },
+    {
+     "text": "волков|медведей|котов|кабанов",
+     "regexp": true
+    }
+   ],
+   "message": "Собирательные числительные (двое, трое, четверо, пятеро, шестеро, семеро) не употребляются с названиями взрослых особей животных: три"
+  },
+  {
+   "id": "Com_Num[7]",
+   "name": "Собирательные числительные",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "четверо",
+     "regexp": false
+    },
+    {
+     "text": "волков|медведей|котов|кабанов",
+     "regexp": true
+    }
+   ],
+   "message": "Собирательные числительные (двое, трое, четверо, пятеро, шестеро, семеро) не употребляются с названиями взрослых особей животных: четыре"
+  },
+  {
+   "id": "Com_Num[8]",
+   "name": "Собирательные числительные",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "пятеро|шестеро|семеро",
+     "regexp": true
+    },
+    {
+     "text": "волков|медведей|котов|кабанов|собак|кошек|тигров|леопардов|львов",
+     "regexp": true
+    }
+   ],
+   "message": "Собирательные числительные (двое, трое, четверо, пятеро, шестеро, семеро) не употребляются с названиями взрослых особей животных:"
+  },
+  {
+   "id": "Para_NN[1]",
+   "name": "Числительное «пара» + существительное",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "пара",
+     "regexp": false
+    },
+    {
+     "text": "брюк|колготок|ножниц|ворот|кусачек|тисков|клещей|щипцов",
+     "regexp": true
+    }
+   ],
+   "message": "Числительное «пара» не употребляется с существительными, существующими только в форме множественного числа: двое ."
+  },
+  {
+   "id": "Oba_obe[2]",
+   "name": "Числительные «оба» и «обе»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "у",
+     "regexp": false
+    },
+    {
+     "text": "обоих",
+     "regexp": false
+    },
+    {
+     "text": "ворот|часов",
+     "regexp": true
+    }
+   ],
+   "message": "Числительное «оба» (обоих) не может употребляться с существительными, имеющими только форму множественного числа: у тех и у других ."
+  },
+  {
+   "id": "Pnn_compose_error[1]",
+   "name": "Ошибки в образовании местоимений",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "ихний|ихняя|ихнее|ихнего|ихнему|ихним|ихнем|ихней|ихнюю|ихних|ихними|ихние",
+     "regexp": true
+    }
+   ],
+   "message": "Правильная форма – их ."
+  },
+  {
+   "id": "Ne_narech[1]",
+   "name": "«Не» с наречиями",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "не",
+     "regexp": false
+    },
+    {
+     "text": "весть",
+     "regexp": false
+    },
+    {
+     "text": "кто|что|какой|где|куда",
+     "regexp": true
+    }
+   ],
+   "message": "Пишется слитно: \\1\\2 ."
+  },
+  {
+   "id": "Ne_narech[2]",
+   "name": "«Не» с наречиями",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "не",
+     "regexp": false
+    },
+    {
+     "text": "где|куда|откуда|зачем",
+     "regexp": true
+    }
+   ],
+   "message": "Пишется слитно: \\1\\2 ."
+  },
+  {
+   "id": "Ne_narech_ne_horosho[1]",
+   "name": "«Не» с наречиями «не хорошо и не плохо»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "нехорошо",
+     "regexp": false
+    },
+    {
+     "text": "и",
+     "regexp": false
+    },
+    {
+     "text": "неплохо",
+     "regexp": false
+    }
+   ],
+   "message": "В данном контексте пишется раздельно: не хорошо \\2 не плохо ."
+  },
+  {
+   "id": "Ne_komu_inomu_kak[2]",
+   "name": "Оборот «не кому иному, как»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "а",
+     "regexp": false
+    },
+    {
+     "text": "некому|нечему|никому|ничему",
+     "regexp": true
+    },
+    {
+     "text": "иному|другому",
+     "regexp": true
+    }
+   ],
+   "message": "В данном контексте (имеется противопоставление) пишется раздельно: ."
+  },
+  {
+   "id": "kak_ni_stranno",
+   "name": "Опечатка: «как ни странно» или «как не странно»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "как",
+     "regexp": false
+    },
+    {
+     "text": "не",
+     "regexp": false
+    },
+    {
+     "text": "странно",
+     "regexp": false
+    }
+   ],
+   "message": "Опечатка: \\1 ни \\3"
+  },
+  {
+   "id": "Pravopisanie_slitno1[4]",
+   "name": "Правописание слов: «наверху», «внизу» ...",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "ни",
+     "regexp": false
+    },
+    {
+     "text": "же",
+     "regexp": false
+    }
+   ],
+   "message": "Слово пишется слитно: \\1\\2 ."
+  },
+  {
+   "id": "Pravopisanie_slitno1[5]",
+   "name": "Правописание слов: «наверху», «внизу» ...",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "по",
+     "regexp": false
+    },
+    {
+     "text": "середине",
+     "regexp": false
+    }
+   ],
+   "message": "Слово пишется слитно: \\1\\2 ."
+  },
+  {
+   "id": "Pravopisanie_slitno1[6]",
+   "name": "Правописание слов: «наверху», «внизу» ...",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "на",
+     "regexp": false
+    },
+    {
+     "text": "кануне|подобие|против",
+     "regexp": true
+    }
+   ],
+   "message": "Слово пишется слитно: \\1\\2 ."
+  },
+  {
+   "id": "Pravopisanie_slitno1[7]",
+   "name": "Правописание слов: «наверху», «внизу» ...",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "на|в|с",
+     "regexp": true
+    },
+    {
+     "text": "верху|низу",
+     "regexp": true
+    }
+   ],
+   "message": "Слово пишется слитно: \\1\\2 ."
+  },
+  {
+   "id": "Pravopisanie_slitno1[8]",
+   "name": "Правописание слов: «наверху», «внизу» ...",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "со|с",
+     "regexp": true
+    },
+    {
+     "text": "верх|выше|гласно",
+     "regexp": true
+    }
+   ],
+   "message": "Слово пишется слитно: \\1\\2 ."
+  },
+  {
+   "id": "Pravopisanie_slitno1[9]",
+   "name": "Правописание слов: «наверху», «внизу» ...",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "в",
+     "regexp": false
+    },
+    {
+     "text": "глубь|доль|замен",
+     "regexp": true
+    }
+   ],
+   "message": "Слово пишется слитно: \\1\\2 ."
+  },
+  {
+   "id": "Pravopisanie_slitno1[12]",
+   "name": "Правописание слов: «наверху», «внизу» ...",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "за",
+     "regexp": false
+    },
+    {
+     "text": "ранее",
+     "regexp": false
+    },
+    {
+     "text": ".",
+     "regexp": false
+    }
+   ],
+   "message": "Слово пишется слитно: \\1\\2 ."
+  },
+  {
+   "id": "Pravopisanie_slitno1[13]",
+   "name": "Правописание слов: «наверху», «внизу» ...",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "по",
+     "regexp": false
+    },
+    {
+     "text": "верх|до|мимо",
+     "regexp": true
+    }
+   ],
+   "message": "Слово пишется слитно: \\1\\2 ."
+  },
+  {
+   "id": "TAK_JE[2]",
+   "name": "Правописание «также» или «так же»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "также",
+     "regexp": false
+    },
+    {
+     "text": "как",
+     "regexp": false
+    }
+   ],
+   "message": "Пишется раздельно: так же \\2 ."
+  },
+  {
+   "id": "i_tak_dalee[1]",
+   "name": "Словосочетание: «и так далее»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "итак",
+     "regexp": false
+    },
+    {
+     "text": "далее",
+     "regexp": false
+    }
+   ],
+   "message": "Пишется раздельно: и так далее ."
+  },
+  {
+   "id": "Vo_chto_by_to_ni_stalo[1]",
+   "name": "Словосочетание: «во что бы то ни стало»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "во",
+     "regexp": false
+    },
+    {
+     "text": "чтобы",
+     "regexp": false
+    },
+    {
+     "text": "то",
+     "regexp": false
+    },
+    {
+     "text": "ни|не",
+     "regexp": true
+    },
+    {
+     "text": "стало",
+     "regexp": false
+    }
+   ],
+   "message": "Пишется раздельно: во что бы то ни стало ."
+  },
+  {
+   "id": "Vo_chto_by_to_ni_stalo[2]",
+   "name": "Словосочетание: «во что бы то ни стало»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "во",
+     "regexp": false
+    },
+    {
+     "text": "что",
+     "regexp": false
+    },
+    {
+     "text": "бы",
+     "regexp": false
+    },
+    {
+     "text": "то",
+     "regexp": false
+    },
+    {
+     "text": "не",
+     "regexp": false
+    },
+    {
+     "text": "стало",
+     "regexp": false
+    }
+   ],
+   "message": "Пишется раздельно: во что бы то ни стало ."
+  },
+  {
+   "id": "Tak_je_kak_i[1]",
+   "name": "Сложный союз «так же как и»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "также",
+     "regexp": false
+    },
+    {
+     "text": "как",
+     "regexp": false
+    },
+    {
+     "text": "и",
+     "regexp": false
+    }
+   ],
+   "message": "Сложный союз: так же \\2 \\3 ."
+  },
+  {
+   "id": "TAK_JE_KAK",
+   "name": "Сложный союз «так же как»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "так",
+     "regexp": false
+    },
+    {
+     "text": "же",
+     "regexp": false
+    },
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "как",
+     "regexp": false
+    }
+   ],
+   "message": "Запятая не нужна:"
+  },
+  {
+   "id": "Ni_to_ni_drugoe[1]",
+   "name": "Сложный союз «ни то, ни другое»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "не|ни",
+     "regexp": true
+    },
+    {
+     "text": "то",
+     "regexp": false
+    },
+    {
+     "text": "не|ни",
+     "regexp": true
+    },
+    {
+     "text": "другое",
+     "regexp": false
+    }
+   ],
+   "message": "Сложный союз: ни \\2, ни \\4 ."
+  },
+  {
+   "id": "Ni_to_ni_drugoe[2]",
+   "name": "Сложный союз «ни то, ни другое»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "не",
+     "regexp": false
+    },
+    {
+     "text": "то",
+     "regexp": false
+    },
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "не",
+     "regexp": false
+    },
+    {
+     "text": "другое",
+     "regexp": false
+    }
+   ],
+   "message": "Сложный союз: ни \\2\\3 ни \\5 ."
+  },
+  {
+   "id": "Ni_mnogo_ni_malo[1]",
+   "name": "Фразеологический оборот «ни много ни мало»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "не|ни",
+     "regexp": true
+    },
+    {
+     "text": "много",
+     "regexp": false
+    },
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "не|ни",
+     "regexp": true
+    },
+    {
+     "text": "мало",
+     "regexp": false
+    }
+   ],
+   "message": "Фразеологический оборот: ни \\2 ни \\5 ."
+  },
+  {
+   "id": "Oborot_nikto_inoj_ne[1]",
+   "name": "Обороты «не кто иной, как» и «никто иной не»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "ни",
+     "regexp": false
+    },
+    {
+     "text": "кто|что",
+     "regexp": true
+    },
+    {
+     "text": "иной|иное",
+     "regexp": true
+    },
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "как",
+     "regexp": false
+    }
+   ],
+   "message": "Оборот: не \\2 \\3\\4 \\5 ."
+  },
+  {
+   "id": "Oborot_nikto_inoj_ne[2]",
+   "name": "Обороты «не кто иной, как» и «никто иной не»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "ни",
+     "regexp": false
+    },
+    {
+     "text": "кто|что",
+     "regexp": true
+    },
+    {
+     "text": "иной|иное",
+     "regexp": true
+    },
+    {
+     "text": "как",
+     "regexp": false
+    }
+   ],
+   "message": "Оборот: не \\2 \\3, \\4 ."
+  },
+  {
+   "id": "Oborot_nikto_inoj_ne[3]",
+   "name": "Обороты «не кто иной, как» и «никто иной не»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "ни|не",
+     "regexp": true
+    },
+    {
+     "text": "кто|что",
+     "regexp": true
+    },
+    {
+     "text": "иной|иное|другой|другое",
+     "regexp": true
+    },
+    {
+     "text": "не",
+     "regexp": false
+    }
+   ],
+   "message": "Оборот: ни\\2 \\3 \\4 ."
+  },
+  {
+   "id": "Oborot_nikto_inoj_ne[4]",
+   "name": "Обороты «не кто иной, как» и «никто иной не»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "(не)(кто|что)",
+     "regexp": true
+    },
+    {
+     "text": "иной|иное|другой|другое",
+     "regexp": true
+    },
+    {
+     "text": "не",
+     "regexp": false
+    }
+   ],
+   "message": "Оборот: ."
+  },
+  {
+   "id": "Frazeologizm_nevernij[1]",
+   "name": "Ошибки во фразеологизмах «щекотливая дилемма», ...",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "щекотливая",
+     "regexp": false
+    },
+    {
+     "text": "дилемма",
+     "regexp": false
+    }
+   ],
+   "message": "Фразеологизм: щекотливый вопрос ."
+  },
+  {
+   "id": "Frazeologizm_nevernij[2]",
+   "name": "Ошибки во фразеологизмах «щекотливая дилемма», ...",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "поёт",
+     "regexp": false
+    },
+    {
+     "text": "в",
+     "regexp": false
+    },
+    {
+     "text": "одну",
+     "regexp": false
+    },
+    {
+     "text": "дуду",
+     "regexp": false
+    }
+   ],
+   "message": "Фразеологизм: \\1 \\2 один голос ."
+  },
+  {
+   "id": "Frazeologizm_nevernij[3]",
+   "name": "Ошибки во фразеологизмах «щекотливая дилемма», ...",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "не",
+     "regexp": false
+    },
+    {
+     "text": "упасть",
+     "regexp": false
+    },
+    {
+     "text": "лицом",
+     "regexp": false
+    },
+    {
+     "text": "в",
+     "regexp": false
+    },
+    {
+     "text": "грязь",
+     "regexp": false
+    }
+   ],
+   "message": "Фразеологизм: \\1 ударить \\3 \\4 \\5 ."
+  },
+  {
+   "id": "Frazeologizm_nevernij[4]",
+   "name": "Ошибки во фразеологизмах «щекотливая дилемма», ...",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "отдал",
+     "regexp": false
+    },
+    {
+     "text": "руку",
+     "regexp": false
+    },
+    {
+     "text": "и",
+     "regexp": false
+    },
+    {
+     "text": "сердце",
+     "regexp": false
+    }
+   ],
+   "message": "Фразеологизм: предложил \\2 \\3 \\4 ."
+  },
+  {
+   "id": "Frazeologizm_nevernij[5]",
+   "name": "Ошибки во фразеологизмах «щекотливая дилемма», ...",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "избиение",
+     "regexp": false
+    },
+    {
+     "text": "грешников",
+     "regexp": false
+    }
+   ],
+   "message": "Фразеологизм: \\1 младенцев ."
+  },
+  {
+   "id": "Frazeologizm_nevernij[6]",
+   "name": "Ошибки во фразеологизмах «щекотливая дилемма», ...",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "закадычная",
+     "regexp": false
+    },
+    {
+     "text": "подруга",
+     "regexp": false
+    }
+   ],
+   "message": "Фразеологизм: лучшая \\2 ."
+  },
+  {
+   "id": "Frazeologizm_nevernij[7]",
+   "name": "Ошибки во фразеологизмах «щекотливая дилемма», ...",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "промокли",
+     "regexp": false
+    },
+    {
+     "text": "до",
+     "regexp": false
+    },
+    {
+     "text": "костей",
+     "regexp": false
+    }
+   ],
+   "message": "Фразеологизм: \\1 \\2 нитки ."
+  },
+  {
+   "id": "Frazeologizm_nevernij[8]",
+   "name": "Ошибки во фразеологизмах «щекотливая дилемма», ...",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "замёрзли",
+     "regexp": false
+    },
+    {
+     "text": "до",
+     "regexp": false
+    },
+    {
+     "text": "нитки",
+     "regexp": false
+    }
+   ],
+   "message": "Фразеологизм: \\1 \\2 костей ."
+  },
+  {
+   "id": "Frazeologizm_nevernij[9]",
+   "name": "Ошибки во фразеологизмах «щекотливая дилемма», ...",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "промёрзли",
+     "regexp": false
+    },
+    {
+     "text": "до",
+     "regexp": false
+    },
+    {
+     "text": "нитки",
+     "regexp": false
+    }
+   ],
+   "message": "Фразеологизм: \\1 \\2 костей ."
+  },
+  {
+   "id": "Frazeologizm_nevernij[10]",
+   "name": "Ошибки во фразеологизмах «щекотливая дилемма», ...",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "глас",
+     "regexp": false
+    },
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "вопиющий",
+     "regexp": false
+    },
+    {
+     "text": "в",
+     "regexp": false
+    },
+    {
+     "text": "пустыне",
+     "regexp": false
+    }
+   ],
+   "message": "Фразеологизм: \\1 вопиющего \\4 \\5 ."
+  },
+  {
+   "id": "S_SO[3]",
+   "name": "Беглая гласная в предлогах: «c», «co»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "со",
+     "regexp": false
+    },
+    {
+     "text": "[аеёиоуыэюя][а-яё]*|[бвгдкмнпфх][аеёиоуыэюя][а-яё]*",
+     "regexp": true
+    }
+   ],
+   "message": "Неправильная форма предлога. Буква \"о\" не нужна: с \\2 ."
+  },
+  {
+   "id": "Vo_izbezhanie[1]",
+   "name": "Правописание предлога «во избежание»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "во",
+     "regexp": false
+    },
+    {
+     "text": "избежании",
+     "regexp": false
+    }
+   ],
+   "message": "Неправильная форма предлога. Исправление: \\1 избежание ."
+  },
+  {
+   "id": "O_OB_OBO[2]",
+   "name": "Правописание предлогов: «о», «об», «обо»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "об|о",
+     "regexp": true
+    },
+    {
+     "text": "мне|что",
+     "regexp": true
+    }
+   ],
+   "message": "Неправильная форма предлога. Исправление: обо \\2 ."
+  },
+  {
+   "id": "O_OB_OBO[3]",
+   "name": "Правописание предлогов: «о», «об», «обо»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "об",
+     "regexp": false
+    },
+    {
+     "text": "всём|всей|всех|всем",
+     "regexp": true
+    }
+   ],
+   "message": "Неправильная форма предлога. Исправление: обо \\2 или о \\2 ."
+  },
+  {
+   "id": "PREP_and_PNN1[1]",
+   "name": "Предлог и местоимения без «н»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "вопреки|наперекор|согласно|вслед|навстречу|подобно|соответственно|благодаря",
+     "regexp": true
+    },
+    {
+     "text": "нему|ней|ним",
+     "regexp": true
+    }
+   ],
+   "message": "Лишняя начальная буква «н»: ."
+  },
+  {
+   "id": "PREP_and_PNN1[2]",
+   "name": "Предлог и местоимения без «н»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "старше|выше|лучше",
+     "regexp": true
+    },
+    {
+     "text": "него|неё|них",
+     "regexp": true
+    }
+   ],
+   "message": "Лишняя начальная буква «н»: ."
+  },
+  {
+   "id": "PREP_and_PNN1[3]",
+   "name": "Предлог и местоимения без «н»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "в|при|по|за|со",
+     "regexp": true
+    },
+    {
+     "text": "отношении|помощи|пример|противовес|поводу|исключением|стороны|причине",
+     "regexp": true
+    },
+    {
+     "text": "него|неё|них",
+     "regexp": true
+    }
+   ],
+   "message": "Лишняя начальная буква «н»: ."
+  },
+  {
+   "id": "PREP_and_PNN1[4]",
+   "name": "Предлог и местоимения без «н»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "наподобие|насчёт|насчет",
+     "regexp": true
+    },
+    {
+     "text": "него|неё|них",
+     "regexp": true
+    }
+   ],
+   "message": "Лишняя начальная буква «н»: ."
+  },
+  {
+   "id": "PREP_and_PNN[2]",
+   "name": "Предлог и местоимения",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "без|для|до|от",
+     "regexp": true
+    },
+    {
+     "text": "ней",
+     "regexp": false
+    }
+   ],
+   "message": "Нормативная форма – «неё»: \\1 неё ."
+  },
+  {
+   "id": "PREP_and_PNN[3]",
+   "name": "Предлог и местоимения",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "сзади",
+     "regexp": false
+    },
+    {
+     "text": "его",
+     "regexp": false
+    }
+   ],
+   "message": "Нормативная форма – «него»: \\1 него ."
+  },
+  {
+   "id": "PREP_and_PNN[4]",
+   "name": "Предлог и местоимения",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "у",
+     "regexp": false
+    },
+    {
+     "text": "ней",
+     "regexp": false
+    }
+   ],
+   "message": "Форма «у ней» придаёт высказыванию разговорный характер. Нормативная форма: \\1 неё ."
+  },
+  {
+   "id": "PREP_V_VS_NA",
+   "name": "Предлог «в» или предлог «на» и существительное",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "на",
+     "regexp": false
+    },
+    {
+     "text": "институте|кино|Крым|Крыму|мастерской|спортзале|театре|техникуме|университете|цехе|цирке|школе|экспедицию",
+     "regexp": true
+    }
+   ],
+   "message": "Требуется предлог «в» вместо предлога «на»: в"
+  },
+  {
+   "id": "PREP_NA_VS_V",
+   "name": "Предлог «на» или предлог «в» и существительное",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "в",
+     "regexp": false
+    },
+    {
+     "text": "балет|заводе|Кавказ|концерт|фабрике|факультете",
+     "regexp": true
+    }
+   ],
+   "message": "Требуется предлог «на» вместо предлога «в»: на"
+  },
+  {
+   "id": "drug_s_drugom",
+   "name": "Словосочетание: «равноправны друг c другом»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "равноправны",
+     "regexp": false
+    },
+    {
+     "text": "друг",
+     "regexp": false
+    },
+    {
+     "text": "другу",
+     "regexp": false
+    }
+   ],
+   "message": "\\1 \\2 с другом"
+  },
+  {
+   "id": "V_TECHENII",
+   "name": "Словосочетание: «в течении реки»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "в",
+     "regexp": false
+    },
+    {
+     "text": "течение",
+     "regexp": false
+    },
+    {
+     "text": "реки|потока|воды|ручья",
+     "regexp": true
+    }
+   ],
+   "message": "Должно быть: \\1 течении \\3"
+  },
+  {
+   "id": "V_OTLICHIE[1]",
+   "name": "Словосочетание или производный предлог: «в отличие» или «в отличии»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "в",
+     "regexp": false
+    },
+    {
+     "text": "отличии",
+     "regexp": false
+    },
+    {
+     "text": "от",
+     "regexp": false
+    }
+   ],
+   "message": "Предлог «в отличие» употребляется с предлогом «от»: \\1 отличие \\3"
+  },
+  {
+   "id": "V_TECHENIЕ[1]",
+   "name": "Словосочетание: «в течение времени»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "в",
+     "regexp": false
+    },
+    {
+     "text": "течении",
+     "regexp": false
+    },
+    {
+     "text": "часа|минуты|промежутка|секунды|дня|суток|времени|недели|месяца|года|столетия|тысячелетия",
+     "regexp": true
+    }
+   ],
+   "message": "Должно быть: \\1 течение \\3"
+  },
+  {
+   "id": "V_PRODOLJENIЕ[1]",
+   "name": "Словосочетание: «в продолжение (отрезка времени)»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "в",
+     "regexp": false
+    },
+    {
+     "text": "продолжении",
+     "regexp": false
+    },
+    {
+     "text": "часа|минуты|промежутка|секунды|дня|времени|недели|месяца|года|столетия|тысячелетия|разговора|беседы",
+     "regexp": true
+    }
+   ],
+   "message": "Должно быть: \\1 продолжение \\3 (время)."
+  },
+  {
+   "id": "V_PRODOLJENIЕ[2]",
+   "name": "Словосочетание: «в продолжение (отрезка времени)»",
+   "category": "Грамматика",
+   "error_type": "Грамматическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "в",
+     "regexp": false
+    },
+    {
+     "text": "продолжение",
+     "regexp": false
+    },
+    {
+     "text": "отрезка|дороги|участка|поля|пути|маршрута|инструкции|текста|параграфа|рассказа|повести|поэмы|произведения",
+     "regexp": true
+    }
+   ],
+   "message": "Должно быть: \\1 продолжении \\3 (расстояние)."
+  },
+  {
+   "id": "grammar_s_dnem_rojdenja",
+   "name": "Просторечие: «с днём рожденья»",
+   "category": "Стиль",
+   "error_type": "Стилистическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "с",
+     "regexp": false
+    },
+    {
+     "text": "днём|днем",
+     "regexp": true
+    },
+    {
+     "text": "рожденья",
+     "regexp": false
+    }
+   ],
+   "message": "Просторечие. Верно: рождения ."
+  },
+  {
+   "id": "po_povodu_togo[1]",
+   "name": "Канцелярский штамп: «по поводу того»",
+   "category": "Стиль",
+   "error_type": "Стилистическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "по",
+     "regexp": false
+    },
+    {
+     "text": "поводу",
+     "regexp": false
+    },
+    {
+     "text": "того",
+     "regexp": false
+    }
+   ],
+   "message": "Канцелярский штамп: о том ?"
+  },
+  {
+   "id": "bolee_ili_menee_k[1]",
+   "name": "Словосочетание: «более или менее конкретны»",
+   "category": "Стиль",
+   "error_type": "Стилистическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "более",
+     "regexp": false
+    },
+    {
+     "text": "или",
+     "regexp": false
+    },
+    {
+     "text": "менее",
+     "regexp": false
+    },
+    {
+     "text": "конкретны",
+     "regexp": false
+    }
+   ],
+   "message": "Избыточное определение: \\1 \\4"
+  },
+  {
+   "id": "Style_imeet_vid",
+   "name": "Стиль: «имеет вид» или «получается в виде»",
+   "category": "Стиль",
+   "error_type": "Стилистическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "получается",
+     "regexp": false
+    },
+    {
+     "text": "в",
+     "regexp": false
+    },
+    {
+     "text": "виде",
+     "regexp": false
+    }
+   ],
+   "message": "Стиль. Лучше сказать: имеет вид ."
+  },
+  {
+   "id": "skladivaetsja_oschuschenie[1]",
+   "name": "Устойчивые выражения: «складывается ощущение»",
+   "category": "Стиль",
+   "error_type": "Стилистическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "складывается",
+     "regexp": false
+    },
+    {
+     "text": "ощущение",
+     "regexp": false
+    }
+   ],
+   "message": "Устойчивое выражение: возникает \\2 ."
+  },
+  {
+   "id": "skladivaetsja_oschuschenie[2]",
+   "name": "Устойчивые выражения: «складывается ощущение»",
+   "category": "Стиль",
+   "error_type": "Стилистическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "складывалось",
+     "regexp": false
+    },
+    {
+     "text": "ощущение",
+     "regexp": false
+    }
+   ],
+   "message": "Устойчивое выражение: возникало \\2 ."
+  },
+  {
+   "id": "Logical_bolee_menee[1]",
+   "name": "Устойчивое выражение: «более или менее»",
+   "category": "Стиль",
+   "error_type": "Стилистическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "более-менее",
+     "regexp": false
+    }
+   ],
+   "message": "Устойчивое выражение: более или менее ."
+  },
+  {
+   "id": "Logical_bolee_menee[2]",
+   "name": "Устойчивое выражение: «более или менее»",
+   "category": "Стиль",
+   "error_type": "Стилистическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "более",
+     "regexp": false
+    },
+    {
+     "text": "менее",
+     "regexp": false
+    }
+   ],
+   "message": "Устойчивое выражение: более или менее ."
+  },
+  {
+   "id": "NI_NA_GRAN[1]",
+   "name": "Цельное выражение: «ни на гран»",
+   "category": "Стиль",
+   "error_type": "Стилистическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "ни",
+     "regexp": false
+    },
+    {
+     "text": "на",
+     "regexp": false
+    },
+    {
+     "text": "грамм",
+     "regexp": false
+    }
+   ],
+   "message": "Цельное выражение: ни на гран ."
+  },
+  {
+   "id": "NI_NA_GRAN[2]",
+   "name": "Цельное выражение: «ни на гран»",
+   "category": "Стиль",
+   "error_type": "Стилистическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "ни",
+     "regexp": false
+    },
+    {
+     "text": "грамма",
+     "regexp": false
+    }
+   ],
+   "message": "Цельное выражение: ни грана ."
+  },
+  {
+   "id": "NE_PREDSTAVL_VOZM[1]",
+   "name": "Цельные выражения: «не представляется возможным»",
+   "category": "Стиль",
+   "error_type": "Стилистическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "не",
+     "regexp": false
+    },
+    {
+     "text": "предоставляется",
+     "regexp": false
+    },
+    {
+     "text": "возможным",
+     "regexp": false
+    }
+   ],
+   "message": "Словосочетание: \\1 представляется \\3 ."
+  },
+  {
+   "id": "Opublikovani_vospominanija[1]",
+   "name": "Цельные выражения: «опубликованы воспоминания»",
+   "category": "Стиль",
+   "error_type": "Стилистическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "опубликовано|напечатано|обнародовано|издано",
+     "regexp": true
+    },
+    {
+     "text": "воспоминание",
+     "regexp": false
+    }
+   ],
+   "message": "Требуется множественное число: воспоминания ."
+  },
+  {
+   "id": "Kak_budto[1]",
+   "name": "Сложный союз (частица) «как будто»",
+   "category": "Проверка орфографии",
+   "error_type": "Орфографическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "какбудто|как-будто",
+     "regexp": true
+    }
+   ],
+   "message": "Сложный союз (частица) \"как будто\" пишется раздельно: как будто ."
+  },
+  {
+   "id": "Obrazovanie_form_suschestvitelnykh_prof[1]",
+   "name": "Обозначение лиц по профессии, ...",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "директорша",
+     "regexp": false
+    }
+   ],
+   "message": "Названия лиц по профессии, должности, званию сохраняют форму мужского рода даже тогда, когда относятся к женщине"
+  },
+  {
+   "id": "Obrazovanie_form_suschestvitelnykh_prof[2]",
+   "name": "Обозначение лиц по профессии, ...",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "докторша",
+     "regexp": false
+    }
+   ],
+   "message": "Названия лиц по профессии, должности, званию сохраняют форму мужского рода даже тогда, когда относятся к женщине"
+  },
+  {
+   "id": "Obrazovanie_form_suschestvitelnykh_prof[3]",
+   "name": "Обозначение лиц по профессии, ...",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "лаборантка",
+     "regexp": false
+    }
+   ],
+   "message": "Названия лиц по профессии, должности, званию сохраняют форму мужского рода даже тогда, когда относятся к женщине"
+  },
+  {
+   "id": "Obrazovanie_form_suschestvitelnykh_prof[4]",
+   "name": "Обозначение лиц по профессии, ...",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "врачиха",
+     "regexp": false
+    }
+   ],
+   "message": "Названия лиц по профессии, должности, званию сохраняют форму мужского рода даже тогда, когда относятся к женщине"
+  },
+  {
+   "id": "Obrazovanie_form_pril_i_mestoimenij[1]",
+   "name": "Образование местоимений 3 лица ед. и мн. ч.",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "лучше",
+     "regexp": false
+    },
+    {
+     "text": "её",
+     "regexp": false
+    }
+   ],
+   "message": "Образование местоимений 3 лица ед. и мн. ч. Вы имели в виду лучше неё ?"
+  },
+  {
+   "id": "Obrazovanije_slozhnyh_slov[2]",
+   "name": "Образование сложных слов",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "сто",
+     "regexp": false
+    },
+    {
+     "text": "дневное",
+     "regexp": false
+    }
+   ],
+   "message": "Образование сложных слов. Вы имели в виду стодневное ?"
+  },
+  {
+   "id": "Obrazovanije_slozhnyh_slov[3]",
+   "name": "Образование сложных слов",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "пол",
+     "regexp": false
+    },
+    {
+     "text": "листа",
+     "regexp": false
+    }
+   ],
+   "message": "Если в сложном слове с корнем «пол» второе слово начинается с согласной «л», то пишем его через дефис. Вы имели в виду пол-листа ?"
+  },
+  {
+   "id": "Obrazovanije_slozhnyh_slov[4]",
+   "name": "Образование сложных слов",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "пол",
+     "regexp": false
+    },
+    {
+     "text": "луковицы",
+     "regexp": false
+    }
+   ],
+   "message": "Если в сложном слове с корнем «пол» второе слово начинается с согласной «л», то пишем его через дефис. Вы имели в виду пол-луковицы ?"
+  },
+  {
+   "id": "Obrazovanije_slozhnyh_slov[5]",
+   "name": "Образование сложных слов",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "пол",
+     "regexp": false
+    },
+    {
+     "text": "урока",
+     "regexp": false
+    }
+   ],
+   "message": "Если в сложном слове с корнем «пол» второе слово начинается с гласной, то пишем его через дефис. Вы имели в виду пол-урока ?"
+  },
+  {
+   "id": "Lishnij_sojuz[3]",
+   "name": "Лишний союз",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "и",
+     "regexp": false
+    },
+    {
+     "text": "долго",
+     "regexp": false
+    },
+    {
+     "text": "и",
+     "regexp": false
+    },
+    {
+     "text": "упорно",
+     "regexp": false
+    }
+   ],
+   "message": "Лишний союз. Вы имели в виду долго и упорно ?"
+  },
+  {
+   "id": "Upotreblenije_predlogov[2]",
+   "name": "Употребление предлогов",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "от",
+     "regexp": false
+    },
+    {
+     "text": "утра",
+     "regexp": false
+    },
+    {
+     "text": "до",
+     "regexp": false
+    },
+    {
+     "text": "вечера",
+     "regexp": false
+    }
+   ],
+   "message": "Неправильный предлог. Вы имели в виду с утра до вечера ?"
+  },
+  {
+   "id": "skolko_vremeni[1]",
+   "name": "Словосочетание: «сколько времени»",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "сколько",
+     "regexp": false
+    },
+    {
+     "text": "время",
+     "regexp": false
+    }
+   ],
+   "message": "Правильно сколько времени или который час ?"
+  },
+  {
+   "id": "Kontrol_za_nad[1]",
+   "name": "«Контроль за» или «контроль над»",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "контроль",
+     "regexp": false
+    },
+    {
+     "text": "за",
+     "regexp": false
+    },
+    {
+     "text": "деятельностью",
+     "regexp": false
+    }
+   ],
+   "message": "В официальной и профессионально-технической речи – «контроль чего-либо». Вы имели в виду: контроль деятельности ?"
+  },
+  {
+   "id": "Kontrol_za_nad[2]",
+   "name": "«Контроль за» или «контроль над»",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "контроль",
+     "regexp": false
+    },
+    {
+     "text": "за",
+     "regexp": false
+    },
+    {
+     "text": "предприятием",
+     "regexp": false
+    }
+   ],
+   "message": "При отвлеченных существительных – «контроль над чем-либо». Вы имели в виду: контроль над предприятием ?"
+  },
+  {
+   "id": "Kontrol_za_nad[3]",
+   "name": "«Контроль за» или «контроль над»",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "контроль",
+     "regexp": false
+    },
+    {
+     "text": "над",
+     "regexp": false
+    },
+    {
+     "text": "качеством",
+     "regexp": false
+    },
+    {
+     "text": "работы|работ",
+     "regexp": true
+    }
+   ],
+   "message": "При существительных, обозначающих действие или признак – пишем «контроль за» (за качеством работы, за работой станка): \\1 за \\3 \\4"
+  },
+  {
+   "id": "Predlogi_iz_s[1]",
+   "name": "Предлоги: «из» и «с»",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "с",
+     "regexp": false
+    },
+    {
+     "text": "школы",
+     "regexp": false
+    }
+   ],
+   "message": "Предлоги: «из» и «с» имеют антонимы (для «из» это «в», для «с» это «на»). По этим парам можно определить, какой предлог правильный. Например, если «В школу» – то «ИЗ школы»: из \\2"
+  },
+  {
+   "id": "Predlogi_iz_s[2]",
+   "name": "Предлоги: «из» и «с»",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "с",
+     "regexp": false
+    },
+    {
+     "text": "командировки",
+     "regexp": false
+    }
+   ],
+   "message": "Предлоги: «из» и «с» имеют антонимы (для «из» это «в», для «с» это «на»). По этим парам можно определить, какой предлог правильный. Например, если «В командировку» – то «ИЗ командировки»: из \\2"
+  },
+  {
+   "id": "Predlogi_iz_s[3]",
+   "name": "Предлоги: «из» и «с»",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "из",
+     "regexp": false
+    },
+    {
+     "text": "Кавказа",
+     "regexp": false
+    }
+   ],
+   "message": "Предлоги: «из» и «с» имеют антонимы (для «из» это «в», для «с» это «на»). По этим парам можно определить, какой предлог правильный Например, если «НА Кавказ» – то «С Кавказа»: с \\2"
+  },
+  {
+   "id": "Predlogi_iz_s[4]",
+   "name": "Предлоги: «из» и «с»",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "с",
+     "regexp": false
+    },
+    {
+     "text": "армии",
+     "regexp": false
+    }
+   ],
+   "message": "Предлоги: «из» и «с» имеют антонимы (для «из» это «в», для «с» это «на»). По этим парам можно определить, какой предлог правильный. Например, если «В армию» – то «ИЗ армии» из \\2"
+  },
+  {
+   "id": "Trudn_sluchai_upravl[1]",
+   "name": "Трудные случаи управления",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "жажда",
+     "regexp": false
+    },
+    {
+     "text": "к",
+     "regexp": false
+    }
+   ],
+   "message": "Трудный случай управления: правильно – жажда чего-то, а не к чему-то"
+  },
+  {
+   "id": "Sklonenije_suschestvit_PL[1]",
+   "name": "Склонение некоторых существительных во множ. числе",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "листья",
+     "regexp": false
+    },
+    {
+     "text": "бумаги",
+     "regexp": false
+    }
+   ],
+   "message": "Для различения лексич. значений некоторых существительных во мн.ч. используют разные окончания: «-ы»/«-и» или «-а»/«-я». Вы имели в виду листы бумаги ?"
+  },
+  {
+   "id": "Sklonenije_suschestvit_PL[2]",
+   "name": "Склонение некоторых существительных во множ. числе",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "листы",
+     "regexp": false
+    },
+    {
+     "text": "деревьев",
+     "regexp": false
+    }
+   ],
+   "message": "Для различения лексич. значений некоторых существительных во мн.ч. используют разные окончания: «-ы»/«-и» или «-а»/«-я». Вы имели в виду листья деревьев ?"
+  },
+  {
+   "id": "Sklonenije_suschestvit_PL[3]",
+   "name": "Склонение некоторых существительных во множ. числе",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "коренья",
+     "regexp": false
+    },
+    {
+     "text": "дерева",
+     "regexp": false
+    }
+   ],
+   "message": "Для различения лексич. значений некоторых существительных во мн.ч. используют разные окончания: «-ы»/«-и» или «-а»/«-я». Вы имели в виду корни дерева ?"
+  },
+  {
+   "id": "Sklonenije_suschestvit_PL[4]",
+   "name": "Склонение некоторых существительных во множ. числе",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "болят",
+     "regexp": false
+    },
+    {
+     "text": "зубья",
+     "regexp": false
+    }
+   ],
+   "message": "Для различения лексич. значений некоторых существительных во мн.ч. используют разные окончания: «-ы»/«-и» или «-а»/«-я». Вы имели в виду болят зубы ?"
+  },
+  {
+   "id": "Tavtologija[1]",
+   "name": "Тавтология",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "следует",
+     "regexp": false
+    },
+    {
+     "text": "сказать",
+     "regexp": false
+    },
+    {
+     "text": "следующее",
+     "regexp": false
+    },
+    {
+     "text": ",",
+     "regexp": false
+    },
+    {
+     "text": "что",
+     "regexp": false
+    }
+   ],
+   "message": "Это тавтология – неоправданное повторение однокоренных или созвучных слов. Вы имели в виду: следует сказать, что ?"
+  },
+  {
+   "id": "Tavtologija[2]",
+   "name": "Тавтология",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "рост",
+     "regexp": false
+    },
+    {
+     "text": "авторитета",
+     "regexp": false
+    },
+    {
+     "text": "растёт",
+     "regexp": false
+    }
+   ],
+   "message": "Это тавтология – неоправданное повторение однокоренных или созвучных слов. Вы имели в виду: авторитет растёт ?"
+  },
+  {
+   "id": "Chastitsa_NI_v_ustojchiv_vyrazh[1]",
+   "name": "Частица «ни» в устойчивых выражениях",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "не",
+     "regexp": false
+    },
+    {
+     "text": "свет",
+     "regexp": false
+    },
+    {
+     "text": "не",
+     "regexp": false
+    },
+    {
+     "text": "заря",
+     "regexp": false
+    }
+   ],
+   "message": "Частица «ни» в устойчивых выражениях. Запятая не ставится. Вы имели в виду: ни свет ни заря ?"
+  },
+  {
+   "id": "Chastitsa_NI_v_ustojchiv_vyrazh[2]",
+   "name": "Частица «ни» в устойчивых выражениях",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "не",
+     "regexp": false
+    },
+    {
+     "text": "днем",
+     "regexp": false
+    },
+    {
+     "text": "не",
+     "regexp": false
+    },
+    {
+     "text": "ночью",
+     "regexp": false
+    }
+   ],
+   "message": "Частица «ни» в устойчивых выражениях. Запятая не ставится. Вы имели в виду: ни днем ни ночью ?"
+  },
+  {
+   "id": "Chastitsa_NI_v_ustojchiv_vyrazh[3]",
+   "name": "Частица «ни» в устойчивых выражениях",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "не",
+     "regexp": false
+    },
+    {
+     "text": "много",
+     "regexp": false
+    },
+    {
+     "text": "не",
+     "regexp": false
+    },
+    {
+     "text": "мало",
+     "regexp": false
+    }
+   ],
+   "message": "Частица «ни» в устойчивых выражениях. Запятая не ставится. Вы имели в виду: ни много ни мало ?"
+  },
+  {
+   "id": "Chastitsa_NI_v_ustojchiv_vyrazh[4]",
+   "name": "Частица «ни» в устойчивых выражениях",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "не",
+     "regexp": false
+    },
+    {
+     "text": "пуха",
+     "regexp": false
+    },
+    {
+     "text": "не",
+     "regexp": false
+    },
+    {
+     "text": "пера",
+     "regexp": false
+    }
+   ],
+   "message": "Частица «ни» в устойчивых выражениях. Запятая не ставится. Вы имели в виду ни пуха ни пера ?"
+  },
+  {
+   "id": "Predlogi_vsledstvije_napodobije[1]",
+   "name": "Предлоги: «наподобие»",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "на",
+     "regexp": false
+    },
+    {
+     "text": "подобии",
+     "regexp": false
+    },
+    {
+     "text": "тех|этих|этой|того|той|моей|твоей|вашей|нашей|их|его|этого|ее|моих|твоих|ваших|наших",
+     "regexp": true
+    }
+   ],
+   "message": "Это предлог «в» с существительным на «–ие» в винит. падеже, окончание которого совпадает с окончанием этого существительного в им. падеже. Пишется слитно. Вы имели в виду наподобие \\3 ?"
+  },
+  {
+   "id": "Predlogi_vsledstvije_napodobije[2]",
+   "name": "Предлоги: «наподобие»",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "в",
+     "regexp": false
+    },
+    {
+     "text": "следствии",
+     "regexp": false
+    },
+    {
+     "text": "этого|чего|этих|этой|того|той|которого|которой|которых|моей|твоей|вашей|нашей|их|его|ее|моих|твоих|ваших|наших",
+     "regexp": true
+    }
+   ],
+   "message": "Это предлог «в» с существительным на «–ие» в винит. падеже, окончание которого совпадает с окончанием этого существительного в им. падеже. Пишется слитно. Вы имели в виду вследствие \\3 ?"
+  },
+  {
+   "id": "Predlogi_vsledstvije_napodobije[3]",
+   "name": "Предлоги: «наподобие»",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "в",
+     "regexp": false
+    },
+    {
+     "text": "следствие",
+     "regexp": false
+    },
+    {
+     "text": "этого|чего|которого|которой|которых|этих|этой|того|той|моей|твоей|вашей|нашей|их|его|ее|моих|твоих|ваших|наших",
+     "regexp": true
+    }
+   ],
+   "message": "Это предлог «в» с существительным на «–ие» в винит. падеже, окончание которого совпадает с окончанием этого существительного в им. падеже. Пишется слитно. Вы имели в виду вследствие \\3 ?"
+  },
+  {
+   "id": "Predlog_v_zakluchenije[1]",
+   "name": "Предлог «в заключение»",
+   "category": "Дополнительные правила",
+   "error_type": "Лексическая",
+   "case_sensitive": false,
+   "tokens": [
+    {
+     "text": "в",
+     "regexp": false
+    },
+    {
+     "text": "заключении",
+     "regexp": false
+    },
+    {
+     "text": "этого|чего|всего|которых|этой|того|той|моей|твоей|вашей|нашей|своей|своего|выступления|мероприятия|собрания|встречи|концерта|эфира|вышесказанного|позвольте|вышеупомянутого",
+     "regexp": true
+    }
+   ],
+   "message": "Это предлог «в» с существительным на «–ие» в винит. падеже, окончание которого совпадает с окончанием этого существительного в им. падеже. Вы имели в виду в заключение \\3 ?"
+  }
+ ],
+ "replacements": [
+  {
+   "wrong": "ни будь",
+   "correct": "нибудь",
+   "note": "Опечатка"
+  },
+  {
+   "wrong": "по идти",
+   "correct": "пойти",
+   "note": "Опечатка"
+  },
+  {
+   "wrong": "по-крайней",
+   "correct": "по крайней",
+   "note": "Опечатка"
+  },
+  {
+   "wrong": "по-крайнему",
+   "correct": "по крайнему",
+   "note": "Опечатка"
+  },
+  {
+   "wrong": "по-полной",
+   "correct": "по полной",
+   "note": "Опечатка"
+  },
+  {
+   "wrong": "по-меньшей",
+   "correct": "по меньшей",
+   "note": "Опечатка"
+  },
+  {
+   "wrong": "по-большей",
+   "correct": "по большей",
+   "note": "Опечатка"
+  },
+  {
+   "wrong": "2-ух",
+   "correct": "двух",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "3-ёх",
+   "correct": "трёх",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "3-ех",
+   "correct": "трех",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "4-ёх",
+   "correct": "четырёх",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "4-ех",
+   "correct": "четырех",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "5-ти",
+   "correct": "пяти",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "6-ти",
+   "correct": "шести",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "7-ми",
+   "correct": "семи",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "8-ми",
+   "correct": "восьми",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "9-ти",
+   "correct": "девяти",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "10-ти",
+   "correct": "десяти",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "4-ого",
+   "correct": "4-го",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "4-ому",
+   "correct": "4-му",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "5-ого",
+   "correct": "5-го",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "5-ому",
+   "correct": "5-му",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "6-ого",
+   "correct": "6-го",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "6-ому",
+   "correct": "6-му",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "7-ого",
+   "correct": "7-го",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "7-ому",
+   "correct": "7-му",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "8-ого",
+   "correct": "8-го",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "8-ому",
+   "correct": "8-му",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "9-ого",
+   "correct": "9-го",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "9-ому",
+   "correct": "9-му",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "10-ыми",
+   "correct": "10-ми",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "20-ыми",
+   "correct": "20-ми",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "30-ыми",
+   "correct": "30-ми",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "40-ыми",
+   "correct": "40-ми",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "50-ыми",
+   "correct": "50-ми",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "60-ыми",
+   "correct": "60-ми",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "70-ыми",
+   "correct": "70-ми",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "80-ыми",
+   "correct": "80-ми",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "90-ыми",
+   "correct": "90-ми",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "1-ый",
+   "correct": "1-й",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "1-ой",
+   "correct": "1-й",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "1-ая",
+   "correct": "1-я",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "1-ое",
+   "correct": "1-е",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "1-ые",
+   "correct": "1-е",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "1-ым",
+   "correct": "1-м",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "1-ом",
+   "correct": "1-м",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "1-ых",
+   "correct": "1-х",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "2-ой",
+   "correct": "2-й",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "2-ая",
+   "correct": "2-я",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "2-ое",
+   "correct": "2-е",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "2-ые",
+   "correct": "2-е",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "2-ым",
+   "correct": "2-м",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "2-ом",
+   "correct": "2-м",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "2-ых",
+   "correct": "2-х",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "3-ий",
+   "correct": "3-й",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "3-их",
+   "correct": "3-х",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "4-ый",
+   "correct": "4-й",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "4-ой",
+   "correct": "4-й",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "4-ая",
+   "correct": "4-я",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "4-ое",
+   "correct": "4-е",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "4-ые",
+   "correct": "4-е",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "4-ым",
+   "correct": "4-м",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "4-ом",
+   "correct": "4-м",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "4-ых",
+   "correct": "4-х",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "5-ый",
+   "correct": "5-й",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "5-ой",
+   "correct": "5-й",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "5-ая",
+   "correct": "5-я",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "5-ое",
+   "correct": "5-е",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "5-ые",
+   "correct": "5-е",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "5-ым",
+   "correct": "5-м",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "5-ом",
+   "correct": "5-м",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "5-ых",
+   "correct": "5-х",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "6-ой",
+   "correct": "6-й",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "6-ая",
+   "correct": "6-я",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "6-ое",
+   "correct": "6-е",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "6-ые",
+   "correct": "6-е",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "6-ым",
+   "correct": "6-м",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "6-ом",
+   "correct": "6-м",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "6-ых",
+   "correct": "6-х",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "7-ой",
+   "correct": "7-й",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "7-ая",
+   "correct": "7-я",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "7-ое",
+   "correct": "7-е",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "7-ые",
+   "correct": "7-е",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "7-ым",
+   "correct": "7-м",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "7-ом",
+   "correct": "7-м",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "7-ых",
+   "correct": "7-х",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "8-ой",
+   "correct": "8-й",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "8-ая",
+   "correct": "8-я",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "8-ое",
+   "correct": "8-е",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "8-ые",
+   "correct": "8-е",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "8-ым",
+   "correct": "8-м",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "8-ом",
+   "correct": "8-м",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "8-ых",
+   "correct": "8-х",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "9-ый",
+   "correct": "9-й",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "9-ой",
+   "correct": "9-й",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "9-ая",
+   "correct": "9-я",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "9-ое",
+   "correct": "9-е",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "9-ые",
+   "correct": "9-е",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "9-ым",
+   "correct": "9-м",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "9-ом",
+   "correct": "9-м",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "9-ых",
+   "correct": "9-х",
+   "note": "Некорректное сокращение"
+  },
+  {
+   "wrong": "агенство",
+   "correct": "агентство",
+   "note": "Опечатка"
+  },
+  {
+   "wrong": "акадэмия",
+   "correct": "академия",
+   "note": "Опечатка"
+  },
+  {
+   "wrong": "алерт",
+   "correct": "предупреждение",
+   "note": "Жаргон"
+  },
+  {
+   "wrong": "анимэ",
+   "correct": "аниме",
+   "note": "Опечатка"
+  },
+  {
+   "wrong": "афёра",
+   "correct": "афера",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "баструма",
+   "correct": "бастурма",
+   "note": "Опечатка"
+  },
+  {
+   "wrong": "бегим",
+   "correct": "бежим",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "бежат",
+   "correct": "бегут",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "бежи",
+   "correct": "беги",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "бесеребреница",
+   "correct": "бессребреница",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "бесеребренник",
+   "correct": "бессребреник",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "бессеребреник",
+   "correct": "бессребреник",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "бессеребреница",
+   "correct": "бессребреница",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "бессеребренник",
+   "correct": "бессребреник",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "биллиона",
+   "correct": "миллиарда",
+   "note": "Не используется"
+  },
+  {
+   "wrong": "биллионе",
+   "correct": "миллиарде",
+   "note": "Не используется"
+  },
+  {
+   "wrong": "биллион",
+   "correct": "миллиард",
+   "note": "Не используется"
+  },
+  {
+   "wrong": "биллионом",
+   "correct": "миллиардом",
+   "note": "Не используется"
+  },
+  {
+   "wrong": "биллиону",
+   "correct": "миллиарду",
+   "note": "Не используется"
+  },
+  {
+   "wrong": "бубон",
+   "correct": "помпон",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "взади",
+   "correct": "сзади",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "взад",
+   "correct": "назад",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "взаду",
+   "correct": "позади",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "вьётся сердце",
+   "correct": "бьётся сердце",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "вьется сердце",
+   "correct": "бьётся сердце",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "в конце-концов",
+   "correct": "в конце концов",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "взаимообразно",
+   "correct": "заимообразно",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "вовнутрь",
+   "correct": "внутрь",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "во внутрь",
+   "correct": "внутрь",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "впервой",
+   "correct": "впервые",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "выпимши",
+   "correct": "выпив",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "глыбоко",
+   "correct": "глубоко",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "даден",
+   "correct": "дан",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "девайс",
+   "correct": "устройство",
+   "note": "Жаргон"
+  },
+  {
+   "wrong": "длинше",
+   "correct": "длиннее",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "длиньше",
+   "correct": "длиннее",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "драпает",
+   "correct": "убегает",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "драпанула",
+   "correct": "убежала",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "драпанул",
+   "correct": "убежал",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "драпануть",
+   "correct": "убежать",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "друшлаг",
+   "correct": "дуршлаг",
+   "note": "Опечатка"
+  },
+  {
+   "wrong": "дрыхнет",
+   "correct": "спит",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "дрыхнула",
+   "correct": "спала",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "дрыхнул",
+   "correct": "спал",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "дрыхнуть",
+   "correct": "спать",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "евойный",
+   "correct": "его",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "евоный",
+   "correct": "его",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "едь",
+   "correct": "поезжай",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "езжай",
+   "correct": "поезжай",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "езжайте",
+   "correct": "поезжайте",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "ехай",
+   "correct": "поезжай",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "ехайте",
+   "correct": "поезжайте",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "жгем",
+   "correct": "жжём",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "жгете",
+   "correct": "жжёте",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "жгет",
+   "correct": "жжёт",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "жгешь",
+   "correct": "жжёшь",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "жгём",
+   "correct": "жжём",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "жгёте",
+   "correct": "жжёте",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "жгёт",
+   "correct": "жжёт",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "жгёшь",
+   "correct": "жжёшь",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "жжошь",
+   "correct": "жжёшь",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "зазря",
+   "correct": "зря",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "законнорожденный",
+   "correct": "законнорождённый",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "заместо",
+   "correct": "вместо",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "зараз",
+   "correct": "сразу",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "застегать",
+   "correct": "застёгивать",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "здеся",
+   "correct": "здесь",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "ивоный",
+   "correct": "его",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "инет",
+   "correct": "интернет",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "имплементация",
+   "correct": "реализация",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "коммунизьм",
+   "correct": "коммунизм",
+   "note": "Опечатка"
+  },
+  {
+   "wrong": "красивше",
+   "correct": "красивее",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "креативный",
+   "correct": "творческий",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "куды",
+   "correct": "куда",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "купивши",
+   "correct": "купив",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "курей",
+   "correct": "кур",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "ложить",
+   "correct": "класть",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "ляжь",
+   "correct": "ляг",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "ляжьте",
+   "correct": "лягте",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "ляпота",
+   "correct": "лепота",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "маневренный",
+   "correct": "манёвренный",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "маневр",
+   "correct": "манёвр",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "маневровый",
+   "correct": "манёвровый",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "маструбация",
+   "correct": "мастурбация",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "мультиканальный",
+   "correct": "многоканальный",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "нагинаться",
+   "correct": "нагибаться",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "назаду",
+   "correct": "сзади",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "накласть",
+   "correct": "наложить",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "напополам",
+   "correct": "пополам",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "ндравится",
+   "correct": "нравится",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "небось",
+   "correct": "пожалуй",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "нету",
+   "correct": "нет",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "непрешол",
+   "correct": "не пришёл",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "одно временно",
+   "correct": "одновременно",
+   "note": "Опечатка"
+  },
+  {
+   "wrong": "оплоченный",
+   "correct": "оплаченный",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "опосля",
+   "correct": "потом",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "орангутанг",
+   "correct": "орангутан",
+   "note": "Опечатка"
+  },
+  {
+   "wrong": "оффлайн",
+   "correct": "офлайн",
+   "note": "Устаревшая форма"
+  },
+  {
+   "wrong": "тойже",
+   "correct": "той же",
+   "note": "Опечатка"
+  },
+  {
+   "wrong": "пекем",
+   "correct": "печём",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "пекешь",
+   "correct": "печёшь",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "пекём",
+   "correct": "печём",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "пекёте",
+   "correct": "печёте",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "пекёт",
+   "correct": "печёт",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "пекёшь",
+   "correct": "печёшь",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "перво-наперво",
+   "correct": "сначала",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "перетрубация",
+   "correct": "пертурбация",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "перетурбация",
+   "correct": "пертурбация",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "пертрубация",
+   "correct": "пертурбация",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "повидлой",
+   "correct": "повидлом",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "подскользнуться",
+   "correct": "поскользнуться",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "подчерк",
+   "correct": "почерк",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "поемши",
+   "correct": "поев",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "покладу",
+   "correct": "положу",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "покласть",
+   "correct": "положить",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "положь",
+   "correct": "положи",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "положьте",
+   "correct": "положите",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "полувер",
+   "correct": "пуловер",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "по-новой",
+   "correct": "снова",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "порвата",
+   "correct": "порвана",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "порват",
+   "correct": "порван",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "придти",
+   "correct": "прийти",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "приколон",
+   "correct": "приколот",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "пришедши",
+   "correct": "придя",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "пробывать",
+   "correct": "пробовать",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "проэкт",
+   "correct": "проект",
+   "note": "Опечатка"
+  },
+  {
+   "wrong": "рюземе",
+   "correct": "резюме",
+   "note": "Опечатка"
+  },
+  {
+   "wrong": "саунд",
+   "correct": "звук",
+   "note": "Жаргон"
+  },
+  {
+   "wrong": "свекла",
+   "correct": "свёкла",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "светопредставление",
+   "correct": "светопреставление",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "сготовить",
+   "correct": "приготовить",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "с золотом кольцом",
+   "correct": "с золотым кольцом",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "скабрезный",
+   "correct": "скабрёзный",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "скурпулезный",
+   "correct": "скрупулёзный",
+   "note": "Опечатка"
+  },
+  {
+   "wrong": "скурпулёзный",
+   "correct": "скрупулёзный",
+   "note": "Опечатка"
+  },
+  {
+   "wrong": "слаже",
+   "correct": "слаще",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "стери",
+   "correct": "сотри",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "стригем",
+   "correct": "стрижём",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "стригете",
+   "correct": "стрижёте",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "стригет",
+   "correct": "стрижёт",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "стригешь",
+   "correct": "стрижёшь",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "стригём",
+   "correct": "стрижём",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "стригёте",
+   "correct": "стрижёте",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "стригёт",
+   "correct": "стрижёт",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "стригёшь",
+   "correct": "стрижёшь",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "съемши",
+   "correct": "съев",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "сымать",
+   "correct": "снимать",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "сюды",
+   "correct": "сюда",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "тама",
+   "correct": "там",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "текет",
+   "correct": "течёт",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "текёт",
+   "correct": "течёт",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "тенета",
+   "correct": "тенёта",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "толью",
+   "correct": "толем",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "тончее",
+   "correct": "тоньше",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "тонче",
+   "correct": "тоньше",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "траффик",
+   "correct": "трафик",
+   "note": "Устаревшая форма"
+  },
+  {
+   "wrong": "траффика",
+   "correct": "трафика",
+   "note": "Устаревшая форма"
+  },
+  {
+   "wrong": "траффику",
+   "correct": "трафику",
+   "note": "Устаревшая форма"
+  },
+  {
+   "wrong": "траффиком",
+   "correct": "трафиком",
+   "note": "Устаревшая форма"
+  },
+  {
+   "wrong": "траффике",
+   "correct": "трафике",
+   "note": "Устаревшая форма"
+  },
+  {
+   "wrong": "траффики",
+   "correct": "трафики",
+   "note": "Устаревшая форма"
+  },
+  {
+   "wrong": "траффиков",
+   "correct": "трафиков",
+   "note": "Устаревшая форма"
+  },
+  {
+   "wrong": "траффикас",
+   "correct": "трафикам",
+   "note": "Устаревшая форма"
+  },
+  {
+   "wrong": "траффиками",
+   "correct": "трафиками",
+   "note": "Устаревшая форма"
+  },
+  {
+   "wrong": "траффиках",
+   "correct": "трафиках",
+   "note": "Устаревшая форма"
+  },
+  {
+   "wrong": "троеточие",
+   "correct": "многоточие",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "тубаретка",
+   "correct": "табуретка",
+   "note": "Опечатка"
+  },
+  {
+   "wrong": "туды",
+   "correct": "туда",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "тюлью",
+   "correct": "тюлем",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "уморенный",
+   "correct": "уморённый",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "уполномачивать",
+   "correct": "уполномочивать",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "уславливаться",
+   "correct": "условливаться",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "ферштейн",
+   "correct": "понятно",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "хочим",
+   "correct": "хотим",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "хочите",
+   "correct": "хотите",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "хужее",
+   "correct": "хуже",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "чё",
+   "correct": "что",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "шаверма",
+   "correct": "шаурма",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "шампунью",
+   "correct": "шампунем",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "шарахает",
+   "correct": "бьёт",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "шарахнула",
+   "correct": "ударила",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "шарахнуло",
+   "correct": "ударило",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "шарахнул",
+   "correct": "ударил",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "шарахнуть",
+   "correct": "ударить",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "ширше",
+   "correct": "шире",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "щас",
+   "correct": "сейчас",
+   "note": "Замена по словарю LT"
+  },
+  {
+   "wrong": "экспрессо",
+   "correct": "эспрессо",
+   "note": "Опечатка"
+  }
+ ]
+}
