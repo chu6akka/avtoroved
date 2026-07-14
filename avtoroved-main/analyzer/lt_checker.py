@@ -71,10 +71,17 @@ class LTChecker:
         try:
             import language_tool_python
             self._tool = language_tool_python.LanguageTool('ru-RU')
+            try:
+                # Режим picky — дополнительный пласт правил LT (стиль и
+                # строгие проверки): для профилирования признаков покрытие
+                # важнее, шум гасят слой фильтрации и карта признаков.
+                self._tool.picky = True
+            except Exception:
+                pass
             self._ready = True
             self._mode = "local"
             if status_callback:
-                status_callback("LanguageTool ✓ (локальный сервер)")
+                status_callback("LanguageTool ✓ (локальный сервер, режим picky)")
             return True
         except Exception as e_local:
             local_err = str(e_local)[:120]
