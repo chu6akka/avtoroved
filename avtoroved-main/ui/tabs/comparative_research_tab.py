@@ -262,6 +262,18 @@ class ComparativeResearchTab(QWidget):
             self.progress_label.setText(
                 "Позиций нет — нажмите «Сопоставить автоматически».")
         else:
+            # Общие признаки (степени навыков) и покатегорийная разбивка
+            # (Моисеева/Огорелков, 2021, с. 89–93) — компактно, одной строкой.
+            gen = st.get("общие_признаки") or {}
+            gen_txt = ""
+            if gen:
+                gen_txt = " Навыки: " + ", ".join(
+                    f"{k} — {v.replace('навык_', '').replace('_', ' ')}"
+                    for k, v in gen.items()) + "."
+            short = st.get("недобор_категорический") or []
+            cat_txt = (" Покатегорийные минимумы выполнены."
+                       if not short else
+                       f" Недобор для категорического: {', '.join(short)}.")
             self.progress_label.setText(
                 f"Позиций {st['всего']}: совпадений {st[cmp_mod.MATCH_COINCIDENCE]}, "
                 f"различий {st[cmp_mod.MATCH_DIFFERENCE]}, "
@@ -269,7 +281,8 @@ class ComparativeResearchTab(QWidget):
                 f"только у образца {st[cmp_mod.MATCH_ONLY_B]}. "
                 f"Подтверждено {st['подтверждено']} "
                 f"(НН {st['уровень_НН']}, НС {st['уровень_НС']}, НСВ {st['уровень_НСВ']}). "
-                f"До методического порога ≥{st['порог_методики']}: {st['до_порога']}.")
+                f"До суммарного порога ≥{st['порог_методики']}: {st['до_порога']}."
+                f"{gen_txt}{cat_txt}")
 
     def _add_row(self, r):
         row = self.table.rowCount()

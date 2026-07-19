@@ -20,6 +20,13 @@ from protocol import db as protocol_db
 # ── Пороги (в одном месте) ────────────────────────────────────────────────────
 MIN_WORDS_SAMPLE = 100     # методический минимум образца (словоформы)
 MIN_WORDS_RELIABLE = 150   # объём, при котором признаки надёжны
+
+# Пороги по ЗНАМЕНАТЕЛЬНЫМ словоформам (методика МИЦ/Минюста): считаются по
+# POS из разметки (tokens.pos): существительные, глаголы, прилагательные,
+# наречия, имена собственные. Спорный текст ≥100, образец ≥600.
+SIGNIFICANT_POS = ("NOUN", "VERB", "ADJ", "ADV", "PROPN")
+MIN_SIGNIFICANT_DISPUTED = 100
+MIN_SIGNIFICANT_SAMPLE = 600
 MIN_SENTENCES_RELIABLE = 10  # минимум предложений для устойчивых оценок
 QUOTE_SHARE_FLAG = 0.30    # доля символов в цитатах выше → флаг «чужая речь»
 REPEAT_SHARE_FLAG = 0.30   # доля повторяющихся блоков выше → флаг «шаблон»
@@ -121,6 +128,18 @@ def evaluate_document(doc: dict[str, Any]) -> tuple[str, list[dict], dict, bool]
     if extr_status == ingest.STATUS_EMPTY:
         flags.append(_flag("извлечение", LEVEL_UNFIT, f"текст не извлечён: {extr_reason}"))
 
+    # 2а) Объём по знаменательным словоформам (МИЦ/Минюст): спорный ≥100,
+    # образец ≥600. None = разметки нет (юнит-контекст) — проверка пропускается.
+    significant = doc.get("significant_count")
+    if significant is not None:
+        min_sig = (MIN_SIGNIFICANT_SAMPLE if doc.get("role") == protocol_db.ROLE_SAMPLE
+                   else MIN_SIGNIFICANT_DISPUTED)
+        if significant < min_sig:
+            flags.append(_flag(
+                "объём_знаменательных", LEVEL_LIMIT,
+                f"объём ниже методического минимума: {significant} знаменательных "
+                f"словоформ (требуется ≥{min_sig} для роли «{doc.get('role')}»)"))
+
     # 2) Объём (словоформы и предложения).
     if wc < MIN_WORDS_SAMPLE:
         flags.append(_flag("малый_объём", LEVEL_LIMIT,
@@ -154,6 +173,7 @@ def evaluate_document(doc: dict[str, Any]) -> tuple[str, list[dict], dict, bool]
 
     metrics = {
         "word_count": wc, "sentence_count": sc, "token_count": tc,
+        "significant_count": significant,
         "extraction_status": extr_status,
         "quote_share": q_share, "repeat_share": r_share,
         "oral_markers": len(oral), "provenance": provenance,
@@ -229,6 +249,7 @@ def _load_doc(pdb: "protocol_db.ProtocolDB", doc_row) -> dict:
         "word_count": doc_row["word_count"],
         "sentence_count": pdb.count_sentences(did),
         "token_count": pdb.count_tokens(did),
+        "significant_count": pdb.count_tokens_by_pos(did, SIGNIFICANT_POS),
         "text": pdb.get_layer(did, protocol_db.LAYER_CLEANED) or "",
     }
 

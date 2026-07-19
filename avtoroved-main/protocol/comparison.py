@@ -29,6 +29,57 @@ MATCH_ONLY_A = "только_у_спорного"
 MATCH_ONLY_B = "только_у_образца"
 MATCH_TYPES = (MATCH_COINCIDENCE, MATCH_DIFFERENCE, MATCH_ONLY_A, MATCH_ONLY_B)
 
+# ── Вердикты сопоставления ОБЩИХ признаков (степеней навыков) ────────────────
+# «Выше в спорном» = степень навыка выше (ошибок МЕНЬШЕ) за пределами допуска.
+GEN_EQUAL = "навык_совпадает"
+GEN_HIGHER = "навык_выше_в_спорном"
+GEN_LOWER = "навык_ниже_в_спорном"
+GEN_TYPES = (GEN_EQUAL, GEN_HIGHER, GEN_LOWER)
+
+# Допуски сопоставления степеней навыков, в ошибках на 200 словоформ
+# (методические рекомендации СЭУ Минюста России, с. 19):
+# грамматический и лексико-фразеологический — ±2, орфографический и
+# пунктуационный — ±4.
+SKILL_TOLERANCE = {
+    "грамматический": 2.0,
+    "лексико-фразеологический": 2.0,
+    "орфографический": 4.0,
+    "пунктуационный": 4.0,
+}
+# Решающие навыки правила Вула (2007, с. 38): орфография/пунктуация в правиле
+# НЕ участвуют.
+VUL_DECISIVE_SKILLS = ("грамматический", "лексико-фразеологический")
+
+# ── Покатегорийные минимумы совпадающих признаков ────────────────────────────
+# для категорического положительного вывода (Моисеева/Огорелков, 2021,
+# с. 89–93); вероятный — половина с округлением вверх. Ключ разбивки:
+# для языковых — подгруппа (орфографические и пунктуационные объединяются),
+# для остальных групп — группа целиком.
+CATEGORY_MIN_CATEGORICAL = {
+    "смысловые": 3,
+    "текстологические": 5,
+    "языковые/лексические": 10,
+    "языковые/стилистические": 10,
+    "языковые/синтаксические": 10,
+    "языковые/орфографические+пунктуационные": 5,
+    "психолингвистические": 5,
+}
+
+
+def category_min_probable(n: int) -> int:
+    """Порог вероятного вывода: половина категорического, округление вверх."""
+    return (n + 1) // 2
+
+
+def category_key(group: str, subgroup: str) -> str:
+    """Ключ покатегорийной разбивки для позиции сопоставления."""
+    g, s = group or "", subgroup or ""
+    if g != "языковые":
+        return g
+    if s in ("орфографические", "пунктуационные"):
+        return "языковые/орфографические+пунктуационные"
+    return f"языковые/{s}" if s else "языковые"
+
 # ── Уровни индивидуализации навыка (Рубцова 2007, с.11): НН < НС < НСВ ───────
 LEVELS = ("НН", "НС", "НСВ")
 
@@ -65,6 +116,77 @@ def _accepted_features(pdb: "protocol_db.ProtocolDB", document_id: int) -> dict:
         if f["fragment"]:
             slot["fragments"].append(f["fragment"])
     return by_key
+
+
+def _parse_rate(value: Optional[str]) -> Optional[float]:
+    """Достать «ошибок/200 словоформ» из value общего признака профиля."""
+    import re as _re
+    if not value:
+        return None
+    m = _re.search(r"([\d.,]+)\s*ошибок/200", value)
+    if not m:
+        return None
+    try:
+        return float(m.group(1).replace(",", "."))
+    except ValueError:
+        return None
+
+
+def skill_verdict(rate_a: Optional[float], rate_b: Optional[float],
+                  skill: str) -> Optional[str]:
+    """
+    Вердикт сопоставления степени навыка пары по числовому rate
+    (ошибок/200 словоформ) с допуском Минюста (с. 19).
+    Меньше ошибок в спорном за пределами допуска → степень навыка ВЫШЕ.
+    """
+    if rate_a is None or rate_b is None:
+        return None
+    tol = SKILL_TOLERANCE.get(skill)
+    if tol is None:
+        return None
+    diff = rate_b - rate_a          # >0 → в спорном ошибок меньше → навык выше
+    if diff > tol:
+        return GEN_HIGHER
+    if diff < -tol:
+        return GEN_LOWER
+    return GEN_EQUAL
+
+
+def general_positions(pdb: "protocol_db.ProtocolDB",
+                      doc_a: int, doc_b: int) -> list[dict]:
+    """
+    Позиции сопоставления общих признаков (степеней навыков) пары.
+    Берутся напрямую из профилей (kind='общий_признак'): по методике общие
+    признаки сопоставляются всегда и через экспертный отбор не проходят.
+    """
+    from protocol.profile import KIND_GENERAL
+
+    def _skills(document_id: int) -> dict[str, dict]:
+        out = {}
+        for c in pdb.fetch_feature_candidates(document_id):
+            if c["kind"] == KIND_GENERAL and (c["subgroup"] or "") in SKILL_TOLERANCE:
+                out[c["subgroup"]] = c
+        return out
+
+    sa, sb = _skills(doc_a), _skills(doc_b)
+    positions: list[dict] = []
+    for skill in SKILL_TOLERANCE:
+        a, b = sa.get(skill), sb.get(skill)
+        if a is None or b is None:
+            continue
+        verdict = skill_verdict(_parse_rate(a["value"]), _parse_rate(b["value"]), skill)
+        if verdict is None:
+            continue
+        label = f"Общий признак: {skill} навык"
+        positions.append({
+            "position_key": position_key(doc_a, doc_b, "языковые", skill, label),
+            "feature_key_a": None, "feature_key_b": None,
+            "group_name": "языковые", "subgroup": skill, "label": label,
+            "value_a": a["value"], "value_b": b["value"],
+            "fragment_a": None, "fragment_b": None,
+            "match_type": verdict,
+        })
+    return positions
 
 
 def auto_match(
@@ -104,6 +226,11 @@ def auto_match(
             "match_type": mtype,
         })
 
+    # Общие признаки (степени навыков) — сопоставляются всегда, с допусками
+    # Минюста; вердикты идут отдельными позициями.
+    gen_positions = general_positions(pdb, doc_a, doc_b)
+    positions += gen_positions
+
     inserted, confirmed_kept = pdb.replace_auto_comparisons(
         project_id, doc_a, doc_b, positions)
     pdb.log_action(
@@ -111,10 +238,13 @@ def auto_match(
         details={"pair_doc_a": doc_a, "pair_doc_b": doc_b,
                  "позиций_всего": len(positions), "вставлено_авто": inserted,
                  "сохранено_подтверждённых": confirmed_kept,
-                 "признаков_спорного": len(fa), "признаков_образца": len(fb)},
+                 "признаков_спорного": len(fa), "признаков_образца": len(fb),
+                 "общих_признаков": {p["subgroup"]: p["match_type"]
+                                     for p in gen_positions}},
         program_version=program_version)
     return {"positions": len(positions), "inserted_auto": inserted,
-            "confirmed_kept": confirmed_kept}
+            "confirmed_kept": confirmed_kept,
+            "general": {p["subgroup"]: p["match_type"] for p in gen_positions}}
 
 
 def decide(
@@ -189,14 +319,45 @@ def stats(pdb: "protocol_db.ProtocolDB", project_id: int,
         st[t] = 0
     for lv in LEVELS:
         st[f"уровень_{lv}"] = 0
+    general: dict[str, str] = {}
+    coincidence_by_category: dict[str, int] = {}
     for r in rows:
+        if r["match_type"] in GEN_TYPES:
+            # Общие признаки — отдельная секция, в счёт позиций/уровней не идут.
+            general[r["subgroup"] or "?"] = r["match_type"]
+            continue
         st[r["match_type"]] = st.get(r["match_type"], 0) + 1
         if r["status"] == STATUS_CONFIRMED:
             st["подтверждено"] += 1
             if r["level"]:
                 st[f"уровень_{r['level']}"] += 1
+            if r["match_type"] == MATCH_COINCIDENCE:
+                key = category_key(r["group_name"], r["subgroup"])
+                coincidence_by_category[key] = coincidence_by_category.get(key, 0) + 1
+
+    st["общие_признаки"] = general
     st["порог_методики"] = MIN_FEATURES_FOR_CONCLUSION
     st["до_порога"] = max(0, MIN_FEATURES_FOR_CONCLUSION - st["подтверждено"])
+
+    # Покатегорийная разбивка подтверждённых совпадений против обоих порогов
+    # (Моисеева/Огорелков, 2021, с. 89–93). Суммарный ≥20 (Рубцова, с. 85)
+    # сохраняется рядом — это дополнение, не замена.
+    breakdown = {}
+    for key, cat_min in CATEGORY_MIN_CATEGORICAL.items():
+        have = coincidence_by_category.get(key, 0)
+        breakdown[key] = {
+            "есть": have,
+            "мин_категорический": cat_min,
+            "мин_вероятный": category_min_probable(cat_min),
+            "категорический_ок": have >= cat_min,
+            "вероятный_ок": have >= category_min_probable(cat_min),
+        }
+    st["разбивка_по_категориям"] = breakdown
+    st["недобор_категорический"] = [k for k, v in breakdown.items()
+                                    if not v["категорический_ок"]]
+    st["недобор_вероятный"] = [k for k, v in breakdown.items()
+                               if not v["вероятный_ок"]]
+
     st["blocks_strong_conclusion"] = pair_blocks_strong_conclusion(
         pdb, project_id, doc_a, doc_b)
     return st

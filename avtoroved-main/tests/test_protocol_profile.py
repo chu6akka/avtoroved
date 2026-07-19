@@ -117,6 +117,39 @@ def test_error_candidates_reliability_passthrough():
     assert out[0]["reliability"] == "низкая"
 
 
+class _FakeSkill:
+    def __init__(self, name, level="средняя", rate=5.0):
+        self.skill_name = name
+        self.level = level
+        self.error_rate = rate
+
+
+def test_general_skill_candidates():
+    skills = [_FakeSkill("Орфографический навык", rate=2.0),
+              _FakeSkill("Грамматический навык", rate=7.5),
+              _FakeSkill("Стилистический навык")]     # не входит в общие признаки
+    out = pf.general_skill_candidates(skills, "средняя", "описание уровня",
+                                      autocorrect_unreliable=False)
+    subs = {c["subgroup"]: c for c in out}
+    assert set(subs) == {"орфографический", "грамматический", "общий_уровень"}
+    assert "7.5 ошибок/200" in subs["грамматический"]["value"]
+    # Решающие навыки Вула — высокая идентификационная ценность.
+    assert subs["грамматический"]["id_value"] == "высокая"
+    assert subs["орфографический"]["id_value"] == "средняя"
+    assert all(c["kind"] == pf.KIND_GENERAL for c in out)
+
+
+def test_general_skill_candidates_autocorrect_downgrade():
+    skills = [_FakeSkill("Орфографический навык"),
+              _FakeSkill("Грамматический навык")]
+    out = pf.general_skill_candidates(skills, "", "", autocorrect_unreliable=True)
+    subs = {c["subgroup"]: c for c in out}
+    # Орфография ненадёжна при автокоррекции, грамматика — нет.
+    assert subs["орфографический"]["reliability"] == "низкая"
+    assert "ненадёжен" in subs["орфографический"]["value"]
+    assert subs["грамматический"].get("reliability", "") != "низкая"
+
+
 def test_psycho_candidates_minimal_no_interpretation():
     out = pf.psycho_candidates(_FakeStrat())
     assert len(out) == 1
@@ -172,9 +205,18 @@ def test_run_for_document_writes_profile_and_log(pdb):
     assert pf.GROUP_TEXTOLOGICAL in groups
     assert pf.GROUP_LINGUISTIC in groups
     # Обязательные поля заполнены.
-    assert all(r["kind"] in (pf.KIND_COUNTER, pf.KIND_CANDIDATE) for r in rows)
+    assert all(r["kind"] in (pf.KIND_COUNTER, pf.KIND_CANDIDATE, pf.KIND_GENERAL)
+               for r in rows)
     assert all(r["source"] for r in rows)
     assert all(r["created_at"] for r in rows)
+    # Общие признаки (степени навыков) присутствуют: 4 навыка + общий уровень.
+    general = [r for r in rows if r["kind"] == pf.KIND_GENERAL]
+    assert len(general) == 5
+    assert {r["subgroup"] for r in general} == {
+        "орфографический", "пунктуационный", "грамматический",
+        "лексико-фразеологический", "общий_уровень"}
+    assert all("ошибок/200" in (r["value"] or "") for r in general
+               if r["subgroup"] != "общий_уровень")
     # Журнал.
     actions = [r["action"] for r in pdb.fetch_audit_log(pid)]
     assert "построен профиль (раздельное исследование)" in actions

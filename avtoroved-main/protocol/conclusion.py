@@ -53,6 +53,8 @@ def _level_breakdown(pdb: "protocol_db.ProtocolDB",
     coin_nolevel = diff_nolevel = 0
     total_confirmed = 0
     for r in pdb.fetch_comparisons(doc_a, doc_b):
+        if r["match_type"] in cmp.GEN_TYPES:
+            continue    # общие признаки учитываются отдельно (правило Вула)
         if r["status"] != cmp.STATUS_CONFIRMED:
             continue
         total_confirmed += 1
@@ -88,6 +90,34 @@ def recommend(pdb: "protocol_db.ProtocolDB", project_id: int,
     reasons: list[str] = []
     coin, diff = bd["coincidence"], bd["difference"]
 
+    # 0) Решающее правило Вула (2007, с. 38; Минюст, с. 19): степень
+    # ГРАММАТИЧЕСКОГО и/или ЛЕКСИКО-ФРАЗЕОЛОГИЧЕСКОГО навыка в спорном ВЫШЕ,
+    # чем в образце, за пределами допуска (вердикт «навык_выше_в_спорном»
+    # ставится стадией сравнения только при превышении допуска) → основание
+    # категорического отрицательного вывода. Орфография/пунктуация в правиле
+    # НЕ участвуют (чувствительны к автокоррекции).
+    vul_hits = []
+    for r in pdb.fetch_comparisons(doc_a, doc_b):
+        if (r["match_type"] == cmp.GEN_HIGHER
+                and (r["subgroup"] or "") in cmp.VUL_DECISIVE_SKILLS):
+            vul_hits.append(r)
+    bd["правило_Вула"] = [r["subgroup"] for r in vul_hits]
+    if vul_hits:
+        for r in vul_hits:
+            tol = cmp.SKILL_TOLERANCE.get(r["subgroup"] or "", 0)
+            reasons.append(
+                f"Правило Вула: степень навыка «{r['subgroup']}» в спорном тексте "
+                f"выше, чем в образце, за пределами допуска ±{tol:g} "
+                f"(спорный: {r['value_a']}; образец: {r['value_b']}) — "
+                "автор образца не мог выполнить спорный текст с более высоким "
+                "навыком [Вул, 2007, с. 38; Минюст, с. 19].")
+        form = FORM_NEG_CATEGORICAL
+        if blocks:
+            reasons.append("Категорическая форма ЗАБЛОКИРОВАНА стадией пригодности "
+                           "(blocks_strong_conclusion=1) — форма понижена до вероятной.")
+            form = FORM_NEG_PROBABLE
+        return form, reasons, bd
+
     if bd["total_confirmed"] == 0:
         reasons.append("Нет ни одной подтверждённой экспертом позиции сравнения — "
                        "оценка результатов невозможна.")
@@ -113,7 +143,15 @@ def recommend(pdb: "protocol_db.ProtocolDB", project_id: int,
                        "различий на НН — вероятный отрицательный вывод.")
         return FORM_NEG_PROBABLE, reasons, bd
 
-    # 3) Только совпадения.
+    # 3) Только совпадения. Категорический положительный требует
+    # ОДНОВРЕМЕННО: суммарного порога ≥20 (Рубцова, с. 85), совпадений на
+    # всех трёх уровнях И всех покатегорийных минимумов
+    # (Моисеева/Огорелков, 2021, с. 89–93).
+    st = cmp.stats(pdb, project_id, doc_a, doc_b)
+    bd["разбивка_по_категориям"] = st["разбивка_по_категориям"]
+    cat_short = st["недобор_категорический"]
+    prob_short = st["недобор_вероятный"]
+
     all_levels = all(coin[lv] > 0 for lv in cmp.LEVELS)
     enough = bd["total_coincidence"] >= cmp.MIN_FEATURES_FOR_CONCLUSION
     reasons.append(
@@ -122,9 +160,12 @@ def recommend(pdb: "protocol_db.ProtocolDB", project_id: int,
         + (f", без уровня: {bd['coincidence_nolevel']}" if bd["coincidence_nolevel"] else "")
         + ").")
 
-    if all_levels and enough:
-        reasons.append(f"Совпадения на всех трёх уровнях и достигнут методический порог "
-                       f"≥{cmp.MIN_FEATURES_FOR_CONCLUSION} — категорический положительный вывод.")
+    if all_levels and enough and not cat_short:
+        reasons.append(
+            f"Совпадения на всех трёх уровнях, достигнут суммарный порог "
+            f"≥{cmp.MIN_FEATURES_FOR_CONCLUSION} и выполнены все покатегорийные "
+            "минимумы [Моисеева/Огорелков, 2021, с. 89–93] — "
+            "категорический положительный вывод.")
         form = FORM_POS_CATEGORICAL
         if blocks:
             reasons.append("Категорическая форма ЗАБЛОКИРОВАНА стадией пригодности — "
@@ -135,10 +176,23 @@ def recommend(pdb: "protocol_db.ProtocolDB", project_id: int,
     if not all_levels:
         missing = [lv for lv in cmp.LEVELS if coin[lv] == 0]
         reasons.append(f"Совпадения не охватывают все уровни (нет: {', '.join(missing)}) — "
-                       "категорическая форма недоступна, вероятный положительный вывод.")
+                       "категорическая форма недоступна.")
     if not enough:
-        reasons.append(f"Порог ≥{cmp.MIN_FEATURES_FOR_CONCLUSION} не достигнут "
+        reasons.append(f"Суммарный порог ≥{cmp.MIN_FEATURES_FOR_CONCLUSION} не достигнут "
                        f"({bd['total_coincidence']}) — категорическая форма недоступна.")
+    if cat_short:
+        reasons.append(
+            "Не выполнены покатегорийные минимумы категорического вывода: "
+            + ", ".join(cat_short)
+            + " [Моисеева/Огорелков, 2021, с. 89–93].")
+
+    if prob_short:
+        reasons.append(
+            "Не выполнены и половинные (вероятные) покатегорийные минимумы: "
+            + ", ".join(prob_short)
+            + " — данных недостаточно, форма понижена до НПВ.")
+        return FORM_NPV, reasons, bd
+
     return FORM_POS_PROBABLE, reasons, bd
 
 

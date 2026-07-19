@@ -37,6 +37,21 @@ SUB_GRAMMAR = "грамматические"
 # ── Виды элементов ───────────────────────────────────────────────────────────
 KIND_COUNTER = "счётчик"
 KIND_CANDIDATE = "кандидат_признак"
+KIND_GENERAL = "общий_признак"      # степени развития навыков (общие признаки ПР)
+
+# Навыки, выносимые в протокольный контур как общие признаки.
+# Грамматический и лексико-фразеологический — решающие по Вулу (2007, с. 38),
+# орфографический и пунктуационный — чувствительны к автокоррекции.
+GENERAL_SKILLS = {
+    "Орфографический навык": "орфографический",
+    "Пунктуационный навык": "пунктуационный",
+    "Грамматический навык": "грамматический",
+    "Лексико-фразеологический навык": "лексико-фразеологический",
+}
+# Решающие навыки правила Вула — идентификационная ценность выше.
+_VUL_DECISIVE = ("грамматический", "лексико-фразеологический")
+# Подгруппы, ненадёжные при автокоррекции (цифровой/опубликованный текст).
+_AUTOCORRECT_SENSITIVE = ("орфографический", "пунктуационный")
 
 # Пометки надёжности для кандидатов ошибок.
 NOTE_NEEDS_REVIEW = "требует проверки"
@@ -219,6 +234,46 @@ def error_candidates(errors: list, autocorrect_unreliable: bool,
     return out
 
 
+# ── 3д. Общие признаки: степени развития навыков ─────────────────────────────
+def general_skill_candidates(skill_levels: list, general_level: str,
+                             general_desc: str,
+                             autocorrect_unreliable: bool) -> list[dict]:
+    """
+    Общие признаки письменной речи в протокольном контуре.
+
+    skill_levels — список SkillLevel из analyzer/errors.py (шкала ЭКЦ МВД,
+    с. 13, НЕ изменяется — только читается); числовая основа сопоставления —
+    error_rate (ошибок на 200 словоформ), по ней стадия сравнения применяет
+    дифференцированные допуски Вула/Минюста. Общий уровень — по единой шкале
+    Рубцовой (calculate_general_skill, с. 13).
+
+    При автокоррекции (цифровой/опубликованный) орфографический и
+    пунктуационный общие признаки помечаются reliability='низкая'.
+    """
+    out: list[dict] = []
+    for sk in skill_levels or []:
+        subgroup = GENERAL_SKILLS.get(sk.skill_name)
+        if subgroup is None:
+            continue
+        c = _c(GROUP_LINGUISTIC, KIND_GENERAL,
+               f"Степень развития: {sk.skill_name}",
+               value=f"{sk.level} · {sk.error_rate:.1f} ошибок/200 словоформ",
+               subgroup=subgroup,
+               source="errors.skills",
+               id_value="высокая" if subgroup in _VUL_DECISIVE else "средняя")
+        if autocorrect_unreliable and subgroup in _AUTOCORRECT_SENSITIVE:
+            c["reliability"] = "низкая"
+            c["value"] += " · ненадёжен (автокоррекция)"
+        out.append(c)
+    if general_level:
+        out.append(_c(GROUP_LINGUISTIC, KIND_GENERAL,
+                      "Общий уровень владения письменной речью",
+                      value=f"{general_level} · {general_desc}",
+                      subgroup="общий_уровень", source="errors.skills",
+                      id_value="средняя"))
+    return out
+
+
 # ── 4. Психолингвистические: только подсветка, интерпретация — эксперту ──────
 def psycho_candidates(strat_result: Any) -> list[dict]:
     """
@@ -380,12 +435,29 @@ def run_for_document(
         pass
 
     autocorrect = has_autocorrect_flag(pdb, project_id, document_id)
+
+    # Общие признаки: степени развития навыков по ОТФИЛЬТРОВАННЫМ ошибкам
+    # (ложные срабатывания детектора не искажают степень). Шкала — ЭКЦ МВД
+    # с. 13 (errors.py только читается), сопоставление — по числовому rate.
+    _status("Общие признаки (степени развития навыков)...")
+    general_candidates: list[dict] = []
+    try:
+        from analyzer.errors import ErrorAnalyzer, calculate_general_skill
+        wc_words = len(_WORD_RE.findall(text))
+        skill_levels = ErrorAnalyzer()._assess_skills(errors, wc_words)
+        g_level, g_desc, _n_unique = calculate_general_skill(errors, wc_words)
+        general_candidates = general_skill_candidates(
+            skill_levels, g_level, g_desc, autocorrect)
+    except Exception:
+        pass
+
     profile = build_profile(
         text, metrics,
         thematic_result=thematic_result, strat_result=strat_result,
         errors=errors, internet_profile=internet_profile,
         autocorrect_unreliable=autocorrect,
         error_reliabilities=error_reliabilities)
+    profile += general_candidates
 
     pdb.clear_feature_candidates(document_id)
     n = pdb.save_feature_candidates(document_id, profile)

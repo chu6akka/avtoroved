@@ -94,6 +94,41 @@ def test_oral_speech_by_markers():
     assert any(f["code"] == "устная_речь" for f in flags)
 
 
+# ── объём по знаменательным словоформам (МИЦ/Минюст) ─────────────────────────
+def test_sample_500_significant_flagged():
+    """(в) Образец с 500 знаменательными словоформами флагуется (минимум 600)."""
+    verdict, flags, metrics, blocks = su.evaluate_document(
+        make_doc(role=protocol_db.ROLE_SAMPLE, significant_count=500,
+                 word_count=800, sentence_count=40, token_count=900))
+    assert any(f["code"] == "объём_знаменательных" for f in flags)
+    assert verdict == su.VERDICT_LIMITED
+    assert blocks is True
+    assert metrics["significant_count"] == 500
+
+
+def test_sample_600_significant_ok():
+    _, flags, _, _ = su.evaluate_document(
+        make_doc(role=protocol_db.ROLE_SAMPLE, significant_count=600,
+                 word_count=800, sentence_count=40, token_count=900))
+    assert not any(f["code"] == "объём_знаменательных" for f in flags)
+
+
+def test_disputed_threshold_100_significant():
+    """Для спорного текста порог 100, а не 600."""
+    _, flags, _, _ = su.evaluate_document(
+        make_doc(role=protocol_db.ROLE_DISPUTED, significant_count=150))
+    assert not any(f["code"] == "объём_знаменательных" for f in flags)
+    _, flags2, _, _ = su.evaluate_document(
+        make_doc(role=protocol_db.ROLE_DISPUTED, significant_count=80))
+    assert any(f["code"] == "объём_знаменательных" for f in flags2)
+
+
+def test_no_significant_data_skips_check():
+    """Без разметки (significant_count отсутствует) проверка не срабатывает."""
+    _, flags, _, _ = su.evaluate_document(make_doc())
+    assert not any(f["code"] == "объём_знаменательных" for f in flags)
+
+
 # ── пара: сопоставимость ─────────────────────────────────────────────────────
 def test_pair_genre_mismatch():
     a = make_doc(id=1, role=protocol_db.ROLE_DISPUTED, genre="письмо")

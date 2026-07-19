@@ -149,6 +149,55 @@ def test_rematch_preserves_confirmed(pdb):
     assert summary["confirmed_kept"] == 1
 
 
+# ── общие признаки: сопоставление степеней навыков ───────────────────────────
+def _general_candidate(pdb, did, skill, rate):
+    pdb.save_feature_candidates(did, [{
+        "group_name": "языковые", "subgroup": skill, "kind": "общий_признак",
+        "label": f"Степень развития: {skill} навык",
+        "value": f"средняя · {rate} ошибок/200 словоформ",
+        "fragment": None, "source": "errors.skills",
+        "id_value": "высокая", "reliability": "",
+    }])
+
+
+def test_auto_match_general_positions(pdb):
+    """Общие признаки пары сопоставляются с допусками Минюста (с. 19)."""
+    pid, a, b = _setup_pair(pdb)
+    _general_candidate(pdb, a, "грамматический", 1.0)   # в спорном ошибок меньше
+    _general_candidate(pdb, b, "грамматический", 6.0)   # разница 5 > допуск 2
+    _general_candidate(pdb, a, "орфографический", 3.0)
+    _general_candidate(pdb, b, "орфографический", 5.0)  # разница 2 ≤ допуск 4
+
+    summary = cmp.auto_match(pdb, pid, a, b)
+    assert summary["general"]["грамматический"] == cmp.GEN_HIGHER
+    assert summary["general"]["орфографический"] == cmp.GEN_EQUAL
+
+    st = cmp.stats(pdb, pid, a, b)
+    assert st["общие_признаки"]["грамматический"] == cmp.GEN_HIGHER
+    # Общие признаки не попадают в счёт обычных позиций.
+    assert st["всего"] == 2 and st[cmp.MATCH_COINCIDENCE] == 0
+
+
+def test_stats_category_breakdown(pdb):
+    """Разбивка подтверждённых совпадений по категориям Огорелкова."""
+    pid, a, b = _setup_pair(pdb)
+    for i in range(3):
+        _accept_feature(pdb, pid, a, f"П{i}", subgroup="лексические")
+        _accept_feature(pdb, pid, b, f"П{i}", subgroup="лексические")
+    cmp.auto_match(pdb, pid, a, b)
+    for r in pdb.fetch_comparisons(a, b):
+        cmp.decide(pdb, pid, a, b, r["position_key"],
+                   match_type=cmp.MATCH_COINCIDENCE, level="НС")
+    st = cmp.stats(pdb, pid, a, b)
+    bl = st["разбивка_по_категориям"]["языковые/лексические"]
+    assert bl["есть"] == 3
+    assert bl["мин_категорический"] == 10 and bl["категорический_ок"] is False
+    assert bl["мин_вероятный"] == 5
+    assert "языковые/лексические" in st["недобор_категорический"]
+    # Суммарный порог Рубцовой сохраняется рядом.
+    assert st["порог_методики"] == cmp.MIN_FEATURES_FOR_CONCLUSION
+
+
 # ── блокировка категорического вывода и статистика ───────────────────────────
 def test_blocks_strong_conclusion_from_pair_and_docs(pdb):
     pid, a, b = _setup_pair(pdb)
