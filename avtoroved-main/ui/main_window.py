@@ -25,7 +25,11 @@ from analyzer import cache_manager, config as app_config
 from analyzer import lt_checker as lt_module
 from analyzer import punct_checker as punct_module
 from analyzer import learning_backend as lb_module
-from analyzer import yandex_speller as yaspell_module
+# ИСКЛЮЧЁН из активного контура (docs/module_scope.md): Яндекс.Спеллер —
+# сетевой дубль орфографической функции локального LanguageTool; сетевые
+# вызовы несовместимы с воспроизводимостью протокола. Модуль сохранён в
+# analyzer/yandex_speller.py как перспектива.
+# from analyzer import yandex_speller as yaspell_module
 from analyzer import stratification_engine as strat_module
 from analyzer import thematic_engine as thematic_module
 from analyzer import freq_engine as freq_module
@@ -322,7 +326,7 @@ class MainWindow(QMainWindow):
         self.senti_engine.load()   # быстро, 700KB
         self.error_analyzer = ErrorAnalyzer()
         self.lt = lt_module.get()
-        self.yaspell = yaspell_module.get()
+        self.yaspell = None   # Яндекс.Спеллер исключён (см. комментарий у импорта)
         self.strat_engine = strat_module.get()
         self.thematic_engine = thematic_module.get()
         # Активный NLP-бэкенд (может переключаться)
@@ -356,9 +360,8 @@ class MainWindow(QMainWindow):
         self._setup_status_bar()
         self._apply_theme()
 
-        # ── Предзагрузка LanguageTool и Яндекс.Спеллера в фоне ───
+        # ── Предзагрузка LanguageTool в фоне (Спеллер исключён — сеть) ───
         self._start_lt_prewarm()
-        self._start_yaspell_prewarm()
         # Стратификация загружается лениво при первом анализе
         # (словарь ~9000 слов, не требует сети)
 
@@ -386,6 +389,13 @@ class MainWindow(QMainWindow):
         act_quit.setShortcut(QKeySequence.StandardKey.Quit)
         act_quit.triggered.connect(self.close)
         file_menu.addAction(act_quit)
+
+        # Утилиты вне ленты экспертного процесса (см. docs/module_scope.md)
+        service_menu = menubar.addMenu("Сервис")
+        act_tokens = QAction("🔍 Инспектор токенов", self)
+        act_tokens.setToolTip("Карточки слов: морфология, частотность, регистр")
+        act_tokens.triggered.connect(lambda: self._switch_page(17))
+        service_menu.addAction(act_tokens)
 
         view_menu = menubar.addMenu("Вид")
         act_dark = QAction("🌙 Тёмная тема", self)
@@ -472,9 +482,10 @@ class MainWindow(QMainWindow):
 
         def _nav(icon: str, label: str, idx: int) -> QPushButton | None:
             # Архивные страницы не получают кнопку в сайдбаре: модуль остаётся
-            # в программе (и продолжает считаться при анализе), но из UI убран.
+            # в программе, но из UI убран (docs/module_scope.md). Утилиты
+            # доступны из меню «Сервис» и в ленте процесса не показываются.
             # Вернуть вкладку: правка списка archived_pages в config.json.
-            if idx in self._archived_pages:
+            if idx in self._archived_pages or idx in self._UTILITY_PAGES:
                 return None
             btn = QPushButton(f"  {icon}  {label}")
             btn.setObjectName("nav_btn")
@@ -545,30 +556,13 @@ class MainWindow(QMainWindow):
         self._lt_retry_btn.clicked.connect(self._retry_lt)
         nav_layout.addWidget(self._lt_retry_btn)
 
-        self._ya_status_label = QLabel("⏳ Спеллер: ...")
-        self._ya_status_label.setObjectName("lt_status")
-        self._ya_status_label.setContentsMargins(12, 2, 8, 2)
-        self._ya_status_label.setWordWrap(True)
-        nav_layout.addWidget(self._ya_status_label)
-
-        # ── SBERT ─────────────────────────────────────────────────
-        sbert_divider = QFrame()
-        sbert_divider.setObjectName("sidebar_divider")
-        sbert_divider.setFrameShape(QFrame.Shape.HLine)
-        nav_layout.addWidget(sbert_divider)
-
-        self._sbert_status_label = QLabel("🧠 SBERT: не загружен")
-        self._sbert_status_label.setObjectName("lt_status")
-        self._sbert_status_label.setContentsMargins(12, 4, 8, 2)
-        self._sbert_status_label.setWordWrap(True)
-        nav_layout.addWidget(self._sbert_status_label)
-
-        self._btn_load_sbert = QPushButton("⬇ Загрузить SBERT")
-        self._btn_load_sbert.setObjectName("sidebar_btn")
-        self._btn_load_sbert.setFixedHeight(28)
-        self._btn_load_sbert.setToolTip("Улучшает точность сравнения текстов (~120 MB)")
-        self._btn_load_sbert.clicked.connect(self._load_sbert)
-        nav_layout.addWidget(self._btn_load_sbert)
+        # Блоки Яндекс.Спеллера и SBERT убраны из сайдбара: Спеллер исключён
+        # (сетевой дубль LT), SBERT обслуживает только архивное старое
+        # сравнение (вкладка 7). См. docs/module_scope.md; методы _load_sbert
+        # и _start_yaspell_prewarm сохранены в коде.
+        self._ya_status_label = None
+        self._sbert_status_label = None
+        self._btn_load_sbert = None
 
         scroll.setWidget(nav_widget)
         layout.addWidget(scroll)
@@ -637,17 +631,22 @@ class MainWindow(QMainWindow):
     # общее поле «Текст для анализа» на них не используется и скрывается.
     _PROTOCOL_PAGES_FROM = 11
 
-    # Архив: страницы, чьи функции покрыты экспертным протоколом, скрыты из
-    # сайдбара (код и расчёты сохранены — данные этих модулей идут в профиль
-    # раздельного исследования и инспектор токенов). Вернуть страницу: убрать
-    # индекс из списка "archived_pages" в config.json рядом с программой.
+    # Архив: страницы вне идентификационного ядра скрыты из сайдбара
+    # (код и модули сохранены — см. docs/module_scope.md). Вернуть страницу:
+    # убрать индекс из списка "archived_pages" в config.json рядом с программой.
     # 3 Стратификация, 4 Тематика, 5 НКРЯ, 6 Тональность,
-    # 7 Сравнение (старое), 9 Отчёт (старый), 10 Профиль автора.
-    _DEFAULT_ARCHIVED_PAGES = [3, 4, 5, 6, 7, 9, 10]
+    # 7 Сравнение (старое), 8 ИИ-детектор (диагностика, не идентификация),
+    # 9 Отчёт (старый), 10 Профиль автора (диагностика пола/возраста).
+    _DEFAULT_ARCHIVED_PAGES = [3, 4, 5, 6, 7, 8, 9, 10]
+
+    # Утилиты: страницы без кнопки в ленте процесса, открываются из меню
+    # «Сервис» (не мешают экспертному workflow, но всегда доступны).
+    # 17 — Инспектор токенов.
+    _UTILITY_PAGES = {17}
 
     def _switch_page(self, idx: int):
         """Переключить страницу контента и обновить активный nav-элемент."""
-        if idx in self._archived_pages:
+        if idx in self._archived_pages and idx not in self._UTILITY_PAGES:
             return   # архивная страница недоступна из UI
         self.stack.setCurrentIndex(idx)
         for btn in self._nav_buttons:
@@ -957,6 +956,8 @@ class MainWindow(QMainWindow):
     # ──── ЯНДЕКС.СПЕЛЛЕР ────
 
     def _start_yaspell_prewarm(self):
+        if self.yaspell is None:   # Спеллер исключён из активного контура
+            return
         if self._yaspell_prewarm_thread is not None:
             return
         self._yaspell_prewarm_thread = YaspellPrewarmThread(self.yaspell)
@@ -978,10 +979,13 @@ class MainWindow(QMainWindow):
 
     def _on_yaspell_status(self, msg: str):
         self.status_label.setText(msg)
-        self._ya_status_label.setText(f"⏳ {msg[:30]}")
+        if self._ya_status_label is not None:
+            self._ya_status_label.setText(f"⏳ {msg[:30]}")
 
     def _on_yaspell_ready(self, ready: bool):
         self._yaspell_prewarm_thread = None
+        if self._ya_status_label is None:
+            return
         if ready:
             self._ya_status_label.setText("🌐 Спеллер ✓")
             self._ya_status_label.setStyleSheet("color: #a6e3a1; font-size: 11px;")
@@ -992,8 +996,9 @@ class MainWindow(QMainWindow):
 
     # ──── SBERT ────
     def _load_sbert(self):
-        """Загрузить SBERT в фоновом потоке."""
-        if self._lb.sbert_ready:
+        """Загрузить SBERT в фоновом потоке (кнопка убрана из сайдбара —
+        метод сохранён для возврата старого сравнения из архива)."""
+        if self._btn_load_sbert is None or self._lb.sbert_ready:
             return
         self._btn_load_sbert.setEnabled(False)
         self._sbert_status_label.setText("🧠 SBERT: загрузка…")
@@ -1014,6 +1019,8 @@ class MainWindow(QMainWindow):
         self._sbert_thread.start()
 
     def _on_sbert_loaded(self, success: bool):
+        if self._sbert_status_label is None:
+            return
         if success:
             self._sbert_status_label.setText("🧠 SBERT: загружен ✓")
             self._sbert_status_label.setStyleSheet("color: #a6e3a1; font-size: 11px;")
@@ -1115,8 +1122,10 @@ class MainWindow(QMainWindow):
         if thematic_result is not None:
             self.tab_thematic.populate(thematic_result)
 
-        # GigaCheck: передать текст
-        self.tab_gigacheck.set_text(text)
+        # GigaCheck: передать текст (только если вкладка не в архиве —
+        # незачем питать недоступную страницу; docs/module_scope.md)
+        if 8 not in self._archived_pages:
+            self.tab_gigacheck.set_text(text)
 
         # НКРЯ: частотный анализ
         if freq_result is not None:
@@ -1129,16 +1138,19 @@ class MainWindow(QMainWindow):
         # Отчёт
         self.tab_report.generate_report(text, metrics, error_result, None, None)
 
-        # Диагностический профиль автора (эвристический движок — не должен ронять UI)
-        try:
-            diag_result = self._diag_engine.analyze(
-                tokens, metrics, error_result, thematic_result)
-            self.tab_profile.show_result(diag_result)
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            self.tab_profile.clear()
-            self.status_label.setText(f"Профиль автора недоступен: {e}")
+        # Диагностический профиль автора — вне идентификационного ядра
+        # (диагностика пола/возраста ≠ идентификация; docs/module_scope.md):
+        # считается только если вкладка возвращена из архива.
+        if 10 not in self._archived_pages:
+            try:
+                diag_result = self._diag_engine.analyze(
+                    tokens, metrics, error_result, thematic_result)
+                self.tab_profile.show_result(diag_result)
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                self.tab_profile.clear()
+                self.status_label.setText(f"Профиль автора недоступен: {e}")
 
         # Переходим на страницу статистики
         self._switch_page(0)
