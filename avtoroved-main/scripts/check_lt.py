@@ -22,22 +22,26 @@ OK, FAIL = "[OK]  ", "[СБОЙ]"
 def main() -> int:
     failed = False
 
-    # 1) Java в PATH
-    java = shutil.which("java")
+    # 1) Java: гарантированный поиск (PATH → config → JAVA_HOME → реестр →
+    # типовые каталоги) — тот же локатор, что использует сама программа.
+    from analyzer.java_locator import ensure_java_in_path
+    in_path_before = bool(shutil.which("java"))
+    java = ensure_java_in_path(status_cb=lambda m: print(f"      {m}"))
     if java:
         try:
             out = subprocess.run(["java", "-version"], capture_output=True,
                                  text=True, timeout=30)
             ver = (out.stderr or out.stdout).splitlines()[0].strip()
-            print(f"{OK}Java найдена: {java}")
+            src = "PATH" if in_path_before else "локатор (вне PATH)"
+            print(f"{OK}Java найдена через {src}: {java}")
             print(f"      {ver}")
         except Exception as e:
             print(f"{FAIL}java найдена, но не запускается: {e}")
             failed = True
     else:
-        print(f"{FAIL}java не найдена в PATH.")
-        print("      Установите Temurin JDK (adoptium.net) или добавьте папку")
-        print("      с java.exe в PATH (на этой машине JDK лежит в F:\\bin).")
+        print(f"{FAIL}Java не найдена ни одним из способов.")
+        print("      Установите Temurin JDK: https://adoptium.net")
+        print("      (или пропишите путь в config.json: \"java_home\": \"...\")")
         return 1
 
     # 2) Пакет language_tool_python

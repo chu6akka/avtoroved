@@ -69,6 +69,11 @@ class LTChecker:
         if status_callback:
             status_callback("LanguageTool: попытка запустить локальный сервер...")
         try:
+            # Гарантированный поиск Java: PATH → config.json → JAVA_HOME →
+            # реестр Adoptium → типовые каталоги (analyzer/java_locator.py).
+            # Без этого потеря PATH молча роняла бы LT в публичный API.
+            from analyzer.java_locator import ensure_java_in_path
+            ensure_java_in_path(status_cb=status_callback)
             import language_tool_python
             self._tool = language_tool_python.LanguageTool('ru-RU')
             self._ready = True
