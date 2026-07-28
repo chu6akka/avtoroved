@@ -62,7 +62,8 @@ def load_text_from_file(filepath: str) -> str:
 def export_report_docx(filepath: str, text: str, metrics: dict,
                        error_result, tokens: List[TokenInfo],
                        strat_result=None, gigacheck_result=None,
-                       thematic_result=None):
+                       thematic_result=None,
+                       ogorelkov_result=None, ogorelkov_detailed=False):
     """Экспорт полного отчёта в DOCX."""
     from docx import Document
     from docx.shared import Pt, RGBColor
@@ -239,6 +240,52 @@ def export_report_docx(filepath: str, text: str, metrics: dict,
             doc.add_paragraph(
                 f'{data["label"]}: {data["count"]} слов '
                 f'(k={data["density"]:.4f} на 1000 слов)')
+
+    # Частотный анализ служебной лексики (Огорелков)
+    if ogorelkov_result:
+        doc.add_heading('Частотный анализ служебной лексики (по И.В. Огорелкову)',
+                        level=2)
+        doc.add_paragraph(
+            'Относительные частоты (ipm) употребления служебных '
+            'лексико-грамматических классов слов; нормирование по частотному '
+            'словарю О.Н. Ляшевской и С.А. Шарова.')
+        doc.add_paragraph(
+            f'Словоупотреблений: {ogorelkov_result["total_words"]}; '
+            f'словарь маркеров sha256: {ogorelkov_result["dict_sha256"][:16]}…')
+
+        def _na(v):
+            return 'н/д' if v is None else f'{v:g}'
+
+        table = doc.add_table(rows=1, cols=5)
+        table.style = 'Table Grid'
+        for i, h in enumerate(('Категория', 'Использовано лемм', 'Вхождения',
+                               'ipm', 'Доля, %')):
+            table.rows[0].cells[i].text = h
+        for cat, d in ogorelkov_result["categories"].items():
+            row = table.add_row().cells
+            row[0].text = cat.replace('_', ' ')
+            row[1].text = f'{d["used"]} из {d["total_lemmas"]}'
+            row[2].text = str(d["total_count"])
+            row[3].text = _na(d["total_ipm"])
+            row[4].text = _na(d["share_pct"])
+
+        if ogorelkov_detailed:
+            for cat, d in ogorelkov_result["categories"].items():
+                if not d["lemmas"]:
+                    continue
+                doc.add_paragraph(cat.replace('_', ' '), style='Heading 3')
+                dt = doc.add_table(rows=1, cols=5)
+                dt.style = 'Table Grid'
+                for i, h in enumerate(('Лемма', 'Вхождения', 'ipm текста',
+                                       'ipm НКРЯ', 'Коэф. отклонения')):
+                    dt.rows[0].cells[i].text = h
+                for lem, ld in d["lemmas"].items():
+                    row = dt.add_row().cells
+                    row[0].text = lem
+                    row[1].text = str(ld["count"])
+                    row[2].text = _na(ld["ipm_text"])
+                    row[3].text = _na(ld["ipm_rnc"])
+                    row[4].text = _na(ld["ratio"])
 
     # Вывод
     doc.add_heading('Вывод', level=2)

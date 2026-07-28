@@ -54,6 +54,7 @@ from ui.tabs.feature_map_tab import FeatureMapTab
 from ui.tabs.comparative_research_tab import ComparativeResearchTab
 from ui.tabs.conclusion_tab import ConclusionTab
 from ui.tabs.token_inspector_tab import TokenInspectorTab
+from ui.tabs.ogorelkov_tab import OgorelkovTab
 
 try:
     import matplotlib
@@ -503,6 +504,7 @@ class MainWindow(QMainWindow):
         _nav("📊", "Статистика",      0)
         _nav("📝", "Языковые навыки", 1)
         _nav("🔤", "Морфология",      2)
+        _nav("🧷", "Служебная лексика", 18)
         _nav("🎨", "Стратификация",   3)
         _nav("🗂", "Тематика",        4)
         _nav("📚", "НКРЯ: частоты",   5)
@@ -801,6 +803,13 @@ class MainWindow(QMainWindow):
         # 17 — Инспектор токенов: карточки слов + внешние словари по клику
         self.tab_token_inspector = TokenInspectorTab()
         self.stack.addWidget(self.tab_token_inspector)
+
+        # 18 — Служебная лексика (Огорелков): ipm-частоты служебных классов
+        self.tab_ogorelkov = OgorelkovTab(
+            nlp_backend=self.stanza,
+            freq_lookup=lambda lem: (self.freq_engine.lookup(lem)
+                                     if self.freq_engine.is_loaded else None))
+        self.stack.addWidget(self.tab_ogorelkov)
 
         # ── Вертикальный сплиттер: текст ↕ страницы ──────────────────
         vsplit = QSplitter(Qt.Orientation.Vertical)
@@ -1135,6 +1144,26 @@ class MainWindow(QMainWindow):
         if senti_result is not None:
             self.tab_senti.show_result(senti_result)
 
+        # Служебная лексика (Огорелков): ipm служебных классов + SQLite/аудит
+        try:
+            from analyzer import ogorelkov_engine as og_engine
+            if not self.freq_engine.is_loaded:
+                self.freq_engine.load()
+            og_result = og_engine.analyze(tokens,
+                                          freq_lookup=self.freq_engine.lookup)
+            self.tab_ogorelkov.populate(og_result)
+            import hashlib as _h
+            from protocol import db as _pdb_mod
+            from protocol import PROGRAM_VERSION as _pv
+            _pdb_mod.ProtocolDB().save_ogorelkov_result(
+                _h.sha256(text.encode("utf-8", errors="ignore")).hexdigest(),
+                og_result["dict_sha256"], og_result["total_words"], og_result,
+                label="анализ из текстового поля", program_version=_pv)
+            self._last_ogorelkov = og_result
+        except Exception:
+            import traceback
+            traceback.print_exc()
+
         # Отчёт
         self.tab_report.generate_report(text, metrics, error_result, None, None)
 
@@ -1257,11 +1286,14 @@ class MainWindow(QMainWindow):
             "Word (*.docx)")
         if fp:
             try:
+                og_result, og_detailed = self.tab_ogorelkov.export_settings()
                 export_report_docx(
                     fp, self._last_text, self._last_metrics,
                     self._last_error_result, self._last_tokens,
                     strat_result=self._last_strat_result,
-                    thematic_result=self._last_thematic_result)
+                    thematic_result=self._last_thematic_result,
+                    ogorelkov_result=og_result,
+                    ogorelkov_detailed=og_detailed)
                 QMessageBox.information(self, "Готово", f"Отчёт сохранён:\n{fp}")
             except Exception as e:
                 QMessageBox.critical(self, "Ошибка", str(e))
@@ -1400,6 +1432,7 @@ class MainWindow(QMainWindow):
         self.tab_gigacheck.clear()
         self.tab_report.clear()
         self.tab_profile.clear()
+        self.tab_ogorelkov.clear()
         self._last_text = ""
         self._last_tokens = []
         self._last_metrics = {}
