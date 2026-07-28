@@ -146,11 +146,20 @@ def test_run_for_document_filters_and_logs(pdb, monkeypatch):
     assert summary["suppressed"].get("PUNCT:INTRO") == 1
     assert summary["filter_hash"]
 
-    # Кандидаты в БД несут надёжность «низкая».
+    # Кандидаты в БД: 2 оставленных («низкая») + 1 подавленный (сохранён
+    # для воспроизводимости с пометкой «подавлен»).
     rows = [r for r in pdb.fetch_feature_candidates(did)
             if r["kind"] == pf.KIND_CANDIDATE and r["group_name"] == pf.GROUP_LINGUISTIC]
-    assert len(rows) == 2
-    assert all(r["reliability"] == "низкая" for r in rows)
+    kept = [r for r in rows if r["reliability"] != "подавлен"]
+    supp = [r for r in rows if r["reliability"] == "подавлен"]
+    assert len(kept) == 2
+    assert all(r["reliability"] == "низкая" for r in kept)
+    assert len(supp) == 1
+    assert "подавлен фильтром" in supp[0]["value"]
+    # Подавленные не попадают в карту признаков.
+    from protocol import feature_map as fmod
+    pairs = fmod.candidates_with_state(pdb, did)
+    assert all((c["reliability"] or "") != "подавлен" for c, _f in pairs)
 
     # Журнал: версии и счётчики подавленных.
     log = pdb.fetch_audit_log(pid)

@@ -102,6 +102,12 @@ class SeparateResearchTab(QWidget):
             "автокоррекция) скрыты. Снимите галочку, чтобы показать их.")
         self.chk_hide_low.toggled.connect(self._reload_tree)
         top.addWidget(self.chk_hide_low)
+        # Сырые срабатывания, подавленные фильтром детектора, — для
+        # воспроизводимости: видно, что и почему убрал фильтр.
+        self.chk_show_suppressed = QCheckBox("Показать подавленные фильтром")
+        self.chk_show_suppressed.setChecked(False)
+        self.chk_show_suppressed.toggled.connect(self._reload_tree)
+        top.addWidget(self.chk_show_suppressed)
         top.addStretch()
         layout.addLayout(top)
 
@@ -246,19 +252,26 @@ class SeparateResearchTab(QWidget):
             self.status_label.setText("Профиль не построен. Нажмите «Построить профиль».")
             return
 
-        # Скрытие низконадёжных кандидатов (переключатель, по умолчанию включён).
+        # Скрытие низконадёжных (по умолчанию) и подавленных (по умолчанию).
         hide_low = self.chk_hide_low.isChecked()
+        show_suppressed = self.chk_show_suppressed.isChecked()
         rows = []
         hidden = 0
+        hidden_suppressed = 0
         for r in all_rows:
-            if hide_low and (r["reliability"] or "") == "низкая":
+            rel = r["reliability"] or ""
+            if rel == "подавлен" and not show_suppressed:
+                hidden_suppressed += 1
+                continue
+            if hide_low and rel == "низкая":
                 hidden += 1
                 continue
             rows.append(r)
-        if not rows and hidden:
+        if not rows and (hidden or hidden_suppressed):
             self.status_label.setText(
-                f"Все {hidden} кандидатов низконадёжны и скрыты — "
-                "снимите галочку «Скрывать низконадёжные».")
+                f"⚠ Все кандидаты скрыты (низконадёжных: {hidden}, подавленных: "
+                f"{hidden_suppressed}) — снимите галочку «Скрывать низконадёжные» "
+                "или включите «Показать подавленные фильтром».")
             return
 
         bold = QFont()
@@ -293,7 +306,12 @@ class SeparateResearchTab(QWidget):
                     self._add_row(parent, r)
                 parent.setExpanded(True)
             g_item.setExpanded(True)
-        hidden_note = f" Скрыто низконадёжных: {hidden}." if hidden else ""
+        notes = []
+        if hidden:
+            notes.append(f"⚠ скрыто низконадёжных: {hidden} (галочка выше)")
+        if hidden_suppressed:
+            notes.append(f"подавлено фильтром: {hidden_suppressed}")
+        hidden_note = (" " + "; ".join(notes) + ".") if notes else ""
         self.status_label.setText(
             f"Элементов профиля: {len(rows)}.{hidden_note} "
             "Клик по строке — полный текст внизу.")

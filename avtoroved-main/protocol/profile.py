@@ -33,6 +33,18 @@ SUB_SYNTACTIC = "синтаксические"
 SUB_ORTHOGRAPHIC = "орфографические"
 SUB_PUNCTUATION = "пунктуационные"
 SUB_GRAMMAR = "грамматические"
+SUB_INTERNET = "интернет-коммуникация"
+
+# Порог уверенности тематической атрибуции: ниже — домен не показывается
+# вовсе (движок ранее выдавал «доминирующую тему» даже при cosine ~0.06,
+# что на разговорных текстах давало мусорные атрибуции).
+THEMATIC_MIN_COSINE = 0.15
+THEMATIC_WEAK_COSINE = 0.25   # 0.15–0.25 — пометка «слабая атрибуция»
+
+# Спец-значение надёжности для сырых срабатываний, подавленных фильтром:
+# сохраняются для воспроизводимости, в карту признаков не попадают,
+# в UI показываются отдельным переключателем.
+RELIABILITY_SUPPRESSED = "подавлен"
 
 # ── Виды элементов ───────────────────────────────────────────────────────────
 KIND_COUNTER = "счётчик"
@@ -89,10 +101,15 @@ def semantic_candidates(thematic_result: Any) -> list[dict]:
     if thematic_result is None:
         return out
     for d in getattr(thematic_result, "top_domains", []) or []:
+        # Ниже порога уверенности домен не показываем вообще: атрибуция
+        # с cosine ~0.06–0.1 — шум словарных пересечений, не тема текста.
+        if d.cosine < THEMATIC_MIN_COSINE:
+            continue
+        weak = " · слабая атрибуция" if d.cosine < THEMATIC_WEAK_COSINE else ""
         examples = ", ".join(getattr(d, "examples", [])[:5])
         out.append(_c(
             GROUP_SEMANTIC, KIND_COUNTER, f"Доминирующая тема: {d.label}",
-            value=f"cosine {d.cosine:.2f}, совпадений лемм {d.match_count}",
+            value=f"cosine {d.cosine:.2f}, совпадений лемм {d.match_count}{weak}",
             subgroup="тематические", fragment=examples or None,
             source="thematic_engine", id_value="низкая"))
     return out
@@ -211,14 +228,23 @@ def error_candidates(errors: list, autocorrect_unreliable: bool,
     (protocol/detector_filter.py), позиционно к errors. Флаг автокоррекции
     дополнительно понижает надёжность до «низкая».
     """
+    def _downgrade(rel: str) -> str:
+        # Автокоррекция понижает надёжность НА ОДНУ ступень (а не глушит всё
+        # в «низкая» скопом — иначе экран кандидатов пустеет целиком).
+        return {"высокая": "средняя", "средняя": "низкая",
+                "": "низкая", "низкая": "низкая"}.get(rel, "низкая")
+
     out: list[dict] = []
-    note = NOTE_UNRELIABLE_AUTOCORRECT if autocorrect_unreliable else NOTE_NEEDS_REVIEW
     for i, err in enumerate(errors or []):
         subgroup = _ERROR_SUBGROUP.get(err.error_type, SUB_ORTHOGRAPHIC)
         desc = err.description or err.subtype or err.error_type
         rel = reliabilities[i] if reliabilities and i < len(reliabilities) else ""
-        if autocorrect_unreliable:
-            rel = "низкая"
+        note = NOTE_NEEDS_REVIEW
+        # Автокоррекция искажает только орфографию и пунктуацию — грамматика
+        # и лексика от неё не страдают и надёжность не теряют.
+        if autocorrect_unreliable and subgroup in (SUB_ORTHOGRAPHIC, SUB_PUNCTUATION):
+            note = NOTE_UNRELIABLE_AUTOCORRECT
+            rel = _downgrade(rel)
         c = _c(
             GROUP_LINGUISTIC, KIND_CANDIDATE,
             f"{err.error_type}: {err.subtype or 'без подтипа'}",
@@ -231,6 +257,141 @@ def error_candidates(errors: list, autocorrect_unreliable: bool,
             id_value=err.significance or "средняя")
         c["reliability"] = rel
         out.append(c)
+    return out
+
+
+def suppressed_candidates(suppressed_hits: list) -> list[dict]:
+    """
+    Сырые срабатывания детектора, ПОДАВЛЕННЫЕ фильтром. Сохраняются в профиль
+    с reliability='подавлен' — полная воспроизводимость пути детектора: видно,
+    ЧТО нашёл детектор и ПОЧЕМУ фильтр это убрал. В карту признаков не
+    попадают, в UI скрыты за отдельным переключателем «показать подавленные».
+    """
+    out: list[dict] = []
+    for err, reason in suppressed_hits or []:
+        subgroup = _ERROR_SUBGROUP.get(err.error_type, SUB_ORTHOGRAPHIC)
+        desc = err.description or err.subtype or err.error_type
+        c = _c(
+            GROUP_LINGUISTIC, KIND_CANDIDATE,
+            f"{err.error_type}: {err.subtype or 'без подтипа'}",
+            value=f"{desc} · подавлен фильтром: {reason}",
+            subgroup=subgroup,
+            fragment=err.fragment or err.context or None,
+            source=getattr(err, "rule_ref", "") or err.source or "errors",
+            id_value="")
+        c["reliability"] = RELIABILITY_SUPPRESSED
+        out.append(c)
+    return out
+
+
+# ── 3е. Интернет-коммуникация: конкретные кандидаты с фрагментами ────────────
+def internet_candidates(text: str, max_items: int = 15) -> list[dict]:
+    """
+    Частные признаки интернет-коммуникации (Колокольцева Т.Н.): конкретные
+    вхождения сленга, эмотиконов, повторной пунктуации, слов КАПСОМ — каждое
+    как кандидат-признак с фрагментом. Устойчивое употребление (2+ раза) —
+    высокая идентификационная ценность (графические привычки автора).
+    Словари/паттерны переиспользуются из analyzer/errors.py (не меняются).
+    """
+    if not text:
+        return []
+    from analyzer.errors import (INTERNET_SLANG, EMOTICON_PATTERN,
+                                 REPEATED_PUNCT, HASHTAG_PATTERN, EMOJI_PATTERN)
+
+    def ctx(start: int, end: int, window: int = 30) -> str:
+        s, e = max(0, start - window), min(len(text), end + window)
+        return ("…" if s > 0 else "") + text[s:e].replace("\n", " ") + \
+               ("…" if e < len(text) else "")
+
+    found: list[tuple[str, str, int, str]] = []   # (label, value_word, count, fragment)
+    lowered = text.lower()
+
+    # Сленг: конкретные слова с числом употреблений.
+    slang_hits: dict[str, list] = {}
+    for word in set(INTERNET_SLANG):
+        for m in re.finditer(rf"(?<![\wЁё]){re.escape(word)}(?![\wЁё])", lowered):
+            slang_hits.setdefault(word, []).append(m)
+    for word, ms in slang_hits.items():
+        found.append(("Интернет-сленг", f"«{word}» ×{len(ms)}",
+                      len(ms), ctx(ms[0].start(), ms[0].end())))
+
+    # Эмотиконы, эмодзи, повторная пунктуация, хэштеги — по видам.
+    for label, pattern in (("Эмотикон", EMOTICON_PATTERN),
+                           ("Эмодзи", EMOJI_PATTERN),
+                           ("Повторная пунктуация", REPEATED_PUNCT),
+                           ("Хэштег", HASHTAG_PATTERN)):
+        by_form: dict[str, list] = {}
+        for m in pattern.finditer(text):
+            by_form.setdefault(m.group(0), []).append(m)
+        for form, ms in by_form.items():
+            found.append((label, f"«{form}» ×{len(ms)}",
+                          len(ms), ctx(ms[0].start(), ms[0].end())))
+
+    # Слова капсом (3+ буквы) — экспрессивная графика.
+    caps: dict[str, list] = {}
+    for m in re.finditer(r"(?<![А-ЯЁ])[А-ЯЁ]{3,}(?![А-ЯЁ])", text):
+        caps.setdefault(m.group(0), []).append(m)
+    for form, ms in caps.items():
+        found.append(("Слово КАПСОМ", f"«{form}» ×{len(ms)}",
+                      len(ms), ctx(ms[0].start(), ms[0].end())))
+
+    # Самые устойчивые — первыми; ограничение объёма.
+    found.sort(key=lambda x: -x[2])
+    out: list[dict] = []
+    for label, val, count, fragment in found[:max_items]:
+        out.append(_c(
+            GROUP_LINGUISTIC, KIND_CANDIDATE, f"{label}",
+            value=val + (" · устойчивое употребление" if count >= 2 else ""),
+            subgroup=SUB_INTERNET, fragment=fragment,
+            source="errors.internet",
+            id_value="высокая" if count >= 2 else "средняя"))
+    return out
+
+
+# ── 3ж. Маркированная лексика: частные лексические признаки с ценностью ──────
+# Слои, дающие высокую идентификационную ценность сами по себе.
+_HIGH_VALUE_LAYERS = {"obscene", "criminal_jargon", "drug_jargon",
+                      "dialect", "archaism"}
+
+
+def lexical_marker_candidates(strat_result: Any, freq_engine: Any = None,
+                              max_items: int = 20) -> list[dict]:
+    """
+    Маркированные словоупотребления как частные ЛЕКСИЧЕСКИЕ кандидаты с
+    вычисляемой идентификационной ценностью: редкий/закрытый регистровый слой
+    (обсценная, крим/нарко-жаргон, диалект, архаизмы) — высокая; прочий жаргон
+    — высокая, если слово редкое по НКРЯ, иначе средняя; разговорное — средняя.
+    """
+    if strat_result is None:
+        return []
+    from analyzer.stratification_engine import LAYER_META
+    seen: set[tuple[str, str]] = set()
+    out: list[dict] = []
+    for tok in getattr(strat_result, "tokens", []) or []:
+        key = (tok.lemma, tok.layer)
+        if key in seen or tok.layer == "book_neutral":
+            continue
+        seen.add(key)
+        if tok.layer in _HIGH_VALUE_LAYERS:
+            id_value = "высокая"
+        else:
+            rare = False
+            if freq_engine is not None:
+                try:
+                    hit = freq_engine.lookup(tok.lemma)
+                    rare = hit is None or hit[0] > 30000
+                except Exception:
+                    pass
+            id_value = "высокая" if rare else "средняя"
+        label_ru = LAYER_META.get(tok.layer, {}).get("label", tok.layer)
+        out.append(_c(
+            GROUP_LINGUISTIC, KIND_CANDIDATE,
+            f"Маркированная лексика: {label_ru}",
+            value=f"«{tok.surface}»",
+            subgroup=SUB_LEXICAL, fragment=tok.context or None,
+            source="stratification_engine", id_value=id_value))
+        if len(out) >= max_items:
+            break
     return out
 
 
@@ -284,10 +445,14 @@ def psycho_candidates(strat_result: Any) -> list[dict]:
     out: list[dict] = []
     if strat_result is None:
         return out
+    # Только эмоционально-экспрессивные слои: остальная маркированная лексика
+    # уходит частными лексическими кандидатами (lexical_marker_candidates) —
+    # без дублирования между группами.
+    _PSYCHO_LAYERS = {"obscene", "euphemistic"}
     seen: set[tuple[str, str]] = set()
     for tok in getattr(strat_result, "tokens", []) or []:
         key = (tok.lemma, tok.layer)
-        if key in seen:
+        if key in seen or tok.layer not in _PSYCHO_LAYERS:
             continue
         seen.add(key)
         out.append(_c(
@@ -306,16 +471,21 @@ def build_profile(text: str, metrics: dict,
                   thematic_result: Any = None, strat_result: Any = None,
                   errors: Optional[list] = None, internet_profile: Any = None,
                   autocorrect_unreliable: bool = False,
-                  error_reliabilities: Optional[list[str]] = None) -> list[dict]:
+                  error_reliabilities: Optional[list[str]] = None,
+                  suppressed_hits: Optional[list] = None,
+                  freq_engine: Any = None) -> list[dict]:
     """Собрать полный профиль (4 группы) из результатов существующих модулей."""
     profile: list[dict] = []
     profile += semantic_candidates(thematic_result)
     profile += textological_candidates(metrics, text)
     profile += lexical_candidates(metrics, strat_result)
+    profile += lexical_marker_candidates(strat_result, freq_engine=freq_engine)
     profile += stylistic_candidates(metrics, internet_profile)
+    profile += internet_candidates(text)
     profile += syntactic_candidates(metrics, text)
     profile += error_candidates(errors or [], autocorrect_unreliable,
                                 reliabilities=error_reliabilities)
+    profile += suppressed_candidates(suppressed_hits or [])
     profile += psycho_candidates(strat_result)
     return profile
 
@@ -451,12 +621,23 @@ def run_for_document(
     except Exception:
         pass
 
+    # Частотный движок для оценки редкости маркированной лексики (офлайн).
+    freq_eng = None
+    try:
+        from analyzer import freq_engine as freq_module
+        freq_eng = freq_module.get()
+        freq_eng.load()
+    except Exception:
+        pass
+
     profile = build_profile(
         text, metrics,
         thematic_result=thematic_result, strat_result=strat_result,
         errors=errors, internet_profile=internet_profile,
         autocorrect_unreliable=autocorrect,
-        error_reliabilities=error_reliabilities)
+        error_reliabilities=error_reliabilities,
+        suppressed_hits=filtered.suppressed_hits,
+        freq_engine=freq_eng)
     profile += general_candidates
 
     pdb.clear_feature_candidates(document_id)

@@ -113,6 +113,10 @@ def candidates_with_state(pdb: "protocol_db.ProtocolDB",
     for c in pdb.fetch_feature_candidates(document_id):
         if c["kind"] != "кандидат_признак":
             continue
+        # Подавленные фильтром сырые срабатывания хранятся для
+        # воспроизводимости, но кандидатами для принятия не являются.
+        if (c["reliability"] or "") == "подавлен":
+            continue
         out.append((c, state.get(candidate_key(c))))
     return out
 

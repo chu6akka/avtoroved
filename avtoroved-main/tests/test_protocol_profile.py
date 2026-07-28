@@ -50,7 +50,10 @@ class _FakeStrat:
     layer_counts = {"разговорная": 3, "жаргон": 1}
     layer_words = {"разговорная": ["чуток", "малость"], "жаргон": ["движуха"]}
     marked_ratio = 0.05
-    tokens = [_FakeStratToken("движуха", "движуха", "жаргон", "вся эта движуха вокруг")]
+    tokens = [
+        _FakeStratToken("движуха", "движуха", "common_jargon", "вся эта движуха вокруг"),
+        _FakeStratToken("хрень", "хрень", "obscene", "какая-то хрень"),
+    ]
 
 
 def test_lexical_candidates_with_strat():
@@ -152,12 +155,89 @@ def test_general_skill_candidates_autocorrect_downgrade():
 
 def test_psycho_candidates_minimal_no_interpretation():
     out = pf.psycho_candidates(_FakeStrat())
+    # Только эмоционально-экспрессивные слои (obscene) — жаргон уходит
+    # в лексические маркеры, без дублирования.
     assert len(out) == 1
     c = out[0]
     assert c["group_name"] == pf.GROUP_PSYCHO
-    assert c["kind"] == pf.KIND_CANDIDATE
+    assert "хрень" in c["value"]
     assert "эксперту" in c["value"]     # интерпретация остаётся эксперту
     assert c["id_value"] == ""          # автоматической оценки нет
+
+
+# ── фиксы «на злобу дня» ─────────────────────────────────────────────────────
+def test_semantic_threshold_skips_noise():
+    """Тематика с cosine ниже порога не создаёт мусорных кандидатов."""
+    class _NoiseDomain(_FakeDomain):
+        def __init__(self):
+            super().__init__()
+            self.cosine = 0.08          # уровень шума (реальный кейс)
+    class _NoiseThematic:
+        top_domains = [_NoiseDomain()]
+    assert pf.semantic_candidates(_NoiseThematic()) == []
+
+
+def test_semantic_weak_attribution_marked():
+    class _WeakDomain(_FakeDomain):
+        def __init__(self):
+            super().__init__()
+            self.cosine = 0.18
+    class _WeakThematic:
+        top_domains = [_WeakDomain()]
+    out = pf.semantic_candidates(_WeakThematic())
+    assert len(out) == 1
+    assert "слабая атрибуция" in out[0]["value"]
+
+
+def test_internet_candidates_concrete_with_fragments():
+    text = ("Лол, ну ты кринж выдал!!! Это кринж какой-то, СРОЧНО удали. "
+            "Держи лайк :) и ещё смайл :)")
+    out = pf.internet_candidates(text)
+    labels = {c["value"]: c for c in out}
+    # Конкретные вхождения с числом употреблений и фрагментом.
+    kr = next(c for c in out if "кринж" in c["value"])
+    assert "×2" in kr["value"]
+    assert kr["id_value"] == "высокая"          # устойчивое употребление
+    assert kr["fragment"]                        # фрагмент присутствует
+    assert kr["subgroup"] == pf.SUB_INTERNET
+    assert any("СРОЧНО" in c["value"] for c in out)        # капс
+    assert any("!!!" in c["value"] for c in out)           # повторная пунктуация
+    assert any(":)" in c["value"] for c in out)            # эмотикон
+
+
+def test_lexical_marker_candidates_values():
+    class _Freq:
+        def lookup(self, lemma):
+            return {"движуха": (50000, 1.0, "s")}.get(lemma)   # редкое (rank>30000)
+    out = pf.lexical_marker_candidates(_FakeStrat(), freq_engine=_Freq())
+    by_val = {c["value"]: c for c in out}
+    assert by_val["«хрень»"]["id_value"] == "высокая"      # обсценный слой
+    assert by_val["«движуха»"]["id_value"] == "высокая"    # жаргон + редкое
+    assert all(c["subgroup"] == pf.SUB_LEXICAL for c in out)
+
+
+def test_suppressed_candidates_stored_and_marked():
+    err = _FakeError()
+    out = pf.suppressed_candidates([(err, "правило отключено конфигом (PUNCT:TEST)")])
+    assert len(out) == 1
+    c = out[0]
+    assert c["reliability"] == pf.RELIABILITY_SUPPRESSED
+    assert "подавлен фильтром" in c["value"]
+    assert "PUNCT:TEST" in c["value"]
+
+
+def test_autocorrect_one_step_and_only_ortho_punct():
+    """Автокоррекция понижает на ступень и не трогает грамматику."""
+    errs = [_FakeError("Орфографическая", "тся"),
+            _FakeError("Грамматическая", "согласование")]
+    out = pf.error_candidates(errs, autocorrect_unreliable=True,
+                              reliabilities=["высокая", "высокая"])
+    ortho = next(c for c in out if c["subgroup"] == pf.SUB_ORTHOGRAPHIC)
+    gram = next(c for c in out if c["subgroup"] == pf.SUB_GRAMMAR)
+    assert ortho["reliability"] == "средняя"     # высокая → средняя (одна ступень)
+    assert pf.NOTE_UNRELIABLE_AUTOCORRECT in ortho["value"]
+    assert gram["reliability"] == "высокая"      # грамматика не пострадала
+    assert pf.NOTE_UNRELIABLE_AUTOCORRECT not in gram["value"]
 
 
 # ── запись профиля в БД и журнал ─────────────────────────────────────────────

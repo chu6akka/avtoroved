@@ -41,6 +41,7 @@ class FilterResult:
     """Итог фильтрации: оставленные срабатывания и статистика подавленных."""
     kept: list = field(default_factory=list)            # [(TextError, reliability)]
     suppressed: Counter = field(default_factory=Counter)  # rule_id -> число подавленных
+    suppressed_hits: list = field(default_factory=list)   # [(TextError, причина)] — сами срабатывания
     total_in: int = 0
 
     @property
@@ -97,9 +98,11 @@ def apply_filter(errors: list, config: dict) -> FilterResult:
         rid = rule_id_of(err)
         if rid in disabled:
             result.suppressed[rid] += 1
+            result.suppressed_hits.append((err, f"правило отключено конфигом ({rid})"))
             continue
         if exceptions and (_fragment_words(err) & exceptions):
             result.suppressed[f"{rid} (исключение-словарь)"] += 1
+            result.suppressed_hits.append((err, "словарь исключений"))
             continue
         result.kept.append((err, reliability_for(err, config)))
     return result
