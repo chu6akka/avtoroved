@@ -248,8 +248,22 @@ CREATE INDEX IF NOT EXISTS idx_features_document ON features(document_id);
 CREATE INDEX IF NOT EXISTS idx_features_project ON features(project_id);
 CREATE INDEX IF NOT EXISTS idx_comparisons_pair ON comparisons(pair_doc_a, pair_doc_b);
 CREATE INDEX IF NOT EXISTS idx_cd_pair ON comparison_decisions(pair_doc_a, pair_doc_b);
+CREATE TABLE IF NOT EXISTS ogorelkov_results (
+  -- Частотный анализ служебной лексики (Огорелков, гл.3, п.3.2–3.4).
+  -- Привязка к sha256 текста; версия словаря маркеров — для воспроизводимости.
+  id INTEGER PRIMARY KEY,
+  text_sha256 TEXT NOT NULL,
+  label TEXT,                     -- имя файла/подпись текста
+  dict_sha256 TEXT NOT NULL,      -- версия словаря маркеров
+  total_words INTEGER,
+  results TEXT NOT NULL,          -- JSON: категории/леммы/ipm
+  created_at TEXT NOT NULL,
+  program_version TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_conclusions_pair ON conclusions(pair_doc_a, pair_doc_b);
 CREATE INDEX IF NOT EXISTS idx_reports_project ON reports(project_id);
+CREATE INDEX IF NOT EXISTS idx_ogorelkov_sha ON ogorelkov_results(text_sha256);
 CREATE INDEX IF NOT EXISTS idx_layers_document ON document_layers(document_id);
 CREATE INDEX IF NOT EXISTS idx_sentences_document ON sentences(document_id);
 CREATE INDEX IF NOT EXISTS idx_tokens_sentence ON tokens(sentence_id);
@@ -807,3 +821,31 @@ class ProtocolDB:
             return conn.execute(
                 "SELECT * FROM reports WHERE project_id = ? ORDER BY id DESC",
                 (project_id,)).fetchall()
+
+    # ── служебная лексика (Огорелков) ────────────────────────────────────────
+    def save_ogorelkov_result(self, text_sha256: str, dict_sha256: str,
+                              total_words: int, results: dict,
+                              label: str = "",
+                              program_version: Optional[str] = None) -> int:
+        """Сохранить расчёт + append-only запись в журнал аудита."""
+        with self._connect() as conn:
+            cur = conn.execute(
+                "INSERT INTO ogorelkov_results "
+                "(text_sha256, label, dict_sha256, total_words, results, "
+                " created_at, program_version) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (text_sha256, label, dict_sha256, total_words,
+                 json.dumps(results, ensure_ascii=False), _now(),
+                 program_version))
+            row_id = int(cur.lastrowid)
+        self.log_action(
+            "служебная лексика (Огорелков): расчёт", project_id=None,
+            details={"text_sha256": text_sha256, "словарь_sha256": dict_sha256,
+                     "словоупотреблений": total_words, "метка": label or None},
+            program_version=program_version)
+        return row_id
+
+    def fetch_ogorelkov_results(self, text_sha256: str) -> list[sqlite3.Row]:
+        with self._connect() as conn:
+            return conn.execute(
+                "SELECT * FROM ogorelkov_results WHERE text_sha256 = ? "
+                "ORDER BY id DESC", (text_sha256,)).fetchall()

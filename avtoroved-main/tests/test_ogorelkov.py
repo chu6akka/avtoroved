@@ -92,6 +92,36 @@ def test_bigram_not_across_sentences():
     assert "несмотря на" not in res["categories"]["производные_предлоги"]["lemmas"]
 
 
+# ── 5. Воспроизводимость: два прогона идентичны, хеш словаря в аудите ────────
+def test_reproducibility_and_audit(tmp_path):
+    import hashlib
+    import json as _json
+    from protocol import db as protocol_db
+    pdb = protocol_db.ProtocolDB(str(tmp_path / "og.db"))
+
+    tokens = [_tok("я", "я", "PRON"), _tok("не", "не", "PART"),
+              _tok("спал", "спать", "VERB")]
+    r1 = og.analyze(tokens)
+    r2 = og.analyze(tokens)
+    assert r1 == r2                                   # идентичные результаты
+    assert r1["dict_sha256"] == r2["dict_sha256"]     # один хеш словаря
+
+    text_sha = hashlib.sha256("я не спал".encode()).hexdigest()
+    pdb.save_ogorelkov_result(text_sha, r1["dict_sha256"], r1["total_words"],
+                              r1, label="тест", program_version="5.0")
+    rows = pdb.fetch_ogorelkov_results(text_sha)
+    assert len(rows) == 1
+    assert rows[0]["dict_sha256"] == r1["dict_sha256"]
+    saved = _json.loads(rows[0]["results"])
+    assert saved["total_words"] == 3
+    # Append-only аудит: хеш словаря зафиксирован в журнале.
+    log = pdb.fetch_audit_log(None)
+    entry = next(r for r in log
+                 if r["action"] == "служебная лексика (Огорелков): расчёт")
+    details = _json.loads(entry["details"])
+    assert details["словарь_sha256"] == r1["dict_sha256"]
+
+
 # ── ipm НКРЯ и «н/д» ─────────────────────────────────────────────────────────
 def test_rnc_ipm_and_na():
     tokens = [_tok("я", "я", "PRON"), _tok("слово", "слово", "NOUN")]
