@@ -9,11 +9,17 @@ from analyzer import java_locator as jl
 
 
 def _make_fake_jdk(tmp_path):
-    """Каталог, похожий на JDK: bin/java.exe существует."""
+    """
+    Каталог, похожий на JDK: bin/java(.exe) существует.
+    На POSIX shutil.which учитывает бит исполняемости — без chmod файл
+    не был бы найден, и тест падал бы не по вине локатора.
+    """
     home = tmp_path / "jdk"
     (home / "bin").mkdir(parents=True)
     exe = home / "bin" / ("java.exe" if os.name == "nt" else "java")
     exe.write_bytes(b"")
+    if os.name != "nt":
+        exe.chmod(0o755)
     return str(home), str(exe)
 
 
