@@ -124,9 +124,22 @@ def analyze(tokens: list, freq_lookup=None,
     for cat, lemmas in markers.items():
         detail: dict[str, dict] = {}
         cat_total = 0
+        # Норма НКРЯ по категории = сумма ipm всех лемм класса (включая
+        # неупотреблённые в тексте): база сравнения одинакова с ipm текста,
+        # который тоже считается по всему закрытому перечню класса.
+        cat_rnc = 0.0
+        cat_rnc_known = 0
         for lem in lemmas:
             n = counts.get((cat, lem), 0)
             cat_total += n
+            if freq_lookup is not None:
+                try:
+                    hit_all = freq_lookup(lem)
+                    if hit_all:
+                        cat_rnc += float(hit_all[1])
+                        cat_rnc_known += 1
+                except Exception:
+                    pass
             if n == 0:
                 continue      # нулевые в детальную таблицу не включаются
             ipm_text = _ipm(n)
@@ -143,11 +156,20 @@ def analyze(tokens: list, freq_lookup=None,
                     pass
             detail[lem] = {"count": n, "ipm_text": ipm_text,
                            "ipm_rnc": ipm_rnc, "ratio": ratio}
+        total_ipm = _ipm(cat_total)
+        # ipm НКРЯ по категории: None, если частотный словарь не подключён
+        # или ни одной леммы класса в нём нет («н/д», не ноль).
+        total_ipm_rnc = round(cat_rnc, 1) if cat_rnc_known else None
+        total_ratio = (round(total_ipm / total_ipm_rnc, 2)
+                       if total_ipm_rnc else None)
         categories[cat] = {
             "lemmas": dict(sorted(detail.items(),
                                   key=lambda kv: -kv[1]["ipm_text"])),
             "total_count": cat_total,
-            "total_ipm": _ipm(cat_total),
+            "total_ipm": total_ipm,
+            "total_ipm_rnc": total_ipm_rnc,
+            "total_ratio": total_ratio,
+            "rnc_known_lemmas": cat_rnc_known,
             "share_pct": round(cat_total / total_words * 100, 2) if total_words else 0.0,
             "used": len(detail),
             "total_lemmas": len(lemmas),

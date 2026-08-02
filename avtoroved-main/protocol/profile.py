@@ -34,6 +34,18 @@ SUB_ORTHOGRAPHIC = "орфографические"
 SUB_PUNCTUATION = "пунктуационные"
 SUB_GRAMMAR = "грамматические"
 SUB_INTERNET = "интернет-коммуникация"
+SUB_FUNCTION_WORDS = "служебная лексика"
+
+# ── Пороги отбора лемм-кандидатов служебной лексики (Огорелков) ──────────────
+# ВНИМАНИЕ: пороги ИНСТРУМЕНТАЛЬНЫЕ — отсев статистического шума, чтобы карта
+# признаков не захлебнулась единичными словоупотреблениями. Методика
+# Огорелкова (гл. 3, п. 3.2–3.4) значений отсечки не устанавливает: она даёт
+# аппарат наблюдения (закрытый перечень классов + ipm-нормирование по НКРЯ).
+# Лемма попадает в кандидаты, если отклонение от нормы вне [0.5; 2.0]
+# И вхождений не меньше 3.
+OGORELKOV_RATIO_LOW = 0.5
+OGORELKOV_RATIO_HIGH = 2.0
+OGORELKOV_MIN_COUNT = 3
 
 # Порог уверенности тематической атрибуции: ниже — домен не показывается
 # вовсе (движок ранее выдавал «доминирующую тему» даже при cosine ~0.06,
@@ -395,6 +407,64 @@ def lexical_marker_candidates(strat_result: Any, freq_engine: Any = None,
     return out
 
 
+# ── 3з. Служебная лексика (Огорелков): кандидаты по классам и леммам ────────
+def ogorelkov_candidates(og_result: Optional[dict]) -> list[dict]:
+    """
+    Кандидаты признаков из частотного анализа служебной лексики.
+
+    Основание: Огорелков И.В. «Диагностика пола автора текста политического
+    дискурса», гл. 3, п. 3.2–3.4 — закрытый перечень служебных
+    лексико-грамматических классов и ipm-нормирование по НКРЯ (словарь
+    Ляшевской–Шарова). Заимствован только инструментальный аппарат;
+    диагностические модели пола не воспроизводятся.
+
+    Кандидаты порождаются на уровне КАТЕГОРИИ (11 классов) — иначе карта
+    признаков захлебнётся; дополнительно — отдельные леммы с отклонением от
+    нормы вне [OGORELKOV_RATIO_LOW; OGORELKOV_RATIO_HIGH] при не менее чем
+    OGORELKOV_MIN_COUNT вхождениях.
+
+    Программа кандидатов НЕ принимает и НЕ отвергает — решение выносит эксперт
+    через append-only механизм карты признаков.
+    """
+    if not og_result:
+        return []
+
+    def _na(v) -> str:
+        return "н/д" if v is None else f"{v:g}"
+
+    out: list[dict] = []
+    for cat, data in (og_result.get("categories") or {}).items():
+        cat_ru = cat.replace("_", " ")
+        out.append(_c(
+            GROUP_LINGUISTIC, KIND_CANDIDATE,
+            f"Употребление: {cat_ru}",
+            value=(f"{data['total_count']} вхождений, {_na(data['total_ipm'])} ipm "
+                   f"(норма НКРЯ по категории — {_na(data.get('total_ipm_rnc'))} ipm, "
+                   f"коэффициент отклонения {_na(data.get('total_ratio'))}); "
+                   f"использовано {data['used']} из {data['total_lemmas']} лемм класса"),
+            subgroup=SUB_FUNCTION_WORDS,
+            source=f"ogorelkov:{cat}",
+            id_value="средняя"))
+
+        for lemma, ld in (data.get("lemmas") or {}).items():
+            ratio = ld.get("ratio")
+            if ratio is None or ld["count"] < OGORELKOV_MIN_COUNT:
+                continue
+            if OGORELKOV_RATIO_LOW <= ratio <= OGORELKOV_RATIO_HIGH:
+                continue
+            direction = "выше" if ratio > OGORELKOV_RATIO_HIGH else "ниже"
+            out.append(_c(
+                GROUP_LINGUISTIC, KIND_CANDIDATE,
+                f"Служебное слово «{lemma}» ({cat_ru})",
+                value=(f"{ld['count']} вхождений, {_na(ld['ipm_text'])} ipm "
+                       f"(норма НКРЯ — {_na(ld['ipm_rnc'])} ipm, коэффициент "
+                       f"отклонения {_na(ratio)} — {direction} нормы)"),
+                subgroup=SUB_FUNCTION_WORDS,
+                source=f"ogorelkov:{cat}:{lemma}",
+                id_value="высокая"))
+    return out
+
+
 # ── 3д. Общие признаки: степени развития навыков ─────────────────────────────
 def general_skill_candidates(skill_levels: list, general_level: str,
                              general_desc: str,
@@ -473,7 +543,8 @@ def build_profile(text: str, metrics: dict,
                   autocorrect_unreliable: bool = False,
                   error_reliabilities: Optional[list[str]] = None,
                   suppressed_hits: Optional[list] = None,
-                  freq_engine: Any = None) -> list[dict]:
+                  freq_engine: Any = None,
+                  ogorelkov_result: Optional[dict] = None) -> list[dict]:
     """Собрать полный профиль (4 группы) из результатов существующих модулей."""
     profile: list[dict] = []
     profile += semantic_candidates(thematic_result)
@@ -483,6 +554,7 @@ def build_profile(text: str, metrics: dict,
     profile += stylistic_candidates(metrics, internet_profile)
     profile += internet_candidates(text)
     profile += syntactic_candidates(metrics, text)
+    profile += ogorelkov_candidates(ogorelkov_result)
     profile += error_candidates(errors or [], autocorrect_unreliable,
                                 reliabilities=error_reliabilities)
     profile += suppressed_candidates(suppressed_hits or [])
@@ -621,14 +693,40 @@ def run_for_document(
     except Exception:
         pass
 
-    # Частотный движок для оценки редкости маркированной лексики (офлайн).
+    # Частотный движок (словарь Ляшевской–Шарова, офлайн): нужен и для оценки
+    # редкости маркированной лексики, и для ipm-нормирования Огорелкова.
+    # Экземпляр один на процесс (синглтон freq_engine.get()).
     freq_eng = None
     try:
         from analyzer import freq_engine as freq_module
         freq_eng = freq_module.get()
-        freq_eng.load()
+        if not freq_eng.is_loaded:
+            freq_eng.load()
     except Exception:
         pass
+
+    # Служебная лексика (Огорелков): ipm-частоты закрытого перечня служебных
+    # лексико-грамматических классов. Токены переиспользуются (второй пайплайн
+    # не создаётся). Сбой модуля не должен ронять построение профиля.
+    _status("Служебная лексика (Огорелков)...")
+    ogorelkov_result = None
+    try:
+        from analyzer import ogorelkov_engine
+        lookup = (freq_eng.lookup if freq_eng is not None and freq_eng.is_loaded
+                  else None)
+        ogorelkov_result = ogorelkov_engine.analyze(tokens, freq_lookup=lookup)
+        # Хеш материала берём зафиксированный при импорте (protocol/ingest.py),
+        # заново по строке не считаем — воспроизводимость привязана к файлу.
+        pdb.save_ogorelkov_result(
+            text_sha256=doc["file_sha256"],
+            dict_sha256=ogorelkov_result["dict_sha256"],
+            total_words=ogorelkov_result["total_words"],
+            results=ogorelkov_result,
+            label=f"{doc['filename']} ({doc['role']})",
+            program_version=program_version)
+    except Exception as e:  # noqa: BLE001
+        _status(f"Служебная лексика недоступна: {e}")
+        ogorelkov_result = None
 
     profile = build_profile(
         text, metrics,
@@ -637,7 +735,8 @@ def run_for_document(
         autocorrect_unreliable=autocorrect,
         error_reliabilities=error_reliabilities,
         suppressed_hits=filtered.suppressed_hits,
-        freq_engine=freq_eng)
+        freq_engine=freq_eng,
+        ogorelkov_result=ogorelkov_result)
     profile += general_candidates
 
     pdb.clear_feature_candidates(document_id)
@@ -651,6 +750,8 @@ def run_for_document(
                  # Воспроизводимость: версии движков и конфига фильтра.
                  "фильтр_конфиг_hash": filter_hash,
                  "версия_правил_пунктуации": punct_rules_version,
+                 "словарь_Огорелкова_sha256": (
+                     ogorelkov_result["dict_sha256"] if ogorelkov_result else None),
                  "languagetool": lt_meta,
                  # Подавленные срабатывания не исчезают бесследно.
                  "срабатываний_детектора": filtered.total_in,
@@ -660,6 +761,7 @@ def run_for_document(
 
     return {"document_id": document_id, "count": n,
             "autocorrect_unreliable": autocorrect, "profile": profile,
+            "ogorelkov": ogorelkov_result,
             "detector_total": filtered.total_in,
             "suppressed": dict(filtered.suppressed),
             "filter_hash": filter_hash}

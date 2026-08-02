@@ -15,6 +15,7 @@ class TextSlot:
     error_result: Any = None
     strat_result: Any = None
     thematic_result: Any = None
+    ogorelkov_result: Any = None    # служебная лексика (Огорелков), ipm
     diagnostic_result: Any = None
     analyzed: bool = False
 

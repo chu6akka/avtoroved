@@ -14,6 +14,7 @@ class Engines:
         self._strat = None
         self._thematic = None
         self._diag = None
+        self._freq = None
 
     @property
     def stanza(self):
@@ -49,6 +50,16 @@ class Engines:
             from analyzer import diagnostic_engine as m
             self._diag = m.get()
         return self._diag
+
+    @property
+    def freq(self):
+        """Частотный словарь Ляшевской–Шарова (синглтон, один экземпляр)."""
+        if self._freq is None:
+            from analyzer import freq_engine as m
+            self._freq = m.get()
+            if not self._freq.is_loaded:
+                self._freq.load()
+        return self._freq
 
 
 def analyze_slot(slot, engines: Engines, want_diagnostic: bool, status_cb=None):
@@ -92,6 +103,16 @@ def analyze_slot(slot, engines: Engines, want_diagnostic: bool, status_cb=None):
         slot.thematic_result = engines.thematic.analyze(lemmas)
     except Exception:
         slot.thematic_result = None
+
+    if status_cb:
+        status_cb(f"{slot.name}: служебная лексика (Огорелков)…")
+    try:
+        from analyzer import ogorelkov_engine
+        lookup = engines.freq.lookup if engines.freq.is_loaded else None
+        slot.ogorelkov_result = ogorelkov_engine.analyze(tokens, freq_lookup=lookup)
+    except Exception:
+        # Сбой модуля не рушит анализ слота (как у остальных движков).
+        slot.ogorelkov_result = None
 
     if want_diagnostic:
         if status_cb:
