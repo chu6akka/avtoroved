@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox,
     QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView,
     QMessageBox, QDialog, QDialogButtonBox, QFormLayout, QTextEdit, QSplitter,
+    QTabWidget, QCheckBox,
 )
 
 from protocol import db as protocol_db
@@ -148,9 +149,15 @@ class ComparativeResearchTab(QWidget):
         self.detail.setMaximumHeight(130)
         self.detail.setPlaceholderText("Выберите позицию — здесь полные значения и фрагменты.")
 
+        # Вкладки: позиции сопоставления признаков и служебная лексика.
+        self.tabs = QTabWidget()
+        self.tabs.addTab(self.table, "Позиции сопоставления")
+        self.tabs.addTab(self._build_ogorelkov_block(),
+                         "Служебная лексика (Огорелков)")
+
         split = QSplitter(Qt.Orientation.Vertical)
         split.setChildrenCollapsible(False)
-        split.addWidget(self.table)
+        split.addWidget(self.tabs)
         split.addWidget(self.detail)
         split.setSizes([520, 110])
         layout.addWidget(split, stretch=1)
@@ -168,6 +175,96 @@ class ComparativeResearchTab(QWidget):
         self.progress_label = QLabel("")
         self.progress_label.setObjectName("caption")
         layout.addWidget(self.progress_label)
+
+    # ── блок «Служебная лексика (Огорелков)» ─────────────────────────────────
+    def _build_ogorelkov_block(self) -> QWidget:
+        """
+        Две таблицы наблюдаемых частот: по категориям и по леммам.
+        Никакой цветовой маркировки «совпадает/не совпадает» и никакой
+        агрегированной меры сходства — только числа (граница компетенции).
+        """
+        box = QWidget()
+        v = QVBoxLayout(box)
+        v.setContentsMargins(0, 6, 0, 0)
+        v.setSpacing(6)
+
+        hint = QLabel(
+            "Относительные частоты (ipm) служебных лексико-грамматических "
+            "классов; норма — частотный словарь Ляшевской–Шарова. "
+            "A — спорный текст, B — образец.")
+        hint.setObjectName("caption")
+        hint.setWordWrap(True)
+        v.addWidget(hint)
+
+        row = QHBoxLayout()
+        self.chk_og_detail = QCheckBox("Таблицу лемм — в DOCX-заключение")
+        row.addWidget(self.chk_og_detail)
+        row.addStretch()
+        v.addLayout(row)
+
+        self.og_cat_table = QTableWidget(0, 7)
+        self.og_cat_table.setHorizontalHeaderLabels(
+            ["Категория", "ipm A", "ipm B", "ipm НКРЯ",
+             "коэф. A", "коэф. B", "разность ipm A−B"])
+        self._tune_table(self.og_cat_table, stretch_col=0)
+        v.addWidget(self.og_cat_table, stretch=1)
+
+        self.og_lem_table = QTableWidget(0, 8)
+        self.og_lem_table.setHorizontalHeaderLabels(
+            ["Лемма", "вхожд. A", "ipm A", "вхожд. B", "ipm B",
+             "ipm НКРЯ", "коэф. A", "коэф. B"])
+        self._tune_table(self.og_lem_table, stretch_col=0)
+        v.addWidget(self.og_lem_table, stretch=2)
+        return box
+
+    @staticmethod
+    def _tune_table(table: QTableWidget, stretch_col: int = 0):
+        """Единое оформление таблиц блока служебной лексики."""
+        table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        table.setAlternatingRowColors(True)
+        table.setStyleSheet("QTableWidget::item { padding: 4px 6px; }")
+        table.verticalHeader().setVisible(False)
+        hh = table.horizontalHeader()
+        for c in range(table.columnCount()):
+            hh.setSectionResizeMode(
+                c, QHeaderView.ResizeMode.Stretch if c == stretch_col
+                else QHeaderView.ResizeMode.ResizeToContents)
+
+    @staticmethod
+    def _na(v) -> str:
+        """Прочерк для отсутствующих величин («н/д», не ноль)."""
+        return "—" if v is None else f"{v:g}"
+
+    def _reload_ogorelkov(self, doc_a: int, doc_b: int):
+        self.og_cat_table.setRowCount(0)
+        self.og_lem_table.setRowCount(0)
+        data = cmp_mod.ogorelkov_for_pair(self._pdb, doc_a, doc_b)
+        if not data:
+            return
+        for r in data["categories"]:
+            i = self.og_cat_table.rowCount()
+            self.og_cat_table.insertRow(i)
+            cells = [r["category"].replace("_", " "),
+                     self._na(r["ipm_a"]), self._na(r["ipm_b"]),
+                     self._na(r["ipm_rnc"]), self._na(r["ratio_a"]),
+                     self._na(r["ratio_b"]), self._na(r["diff_ipm"])]
+            for c, text in enumerate(cells):
+                self.og_cat_table.setItem(i, c, QTableWidgetItem(text))
+        # Таблица лемм уже отсортирована по |ipm A − ipm B| по убыванию.
+        for r in data["lemmas"]:
+            i = self.og_lem_table.rowCount()
+            self.og_lem_table.insertRow(i)
+            cells = [r["lemma"], str(r["count_a"]), self._na(r["ipm_a"]),
+                     str(r["count_b"]), self._na(r["ipm_b"]),
+                     self._na(r["ipm_rnc"]), self._na(r["ratio_a"]),
+                     self._na(r["ratio_b"])]
+            for c, text in enumerate(cells):
+                self.og_lem_table.setItem(i, c, QTableWidgetItem(text))
+
+    def ogorelkov_export_settings(self) -> tuple[bool]:
+        """Включать ли таблицу лемм в DOCX-заключение."""
+        return (self.chk_og_detail.isChecked(),)
 
     # ── выбор проекта/пары ───────────────────────────────────────────────────
     def _reload_projects(self):
@@ -238,7 +335,12 @@ class ComparativeResearchTab(QWidget):
         if self._project_id is None or doc_a is None or doc_b is None:
             self.progress_label.setText("Выберите пару спорный↔образец.")
             self.block_label.setVisible(False)
+            self.og_cat_table.setRowCount(0)
+            self.og_lem_table.setRowCount(0)
             return
+
+        # Служебная лексика: таблицы обновляются вместе с парой.
+        self._reload_ogorelkov(doc_a, doc_b)
 
         st = cmp_mod.stats(self._pdb, self._project_id, doc_a, doc_b)
         # Плашка блокировки.

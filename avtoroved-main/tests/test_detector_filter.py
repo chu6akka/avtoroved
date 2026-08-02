@@ -148,8 +148,11 @@ def test_run_for_document_filters_and_logs(pdb, monkeypatch):
 
     # Кандидаты в БД: 2 оставленных («низкая») + 1 подавленный (сохранён
     # для воспроизводимости с пометкой «подавлен»).
+    # Только кандидаты детектора ошибок (прочие языковые кандидаты — служебная
+    # лексика, интернет-маркеры и т.п. — к этому тесту отношения не имеют).
     rows = [r for r in pdb.fetch_feature_candidates(did)
-            if r["kind"] == pf.KIND_CANDIDATE and r["group_name"] == pf.GROUP_LINGUISTIC]
+            if r["kind"] == pf.KIND_CANDIDATE
+            and r["subgroup"] in (pf.SUB_ORTHOGRAPHIC, pf.SUB_PUNCTUATION)]
     kept = [r for r in rows if r["reliability"] != "подавлен"]
     supp = [r for r in rows if r["reliability"] == "подавлен"]
     assert len(kept) == 2

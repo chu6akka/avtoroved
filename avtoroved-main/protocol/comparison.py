@@ -293,6 +293,100 @@ def reset(
         program_version=program_version)
 
 
+# ── Служебная лексика (Огорелков): сопоставление пары ────────────────────────
+def compare_ogorelkov(result_a: Optional[dict],
+                      result_b: Optional[dict]) -> Optional[dict]:
+    """
+    Сопоставить частоты служебной лексики двух текстов (A — исследуемый,
+    B — образец). Возвращает две таблицы наблюдаемых величин:
+
+      {"categories": [ {category, ipm_a, ipm_b, ipm_rnc, ratio_a, ratio_b,
+                        diff_ipm, count_a, count_b}, … ],
+       "lemmas":     [ {lemma, category, count_a, ipm_a, count_b, ipm_b,
+                        ipm_rnc, ratio_a, ratio_b, diff_ipm}, … ]}
+
+    Таблица лемм — объединение по обоим текстам: лемма, не встретившаяся в
+    одном из них, показывается с нулём вхождений и ipm=None (прочерк) —
+    её отсутствие само по себе наблюдаемый факт. Отсутствие леммы в частотном
+    словаре → ipm_rnc и коэффициенты None («н/д»), не ноль.
+
+    Агрегированная «мера сходства» по служебной лексике сознательно НЕ
+    вычисляется: единый числовой индекс близости был бы скрытым выводом об
+    авторстве, а вывод формулирует эксперт, не программа.
+    Сортировка обеих таблиц — по модулю разности ipm (A−B), по убыванию.
+    """
+    if not result_a or not result_b:
+        return None
+
+    cats_a = result_a.get("categories") or {}
+    cats_b = result_b.get("categories") or {}
+
+    def _diff(x: Optional[float], y: Optional[float]) -> Optional[float]:
+        if x is None or y is None:
+            return None
+        return round(x - y, 1)
+
+    categories: list[dict] = []
+    for cat in cats_a.keys() | cats_b.keys():
+        a = cats_a.get(cat, {})
+        b = cats_b.get(cat, {})
+        # Норма НКРЯ по классу одинакова для обоих текстов (закрытый перечень).
+        ipm_rnc = a.get("total_ipm_rnc", b.get("total_ipm_rnc"))
+        categories.append({
+            "category": cat,
+            "count_a": a.get("total_count", 0), "count_b": b.get("total_count", 0),
+            "ipm_a": a.get("total_ipm"), "ipm_b": b.get("total_ipm"),
+            "ipm_rnc": ipm_rnc,
+            "ratio_a": a.get("total_ratio"), "ratio_b": b.get("total_ratio"),
+            "diff_ipm": _diff(a.get("total_ipm"), b.get("total_ipm")),
+        })
+
+    lemmas: list[dict] = []
+    for cat in cats_a.keys() | cats_b.keys():
+        la = (cats_a.get(cat, {}) or {}).get("lemmas", {}) or {}
+        lb = (cats_b.get(cat, {}) or {}).get("lemmas", {}) or {}
+        for lemma in la.keys() | lb.keys():
+            da, db_ = la.get(lemma), lb.get(lemma)
+            ipm_a = da["ipm_text"] if da else None
+            ipm_b = db_["ipm_text"] if db_ else None
+            ipm_rnc = (da or db_ or {}).get("ipm_rnc")
+            lemmas.append({
+                "lemma": lemma, "category": cat,
+                "count_a": da["count"] if da else 0,
+                "count_b": db_["count"] if db_ else 0,
+                "ipm_a": ipm_a, "ipm_b": ipm_b, "ipm_rnc": ipm_rnc,
+                "ratio_a": da["ratio"] if da else None,
+                "ratio_b": db_["ratio"] if db_ else None,
+                # Отсутствующий текст трактуем как 0 ipm только для сортировки,
+                # в таблице остаётся прочерк (ipm=None).
+                "diff_ipm": round((ipm_a or 0.0) - (ipm_b or 0.0), 1),
+            })
+
+    categories.sort(key=lambda r: -abs(r["diff_ipm"] or 0.0))
+    lemmas.sort(key=lambda r: -abs(r["diff_ipm"] or 0.0))
+    return {"categories": categories, "lemmas": lemmas}
+
+
+def ogorelkov_for_pair(pdb: "protocol_db.ProtocolDB",
+                       doc_a: int, doc_b: int) -> Optional[dict]:
+    """Достать последние расчёты Огорелкова обоих документов пары и сопоставить."""
+    import json as _json
+
+    def _latest(document_id: int) -> Optional[dict]:
+        doc = pdb.get_document(document_id)
+        if doc is None:
+            return None
+        rows = pdb.fetch_ogorelkov_results(doc["file_sha256"])
+        if not rows:
+            return None
+        try:
+            return _json.loads(rows[0]["results"])
+        except Exception:
+            return None
+
+    return compare_ogorelkov(_latest(doc_a), _latest(doc_b))
+
+
 def pair_blocks_strong_conclusion(pdb: "protocol_db.ProtocolDB",
                                   project_id: int, doc_a: int, doc_b: int) -> bool:
     """

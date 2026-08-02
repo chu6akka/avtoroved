@@ -221,9 +221,17 @@ class ConclusionTab(QWidget):
             return
         try:
             from protocol.report import export_conclusion_docx
+            # Чекбокс полемной таблицы служебной лексики живёт на вкладке
+            # сравнительного исследования — читаем его состояние, если она есть.
+            og_detailed = False
+            main_win = self.window()
+            tab_cmp = getattr(main_win, "tab_comparative", None)
+            if tab_cmp is not None and hasattr(tab_cmp, "ogorelkov_export_settings"):
+                (og_detailed,) = tab_cmp.ogorelkov_export_settings()
             summary = export_conclusion_docx(
                 self._pdb, self._project_id, doc_a, doc_b, fp,
-                header=dlg.values(), program_version=PROGRAM_VERSION)
+                header=dlg.values(), program_version=PROGRAM_VERSION,
+                ogorelkov_detailed=og_detailed)
         except Exception as e:  # noqa: BLE001
             QMessageBox.critical(self, "Ошибка экспорта", str(e))
             return

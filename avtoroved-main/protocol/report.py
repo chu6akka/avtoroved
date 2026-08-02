@@ -29,6 +29,7 @@ def export_conclusion_docx(
     filepath: str,
     header: Optional[dict] = None,     # {expert_name, case_number, questions}
     program_version: Optional[str] = None,
+    ogorelkov_detailed: bool = False,  # включать полемную таблицу служебной лексики
 ) -> dict:
     """Собрать и сохранить заключение по паре. Возвращает сводку экспорта."""
     from docx import Document
@@ -124,6 +125,55 @@ def export_conclusion_docx(
             row[3].text = r["expert_note"] or ""
     else:
         doc.add_paragraph("Подтверждённых позиций сравнения нет.")
+
+    # Сопоставление частот служебной лексики (Огорелков).
+    og_cmp = cmp.ogorelkov_for_pair(pdb, doc_a, doc_b)
+    if og_cmp:
+        doc.add_heading('Сопоставление частот служебной лексики '
+                        '(по И.В. Огорелкову)', level=3)
+        doc.add_paragraph(
+            'Относительные частоты (ipm) употребления служебных '
+            'лексико-грамматических классов слов; нормирование по частотному '
+            'словарю О.Н. Ляшевской и С.А. Шарова. A — спорный текст, '
+            'B — образец. Приведены наблюдаемые величины; агрегированная мера '
+            'сходства не вычисляется.')
+
+        def _na(v):
+            return '—' if v is None else f'{v:g}'
+
+        cat_t = doc.add_table(rows=1, cols=7)
+        cat_t.style = "Table Grid"
+        for i, h in enumerate(('Категория', 'ipm A', 'ipm B', 'ipm НКРЯ',
+                               'коэф. A', 'коэф. B', 'разность ipm A−B')):
+            cat_t.rows[0].cells[i].text = h
+        for r in og_cmp["categories"]:
+            row = cat_t.add_row().cells
+            row[0].text = r["category"].replace("_", " ")
+            row[1].text = _na(r["ipm_a"])
+            row[2].text = _na(r["ipm_b"])
+            row[3].text = _na(r["ipm_rnc"])
+            row[4].text = _na(r["ratio_a"])
+            row[5].text = _na(r["ratio_b"])
+            row[6].text = _na(r["diff_ipm"])
+
+        if ogorelkov_detailed and og_cmp["lemmas"]:
+            doc.add_paragraph('Полемное сопоставление '
+                              '(сортировка по модулю разности ipm):')
+            lem_t = doc.add_table(rows=1, cols=8)
+            lem_t.style = "Table Grid"
+            for i, h in enumerate(('Лемма', 'вхожд. A', 'ipm A', 'вхожд. B',
+                                   'ipm B', 'ipm НКРЯ', 'коэф. A', 'коэф. B')):
+                lem_t.rows[0].cells[i].text = h
+            for r in og_cmp["lemmas"]:
+                row = lem_t.add_row().cells
+                row[0].text = r["lemma"]
+                row[1].text = str(r["count_a"])
+                row[2].text = _na(r["ipm_a"])
+                row[3].text = str(r["count_b"])
+                row[4].text = _na(r["ipm_b"])
+                row[5].text = _na(r["ipm_rnc"])
+                row[6].text = _na(r["ratio_a"])
+                row[7].text = _na(r["ratio_b"])
 
     # Стадия 4: оценка результатов.
     doc.add_heading("4. Оценка результатов", level=2)
