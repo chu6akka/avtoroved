@@ -415,6 +415,11 @@ class MainWindow(QMainWindow):
         vis_menu.addAction(act_heatmap)
 
         help_menu = menubar.addMenu("Справка")
+        act_help = QAction("📘 Руководство", self)
+        act_help.setShortcut(QKeySequence("F1"))
+        act_help.triggered.connect(self._open_help)
+        help_menu.addAction(act_help)
+        help_menu.addSeparator()
         act_lexicon = QAction("📖 Справочник словарей", self)
         act_lexicon.setShortcut(QKeySequence("F4"))
         act_lexicon.triggered.connect(self._open_lexicon_viewer)
@@ -980,6 +985,11 @@ class MainWindow(QMainWindow):
         dlg = LexiconViewerDialog(self)
         dlg.exec()
 
+    def _open_help(self):
+        """Открыть руководство по программе (F1)."""
+        from ui.dialogs.help_dialog import HelpDialog
+        HelpDialog(self).exec()
+
     def _open_lexicon_update(self):
         """Открыть диалог обновления словарных баз (явное действие, с бэкапом)."""
         from ui.dialogs.lexicon_update_dialog import LexiconUpdateDialog
@@ -1448,15 +1458,21 @@ class MainWindow(QMainWindow):
             self,
             "О программе",
             "Автороведческий анализатор v5\n\n"
-            "Инструмент судебно-автороведческой экспертизы текста\n\n"
-            "Методики:\n"
-            "• Рубцова И.И., Ермолова Е.И., Безрукова А.И. «Комплексная методика производства\n"
-            "  автороведческих экспертиз» — М.: ЭКЦ МВД России, 2007. — 192 с.\n"
-            "• С.М. Вул «Судебно-автороведческая идентификационная экспертиза» (2007)\n"
-            "• Litvinova et al. (2015–2016) — POS-биграммы\n"
-            "• ЭКЦ МВД России — лексическая стратификация (2021)\n"
-            "• GigaCheck (SberDevices) — детекция ИИ-контента\n\n"
-            "NLP-движки: Stanford Stanza / spaCy (русский язык)\n"
-            "GUI: PyQt6\n"
+            "Идентификационная судебно-автороведческая экспертиза:\n"
+            "воспроизводимый экспертный протокол из четырёх стадий\n"
+            "(пригодность → раздельное → сравнительное → вывод).\n"
+            "Программа готовит и фиксирует — вывод формулирует эксперт.\n\n"
+            "Методическая основа:\n"
+            "• Рубцова И.И., Ермолова Е.И., Безрукова А.И. и др. «Комплексная методика\n"
+            "  производства судебно-автороведческих экспертиз» — М.: ЭКЦ МВД России,\n"
+            "  2007 (несущая: шкала навыков с. 13, стадии с. 80–85, вывод с. 85)\n"
+            "• Вул С.М. «Судебно-автороведческая идентификационная экспертиза:\n"
+            "  методические основы» — Харьков: ХНИИСЭ, 2007 (решающее правило, с. 38)\n"
+            "• Моисеева Т.Ф., Огорелков И.В. «Судебная автороведческая экспертиза» —\n"
+            "  М.: РГУП, 2021 (стадийность, покатегорийные пороги, с. 89–93)\n"
+            "• Огорелков И.В. — аппарат частотного анализа служебной лексики (ipm)\n"
+            "• Ляшевская О.Н., Шаров С.А. — частотный словарь НКРЯ (норма ipm)\n\n"
+            "NLP: Stanford Stanza; проверка ошибок: LanguageTool (локально)\n"
+            "GUI: PyQt6.  Подробности — «Справка → Руководство» (F1)\n"
             "GitHub: https://github.com/chu6akka/avtoroved"
         )

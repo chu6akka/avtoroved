@@ -373,6 +373,148 @@ class ProtocolDB:
                 "SELECT * FROM documents WHERE id = ?", (document_id,)
             ).fetchone()
 
+    # ── удаление материалов и проектов ──────────────────────────────────────
+    # Все зависимые записи снимаются каскадом вручную: включён PRAGMA
+    # foreign_keys, а на удаление наложены методические требования —
+    # удаление само по себе фиксируется в журнале (audit_log), чтобы в деле
+    # оставался след: что и когда было изъято из протокола.
+
+    @staticmethod
+    def _document_counts(conn: sqlite3.Connection, document_id: int) -> dict:
+        """Что будет удалено вместе с документом (для подтверждения)."""
+        q = lambda sql, args: int(conn.execute(sql, args).fetchone()[0])  # noqa: E731
+        return {
+            "предложений": q("SELECT COUNT(*) FROM sentences WHERE document_id = ?",
+                             (document_id,)),
+            "токенов": q("SELECT COUNT(*) FROM tokens t JOIN sentences s "
+                         "ON t.sentence_id = s.id WHERE s.document_id = ?",
+                         (document_id,)),
+            "слоёв текста": q("SELECT COUNT(*) FROM document_layers "
+                              "WHERE document_id = ?", (document_id,)),
+            "кандидатов признаков": q("SELECT COUNT(*) FROM feature_candidates "
+                                      "WHERE document_id = ?", (document_id,)),
+            "решений по признакам": q("SELECT COUNT(*) FROM feature_decisions "
+                                      "WHERE document_id = ?", (document_id,)),
+            "позиций сравнения": q(
+                "SELECT COUNT(*) FROM comparisons WHERE pair_doc_a = ? "
+                "OR pair_doc_b = ?", (document_id, document_id)),
+            "выводов по парам": q(
+                "SELECT COUNT(*) FROM conclusions WHERE pair_doc_a = ? "
+                "OR pair_doc_b = ?", (document_id, document_id)),
+        }
+
+    def document_deletion_preview(self, document_id: int) -> dict:
+        with self._connect() as conn:
+            return self._document_counts(conn, document_id)
+
+    def project_deletion_preview(self, project_id: int) -> dict:
+        docs = self.fetch_documents(project_id)
+        total = {"документов": len(docs)}
+        with self._connect() as conn:
+            for d in docs:
+                for k, v in self._document_counts(conn, d["id"]).items():
+                    total[k] = total.get(k, 0) + v
+            total["записей журнала"] = int(conn.execute(
+                "SELECT COUNT(*) FROM audit_log WHERE project_id = ?",
+                (project_id,)).fetchone()[0])
+        return total
+
+    @staticmethod
+    def _delete_document_rows(conn: sqlite3.Connection, document_id: int) -> None:
+        """Снять все зависимые записи документа (порядок важен из-за FK)."""
+        d = (document_id,)
+        pair = (document_id, document_id)
+        conn.execute("DELETE FROM tokens WHERE sentence_id IN "
+                     "(SELECT id FROM sentences WHERE document_id = ?)", d)
+        conn.execute("DELETE FROM sentences WHERE document_id = ?", d)
+        conn.execute("DELETE FROM document_layers WHERE document_id = ?", d)
+        conn.execute("DELETE FROM feature_decisions WHERE document_id = ?", d)
+        conn.execute("DELETE FROM features WHERE document_id = ?", d)
+        conn.execute("DELETE FROM feature_candidates WHERE document_id = ?", d)
+        conn.execute("DELETE FROM suitability WHERE document_id = ? "
+                     "OR pair_doc_a = ? OR pair_doc_b = ?", (document_id, *pair))
+        conn.execute("DELETE FROM comparison_decisions WHERE pair_doc_a = ? "
+                     "OR pair_doc_b = ?", pair)
+        conn.execute("DELETE FROM comparisons WHERE pair_doc_a = ? "
+                     "OR pair_doc_b = ?", pair)
+        conn.execute("DELETE FROM conclusion_decisions WHERE pair_doc_a = ? "
+                     "OR pair_doc_b = ?", pair)
+        conn.execute("DELETE FROM conclusions WHERE pair_doc_a = ? "
+                     "OR pair_doc_b = ?", pair)
+        conn.execute("DELETE FROM reports WHERE pair_doc_a = ? "
+                     "OR pair_doc_b = ?", pair)
+        conn.execute("DELETE FROM documents WHERE id = ?", d)
+
+    def delete_document(self, document_id: int,
+                        program_version: Optional[str] = None) -> dict:
+        """
+        Удалить материал со всеми производными данными (слои, разметка,
+        кандидаты, решения, сравнения и выводы по парам с его участием).
+        Факт удаления записывается в журнал проекта. Возвращает сводку.
+        """
+        doc = self.get_document(document_id)
+        if doc is None:
+            raise ValueError(f"Материал #{document_id} не найден")
+        project_id = doc["project_id"]
+        sha = doc["file_sha256"]
+        with self._connect() as conn:
+            counts = self._document_counts(conn, document_id)
+            self._delete_document_rows(conn, document_id)
+            # Расчёты служебной лексики привязаны к хешу содержимого:
+            # снимаем только если этот материал был последним с таким хешем.
+            left = int(conn.execute(
+                "SELECT COUNT(*) FROM documents WHERE file_sha256 = ?",
+                (sha,)).fetchone()[0])
+            if left == 0:
+                conn.execute("DELETE FROM ogorelkov_results WHERE text_sha256 = ?",
+                             (sha,))
+        self.log_action(
+            "удалён материал", project_id=project_id,
+            details={"document_id": document_id, "filename": doc["filename"],
+                     "role": doc["role"], "sha256": sha, "удалено": counts},
+            program_version=program_version)
+        return {"document_id": document_id, "filename": doc["filename"],
+                "counts": counts}
+
+    def delete_project(self, project_id: int,
+                       program_version: Optional[str] = None) -> dict:
+        """
+        Удалить проект целиком: все материалы с производными данными и
+        журнал проекта. Сам факт удаления фиксируется ОБЩЕЙ записью журнала
+        (вне проекта) — след о том, что дело было изъято, сохраняется.
+        """
+        project = self.get_project(project_id)
+        if project is None:
+            raise ValueError(f"Проект #{project_id} не найден")
+        preview = self.project_deletion_preview(project_id)
+        docs = self.fetch_documents(project_id)
+        with self._connect() as conn:
+            for d in docs:
+                self._delete_document_rows(conn, d["id"])
+                left = int(conn.execute(
+                    "SELECT COUNT(*) FROM documents WHERE file_sha256 = ?",
+                    (d["file_sha256"],)).fetchone()[0])
+                if left == 0:
+                    conn.execute(
+                        "DELETE FROM ogorelkov_results WHERE text_sha256 = ?",
+                        (d["file_sha256"],))
+            # Остатки, привязанные к проекту напрямую.
+            for table in ("suitability", "features", "feature_decisions",
+                          "comparisons", "comparison_decisions",
+                          "conclusions", "conclusion_decisions", "reports",
+                          "audit_log"):
+                conn.execute(f"DELETE FROM {table} WHERE project_id = ?",
+                             (project_id,))
+            conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+        # Общая запись журнала (project_id = NULL): проект уже не существует.
+        self.log_action(
+            "удалён проект", project_id=None,
+            details={"project_id": project_id, "name": project["name"],
+                     "created_at": project["created_at"], "удалено": preview},
+            program_version=program_version)
+        return {"project_id": project_id, "name": project["name"],
+                "counts": preview}
+
     # ── слои текста ─────────────────────────────────────────────────────────
     def save_layer(self, document_id: int, layer_type: str, content: str) -> int:
         """Сохранить один слой текста (original/cleaned/normalized)."""

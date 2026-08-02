@@ -112,6 +112,13 @@ class MaterialsTab(QWidget):
         btn_new = QPushButton("➕ Создать проект")
         btn_new.clicked.connect(self._create_project)
         prj_row.addWidget(btn_new)
+        self.btn_del_project = QPushButton("🗑 Удалить проект")
+        self.btn_del_project.setObjectName("danger")
+        self.btn_del_project.setToolTip(
+            "Удалить дело целиком: материалы, разметку, признаки, решения, "
+            "сравнения и выводы. Действие необратимо.")
+        self.btn_del_project.clicked.connect(self._delete_project)
+        prj_row.addWidget(self.btn_del_project)
         prj_row.addStretch()
         layout.addLayout(prj_row)
 
@@ -140,6 +147,13 @@ class MaterialsTab(QWidget):
         self.btn_sample = QPushButton("📑 Добавить образец")
         self.btn_sample.clicked.connect(lambda: self._add_document(protocol_db.ROLE_SAMPLE))
         btn_row.addWidget(self.btn_sample)
+        self.btn_delete = QPushButton("🗑 Удалить материал")
+        self.btn_delete.setObjectName("danger")
+        self.btn_delete.setToolTip(
+            "Удалить выбранный в таблице материал со всеми производными "
+            "данными. Действие необратимо.")
+        self.btn_delete.clicked.connect(self._delete_document)
+        btn_row.addWidget(self.btn_delete)
         btn_row.addStretch()
         self.btn_journal = QPushButton("🧾 Открыть журнал")
         self.btn_journal.clicked.connect(self._open_journal)
@@ -271,11 +285,13 @@ class MaterialsTab(QWidget):
 
     def _reload_documents(self):
         self.table.setRowCount(0)
+        self._doc_ids = []          # id материалов по строкам таблицы
         if self._project_id is None:
             return
         docs = self._pdb.fetch_documents(self._project_id)
         for doc in docs:
             did = doc["id"]
+            self._doc_ids.append(did)
             n_sent = self._pdb.count_sentences(did)
             n_tok = self._pdb.count_tokens(did)
             # Оценка извлечения (единый источник истины — ingest.assess_extraction).
@@ -291,6 +307,7 @@ class MaterialsTab(QWidget):
             self._set_cell(row, 4, str(n_sent))
             self._set_cell(row, 5, str(n_tok))
             self._set_status_cell(row, 6, status, reason)
+        self._update_buttons()
 
     # Цвета статуса извлечения: пусто — красный, мало — жёлтый, ок — обычный.
     _STATUS_ICON = {
@@ -317,6 +334,75 @@ class MaterialsTab(QWidget):
         if col in (3, 4, 5):
             item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.table.setItem(row, col, item)
+
+    # ── удаление материалов и проектов ───────────────────────────────────────
+    @staticmethod
+    def _counts_text(counts: dict) -> str:
+        return "\n".join(f"  • {k}: {v}" for k, v in counts.items() if v)
+
+    def _confirm_destructive(self, title: str, head: str, counts: dict) -> bool:
+        """Подтверждение с перечнем того, что будет удалено (по умолчанию — нет)."""
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle(title)
+        box.setText(head)
+        body = self._counts_text(counts)
+        box.setInformativeText(
+            (f"Будет удалено:\n{body}\n\n" if body else "")
+            + "Действие необратимо. Факт удаления будет записан в журнал.")
+        btn_del = box.addButton("Удалить", QMessageBox.ButtonRole.DestructiveRole)
+        btn_cancel = box.addButton("Отмена", QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(btn_cancel)
+        box.exec()
+        return box.clickedButton() is btn_del
+
+    def _selected_document_id(self) -> int | None:
+        row = self.table.currentRow()
+        if row < 0 or row >= len(getattr(self, "_doc_ids", [])):
+            return None
+        return self._doc_ids[row]
+
+    def _delete_document(self):
+        did = self._selected_document_id()
+        if did is None:
+            QMessageBox.information(self, "Не выбран материал",
+                                    "Выделите строку материала в таблице.")
+            return
+        doc = self._pdb.get_document(did)
+        counts = self._pdb.document_deletion_preview(did)
+        if not self._confirm_destructive(
+                "Удалить материал?",
+                f"Материал «{doc['filename']}» ({doc['role']}) будет удалён "
+                "вместе со всеми производными данными.", counts):
+            return
+        try:
+            summary = self._pdb.delete_document(did, program_version=PROGRAM_VERSION)
+        except Exception as e:  # noqa: BLE001
+            QMessageBox.critical(self, "Ошибка удаления", str(e))
+            return
+        self._reload_documents()
+        self.status_label.setText(f"Материал «{summary['filename']}» удалён.")
+
+    def _delete_project(self):
+        if self._project_id is None:
+            QMessageBox.information(self, "Нет проекта", "Проект не выбран.")
+            return
+        project = self._pdb.get_project(self._project_id)
+        counts = self._pdb.project_deletion_preview(self._project_id)
+        if not self._confirm_destructive(
+                "Удалить проект?",
+                f"Дело «{project['name']}» будет удалено целиком, включая "
+                "журнал проекта.", counts):
+            return
+        try:
+            summary = self._pdb.delete_project(self._project_id,
+                                               program_version=PROGRAM_VERSION)
+        except Exception as e:  # noqa: BLE001
+            QMessageBox.critical(self, "Ошибка удаления", str(e))
+            return
+        self._reload_projects()
+        self.status_label.setText(
+            f"Проект «{summary['name']}» удалён. Запись об удалении — в журнале.")
 
     # ── журнал ───────────────────────────────────────────────────────────────
     def _open_journal(self):
@@ -355,5 +441,7 @@ class MaterialsTab(QWidget):
         self.btn_disputed.setEnabled(has_project)
         self.btn_sample.setEnabled(has_project)
         self.btn_journal.setEnabled(has_project)
+        self.btn_del_project.setEnabled(has_project)
+        self.btn_delete.setEnabled(has_project and self.table.rowCount() > 0)
         if not has_project:
             self.status_label.setText("Создайте проект, чтобы начать.")
