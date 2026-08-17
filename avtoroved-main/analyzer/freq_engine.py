@@ -26,6 +26,16 @@ _DICT_PATH = os.path.join(
     "data", "freq", "freqrnc.json"
 )
 
+# ПАРАЛЛЕЛЬНАЯ современная норма (OpenSubtitles-2018: разговорная и сетевая
+# речь, лемматизация pymorphy3). Загружается по команде «Файл → Обновить
+# словарные базы»; файла может не быть — тогда работает только норма НКРЯ.
+# Базовую норму (Ляшевская–Шаров 2009) НЕ заменяет: на неё ссылается методика,
+# и все методические расчёты (в т.ч. ipm служебной лексики) идут по ней.
+MODERN_DICT_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)),
+    "data", "freq", "freq_modern.json"
+)
+
 # Порядок и метаданные диапазонов
 BANDS: Dict[str, dict] = {
     "nucleus": {
@@ -149,8 +159,41 @@ class FreqEngine:
     # ── Поиск слова ───────────────────────────────────────────────────────
 
     def lookup(self, lemma: str) -> Optional[Tuple[int, float, str]]:
-        """Вернуть (rank, ipm, pos) для леммы или None."""
+        """Вернуть (rank, ipm, pos) для леммы или None (норма НКРЯ 2009)."""
         return self._data.get(lemma.lower())
+
+    # ── Параллельная современная норма ────────────────────────────────────
+
+    def load_modern(self, path: str = MODERN_DICT_PATH) -> bool:
+        """
+        Загрузить современную норму, если файл скачан. Отсутствие файла —
+        штатная ситуация (норма опциональна), возвращает False без ошибки.
+        """
+        if getattr(self, "_modern", None):
+            return True
+        self._modern = {}
+        try:
+            with open(path, encoding="utf-8") as f:
+                raw = json.load(f)
+        except OSError:
+            return False
+        except Exception as e:  # битый файл — не роняем анализ
+            self._modern_error = str(e)
+            return False
+        self._modern = {k: tuple(v) for k, v in raw.items()}
+        return True
+
+    def lookup_modern(self, lemma: str) -> Optional[Tuple[int, float, str]]:
+        """(rank, ipm, pos) по современной норме или None, если её нет."""
+        if not getattr(self, "_modern", None):
+            self.load_modern()
+        return (self._modern or {}).get(lemma.lower())
+
+    @property
+    def modern_size(self) -> int:
+        if not getattr(self, "_modern", None):
+            self.load_modern()
+        return len(self._modern or {})
 
     def _band_for(self, rank: int) -> str:
         if rank == 0:

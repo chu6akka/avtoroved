@@ -48,10 +48,79 @@ def parse_rusentilex(raw: str) -> dict:
     return out
 
 
+def parse_opensubtitles_freq(raw: str) -> dict:
+    """
+    Частотный список словоформ OpenSubtitles-2018 (проект hermitdave/
+    FrequencyWords, строки «форма частота») → лемматизированный частотный
+    словарь в формате freq_engine: {лемма: [ранг, ipm, часть речи]}.
+
+    Формы сводятся к леммам через pymorphy3 (уже используется в проекте),
+    частоты форм суммируются по лемме, затем считается ipm и ранг.
+    Источник — субтитры: живая разговорная и сетевая речь, которой нет в
+    словаре Ляшевской–Шарова 2009 г. Это ПАРАЛЛЕЛЬНАЯ норма, базовую
+    (НКРЯ) она не заменяет.
+    """
+    import pymorphy3
+    morph = pymorphy3.MorphAnalyzer()
+
+    counts: dict[str, int] = {}
+    pos_of: dict[str, str] = {}
+    form_to_lemma: dict[str, str] = {}
+    total = 0
+    for line in raw.splitlines():
+        parts = line.split()
+        if len(parts) != 2:
+            continue
+        form, num = parts[0].strip().lower(), parts[1]
+        if not num.isdigit() or not form:
+            continue
+        # Только кириллические словоформы (латиница/цифры — шум списка).
+        if not all("а" <= ch <= "я" or ch in "ё-" for ch in form):
+            continue
+        n = int(num)
+        parse = morph.parse(form)
+        if not parse:
+            continue
+        p = parse[0]
+        pos = str(p.tag.POS or "")
+        # У неизменяемых частей речи нормальная форма pymorphy3 уходит в
+        # другую лексему («ладно» → «ладный»), а Stanza в тексте даёт саму
+        # форму. Чтобы поиск по лемме совпадал, оставляем форму как есть.
+        if pos in ("ADVB", "PRED", "INTJ", "PRCL", "CONJ", "PREP"):
+            lemma = form
+        else:
+            lemma = (p.normal_form or form).lower()
+        counts[lemma] = counts.get(lemma, 0) + n
+        pos_of.setdefault(lemma, pos.lower())
+        form_to_lemma.setdefault(form, lemma)
+        total += n
+
+    if not total:
+        return {}
+    ranked = sorted(counts.items(), key=lambda kv: -kv[1])
+    out = {
+        lemma: [rank, round(n / total * 1_000_000, 2), pos_of.get(lemma, "")]
+        for rank, (lemma, n) in enumerate(ranked, start=1)
+    }
+    # Дополнительные ключи по исходным формам: лемматизаторы расходятся
+    # (pymorphy3 сводит «ладно» к «ладный», Stanza в тексте даёт «ладно»),
+    # и без этого частые слова не находились бы. Значение то же, что у леммы:
+    # таблица отвечает на вопрос «насколько употребительно это слово».
+    for form, lemma in form_to_lemma.items():
+        if form not in out and lemma in out:
+            out[form] = out[lemma]
+    return out
+
+
 # ── реестр источников ────────────────────────────────────────────────────────
 def _senti_target() -> str:
     from analyzer import senti_engine
     return senti_engine._DICT_PATH
+
+
+def _freq_modern_target() -> str:
+    from analyzer import freq_engine
+    return freq_engine.MODERN_DICT_PATH
 
 
 SOURCES: dict[str, dict] = {
@@ -61,6 +130,16 @@ SOURCES: dict[str, dict] = {
         "target": _senti_target,          # callable → путь целевого файла
         "converter": parse_rusentilex,
         "min_entries": 8000,              # защита от битой загрузки
+        "encoding": "utf-8",
+    },
+    "freq_modern": {
+        "name": "Современная частотная норма (OpenSubtitles-2018, разговорная "
+                "и сетевая речь) — дополняет НКРЯ 2009, не заменяет",
+        "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/"
+               "master/content/2018/ru/ru_50k.txt",
+        "target": _freq_modern_target,
+        "converter": parse_opensubtitles_freq,
+        "min_entries": 10000,
         "encoding": "utf-8",
     },
 }

@@ -6,5 +6,13 @@
     "entries": 13461,
     "sha256": "a109369fb52990065d663011a7e98326b102fbb2c9c6936fea059773d4260892",
     "backup": "F:\\avtoroved-protocol\\avtoroved-main\\data\\senti\\rusentilex.json.bak-20260706-230808"
+  },
+  "freq_modern": {
+    "name": "Современная частотная норма (OpenSubtitles-2018, разговорная и сетевая речь) — дополняет НКРЯ 2009, не заменяет",
+    "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/ru/ru_50k.txt",
+    "updated_at": "2026-08-17T14:29:21",
+    "entries": 52211,
+    "sha256": "3bda84b03271002dd6f16421a4f971be740697738cc34097b1500ddd90c7bc63",
+    "backup": "F:\\avtoroved-protocol\\avtoroved-main\\data\\freq\\freq_modern.json.bak-20260817-142921"
   }
 }

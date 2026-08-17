@@ -47,6 +47,25 @@ def frequency_info(freq_engine: Any, lemma: str) -> dict:
     return out
 
 
+def modern_frequency_info(freq_engine: Any, lemma: str) -> dict:
+    """
+    Современная норма (OpenSubtitles-2018: разговорная и сетевая речь) —
+    ПАРАЛЛЕЛЬНАЯ справочная величина рядом с нормой НКРЯ 2009. Появляется
+    только если словарь скачан («Файл → Обновить словарные базы»).
+    """
+    out = {"modern_rank": 0, "modern_ipm": 0.0, "modern_available": False}
+    if freq_engine is None or not hasattr(freq_engine, "lookup_modern"):
+        return out
+    try:
+        hit = freq_engine.lookup_modern(lemma)
+        out["modern_available"] = freq_engine.modern_size > 0
+        if hit:
+            out.update(modern_rank=hit[0], modern_ipm=hit[1])
+    except Exception:
+        pass
+    return out
+
+
 def strat_info(strat_lookup: Optional[Callable[[str], Optional[str]]],
                lemma: str) -> dict:
     """{layer, layer_label} по регистровой стратификации (или нейтральный)."""
@@ -106,6 +125,7 @@ def build_card(
         "links": dictionary_links(word, lemma),
     }
     card.update(frequency_info(freq_engine, lemma))
+    card.update(modern_frequency_info(freq_engine, lemma))
     card.update(strat_info(strat_lookup, lemma))
     card.update(senti_info(senti_engine, lemma))
 

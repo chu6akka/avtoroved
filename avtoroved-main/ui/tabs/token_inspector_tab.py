@@ -293,6 +293,14 @@ class TokenInspectorTab(QWidget):
         links = " · ".join(f"<a href='{u}' style='color:#89b4fa'>{n}</a>"
                            for n, u in c["links"])
         ipm_txt = f"{c['ipm']:.1f} ipm, ранг {c['rank']}" if c["rank"] else "—"
+        # Современная норма (субтитры 2018) — если словарь скачан.
+        if not c.get("modern_available"):
+            modern_txt = ("<span style='color:#6c7086'>не загружена "
+                          "(Файл → Обновить словарные базы)</span>")
+        elif c.get("modern_rank"):
+            modern_txt = f"{c['modern_ipm']:.1f} ipm, ранг {c['modern_rank']}"
+        else:
+            modern_txt = "нет в современном списке"
         senti_txt = (f"{c['sentiment']} ({c['senti_type']})"
                      if c["sentiment"] else "нейтральная / вне словаря")
         return f"""
@@ -308,6 +316,8 @@ class TokenInspectorTab(QWidget):
                     предложение {c['sent_idx'] + 1 if c['sent_idx'] is not None else '—'}</td></tr>
             <tr><td style='color:#a6adc8'>Частотность НКРЯ</td>
                 <td>{c['band_label']} ({ipm_txt})</td></tr>
+            <tr><td style='color:#a6adc8'>Современная норма</td>
+                <td>{modern_txt}</td></tr>
             <tr><td style='color:#a6adc8'>Регистр</td><td>{c['layer_label']}</td></tr>
             <tr><td style='color:#a6adc8'>Тональность</td><td>{senti_txt}</td></tr>
           </table>

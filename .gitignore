@@ -55,3 +55,4 @@ desktop.ini
 
 # Бэкапы словарных баз (создаются при обновлении)
 *.bak-*
+avtoroved-main/data/freq/freq_modern.json
