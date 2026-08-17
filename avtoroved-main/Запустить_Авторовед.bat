@@ -1,14 +1,16 @@
 @echo off
+chcp 65001 >nul
 cd /d "%~dp0"
-echo Starting Avtoroved...
+echo Запуск: Автороведческий анализатор (экспертный протокол)...
 where python >nul 2>nul
 if %errorlevel%==0 (
-    python app2.py
+    python main.py
 ) else (
-    py app2.py
+    py main.py
 )
 if errorlevel 1 (
     echo.
-    echo [Error] App did not start. Check Python install / dependencies.
+    echo [Ошибка] Программа не запустилась. Проверьте установку Python и зависимостей:
+    echo    pip install -r requirements.txt
     pause
 )
