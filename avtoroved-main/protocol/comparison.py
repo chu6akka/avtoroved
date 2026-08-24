@@ -52,7 +52,7 @@ VUL_DECISIVE_SKILLS = ("грамматический", "лексико-фраз�
 
 # ── Покатегорийные минимумы совпадающих признаков ────────────────────────────
 # для категорического положительного вывода (Моисеева/Огорелков, 2021,
-# с. 89–93); вероятный — половина с округлением вверх. Ключ разбивки:
+# с. 89–93). Вероятные ориентиры заданы источником отдельно. Ключ разбивки:
 # для языковых — подгруппа (орфографические и пунктуационные объединяются),
 # для остальных групп — группа целиком.
 CATEGORY_MIN_CATEGORICAL = {
@@ -65,10 +65,17 @@ CATEGORY_MIN_CATEGORICAL = {
     "психолингвистические": 5,
 }
 
+CATEGORY_MIN_PROBABLE = {
+    "смысловые": 2,
+    "текстологические": 2,
+    "языковые/лексические": 5,
+    "языковые/стилистические": 5,
+    "языковые/синтаксические": 5,
+    "языковые/орфографические+пунктуационные": 2,
+    "психолингвистические": 3,
+}
 
-def category_min_probable(n: int) -> int:
-    """Порог вероятного вывода: половина категорического, округление вверх."""
-    return (n + 1) // 2
+IDENTIFICATION_VALUES = ("низкая", "средняя", "высокая", "")
 
 
 def category_key(group: str, subgroup: str) -> str:
@@ -110,11 +117,14 @@ def _accepted_features(pdb: "protocol_db.ProtocolDB", document_id: int) -> dict:
             continue
         k = (f["group_name"] or "", f["subgroup"] or "", f["label"] or "")
         slot = by_key.setdefault(k, {"feature_key": f["candidate_key"],
-                                     "values": [], "fragments": []})
+                                     "values": [], "fragments": [],
+                                     "expert_id_values": []})
         if f["value"]:
             slot["values"].append(f["value"])
         if f["fragment"]:
             slot["fragments"].append(f["fragment"])
+        if f["expert_id_value"]:
+            slot["expert_id_values"].append(f["expert_id_value"])
     return by_key
 
 
@@ -223,6 +233,11 @@ def auto_match(
             "value_b": " ; ".join(b["values"]) if b else None,
             "fragment_a": " ; ".join(a["fragments"]) if a else None,
             "fragment_b": " ; ".join(b["fragments"]) if b else None,
+            # Только справка для эксперта. Окончательная значимость позиции
+            # всегда остаётся пустой до решения на стадии сравнения.
+            "source_expert_id_value": " / ".join(dict.fromkeys(
+                (a["expert_id_values"] if a else [])
+                + (b["expert_id_values"] if b else []))),
             "match_type": mtype,
         })
 
@@ -255,6 +270,7 @@ def decide(
     pos_key: str,
     match_type: Optional[str] = None,
     level: str = "",
+    identification_value: str = "",
     expert_note: str = "",
     program_version: Optional[str] = None,
 ) -> None:
@@ -263,15 +279,20 @@ def decide(
         raise ValueError(f"Недопустимый тип сопоставления: {match_type}")
     if level and level not in LEVELS:
         raise ValueError(f"Недопустимый уровень: {level}")
+    if identification_value not in IDENTIFICATION_VALUES:
+        raise ValueError(f"Недопустимая идентификационная значимость: {identification_value}")
     pdb.record_comparison_decision(
         project_id, doc_a, doc_b, pos_key, STATUS_CONFIRMED,
-        match_type=match_type, level=level, expert_note=expert_note,
+        match_type=match_type, level=level,
+        identification_value=identification_value, expert_note=expert_note,
         program_version=program_version)
     pdb.log_action(
         "сравнение: позиция подтверждена", project_id=project_id,
         details={"pair_doc_a": doc_a, "pair_doc_b": doc_b,
                  "position_key": pos_key, "тип": match_type,
-                 "уровень": level or None, "примечание": expert_note or None},
+                 "уровень": level or None,
+                 "идентификационная_значимость": identification_value or None,
+                 "примечание": expert_note or None},
         program_version=program_version)
 
 
@@ -415,6 +436,10 @@ def stats(pdb: "protocol_db.ProtocolDB", project_id: int,
         st[f"уровень_{lv}"] = 0
     general: dict[str, str] = {}
     coincidence_by_category: dict[str, int] = {}
+    significance = {
+        "совпадение": {v: 0 for v in ("низкая", "средняя", "высокая", "без оценки")},
+        "различие": {v: 0 for v in ("низкая", "средняя", "высокая", "без оценки")},
+    }
     for r in rows:
         if r["match_type"] in GEN_TYPES:
             # Общие признаки — отдельная секция, в счёт позиций/уровней не идут.
@@ -427,11 +452,21 @@ def stats(pdb: "protocol_db.ProtocolDB", project_id: int,
                 st[f"уровень_{r['level']}"] += 1
             if r["match_type"] == MATCH_COINCIDENCE:
                 key = category_key(r["group_name"], r["subgroup"])
-                coincidence_by_category[key] = coincidence_by_category.get(key, 0) + 1
+                if r["identification_value"] == "высокая":
+                    coincidence_by_category[key] = coincidence_by_category.get(key, 0) + 1
+            outcome_key = ("совпадение" if r["match_type"] == MATCH_COINCIDENCE
+                           else "различие" if r["match_type"] in
+                           (MATCH_DIFFERENCE, MATCH_ONLY_A, MATCH_ONLY_B) else None)
+            if outcome_key:
+                id_key = r["identification_value"] or "без оценки"
+                significance[outcome_key][id_key] += 1
 
     st["общие_признаки"] = general
     st["порог_методики"] = MIN_FEATURES_FOR_CONCLUSION
-    st["до_порога"] = max(0, MIN_FEATURES_FOR_CONCLUSION - st["подтверждено"])
+    st["по_идентификационной_значимости"] = significance
+    st["высокоинформативных_совпадений"] = significance["совпадение"]["высокая"]
+    st["до_порога"] = max(
+        0, MIN_FEATURES_FOR_CONCLUSION - st["высокоинформативных_совпадений"])
 
     # Покатегорийная разбивка подтверждённых совпадений против обоих порогов
     # (Моисеева/Огорелков, 2021, с. 89–93). Суммарный ≥20 (Рубцова, с. 85)
@@ -442,9 +477,9 @@ def stats(pdb: "protocol_db.ProtocolDB", project_id: int,
         breakdown[key] = {
             "есть": have,
             "мин_категорический": cat_min,
-            "мин_вероятный": category_min_probable(cat_min),
+            "мин_вероятный": CATEGORY_MIN_PROBABLE[key],
             "категорический_ок": have >= cat_min,
-            "вероятный_ок": have >= category_min_probable(cat_min),
+            "вероятный_ок": have >= CATEGORY_MIN_PROBABLE[key],
         }
     st["разбивка_по_категориям"] = breakdown
     st["недобор_категорический"] = [k for k, v in breakdown.items()

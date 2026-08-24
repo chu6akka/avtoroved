@@ -1,0 +1,191 @@
+# Уровень НН — набор норм (наиболее общий уровень индивидуализации навыка).
+# Методика Рубцовой и др. (ЭКЦ МВД, 2007), с. 86–87.
+# Значимость на этом уровне низкая (НН < НС < НСВ): различие на НН — основание
+# для категорического отрицательного вывода, но совпадения малоинформативны.
+
+# --- Смысловые признаки (с. 86) ---
+- id: nn.smysl.political
+  level: NN
+  category: smyslovye
+  name: Политическая направленность текста
+  significance: low
+  method: hybrid
+  extractor: thematic
+  lexicon: lexicons/thematic/politics.txt
+  source: "с. 86"
+- id: nn.smysl.extremist
+  level: NN
+  category: smyslovye
+  name: Экстремистская направленность текста
+  significance: low
+  method: llm
+  source: "с. 86"
+- id: nn.smysl.military
+  level: NN
+  category: smyslovye
+  name: Военная направленность текста
+  significance: low
+  method: hybrid
+  extractor: thematic
+  lexicon: lexicons/thematic/military.txt
+  source: "с. 86"
+- id: nn.smysl.everyday
+  level: NN
+  category: smyslovye
+  name: Бытовая тематика текста
+  significance: low
+  method: hybrid
+  extractor: thematic
+  source: "с. 86"
+
+# --- Текстологические признаки (с. 86) ---
+- id: nn.text.laconic
+  level: NN
+  category: textological
+  name: Лаконичность изложения
+  significance: low
+  method: hybrid
+  extractor: brevity
+  source: "с. 86"
+- id: nn.text.argued
+  level: NN
+  category: textological
+  name: Аргументированность изложения
+  significance: low
+  method: llm
+  source: "с. 86"
+- id: nn.text.sequential
+  level: NN
+  category: textological
+  name: Последовательность изложения материала
+  significance: low
+  method: llm
+  source: "с. 86"
+- id: nn.text.verbose
+  level: NN
+  category: textological
+  name: Многословность изложения
+  significance: low
+  method: hybrid
+  extractor: brevity
+  source: "с. 86"
+
+# --- Языковые признаки (с. 86–87) ---
+- id: nn.lang.school_level
+  level: NN
+  category: language
+  name: Владение русским языком на уровне средней школы
+  significance: low
+  method: hybrid
+  extractor: language_level
+  source: "с. 86"
+- id: nn.lang.high_literacy
+  level: NN
+  category: language
+  name: Высокий уровень грамотности и культуры речи автора
+  significance: low
+  method: hybrid
+  extractor: language_level
+  source: "с. 86"
+- id: nn.lang.foreign_interference
+  level: NN
+  category: language
+  name: Особенности, характерные для другого языка (приставка «от» вместо «о», удвоение «сс»)
+  significance: low
+  method: auto
+  extractor: foreign_interference
+  source: "с. 86"
+- id: nn.lang.dialect
+  level: NN
+  category: language
+  name: Диалектные особенности говора (суффикс «-ейше-», вопросительная частица «ты»)
+  significance: low
+  method: hybrid
+  extractor: dialect_markers
+  source: "с. 86"
+- id: nn.lang.higher_humanities
+  level: NN
+  category: language
+  name: Владение русским языком на уровне вуза гуманитарной направленности
+  significance: low
+  method: hybrid
+  extractor: language_level
+  source: "с. 86"
+- id: nn.lang.style_official_business
+  level: NN
+  category: language
+  name: Преимущественное использование официально-делового стиля речи
+  significance: low
+  method: auto
+  extractor: style_profile
+  source: "с. 87"
+- id: nn.lang.style_scientific
+  level: NN
+  category: language
+  name: Преимущественное использование научного стиля речи
+  significance: low
+  method: auto
+  extractor: style_profile
+  source: "с. 87"
+- id: nn.lang.style_publicistic
+  level: NN
+  category: language
+  name: Преимущественное использование публицистического стиля речи
+  significance: low
+  method: auto
+  extractor: style_profile
+  source: "с. 87"
+- id: nn.lang.style_oratorical
+  level: NN
+  category: language
+  name: Преимущественное использование ораторского стиля речи
+  significance: low
+  method: hybrid
+  extractor: style_profile
+  source: "с. 87"
+- id: nn.lang.style_colloquial
+  level: NN
+  category: language
+  name: Преимущественное использование разговорного стиля речи
+  significance: low
+  method: auto
+  extractor: style_profile
+  source: "с. 87"
+
+# --- Психолингвистические признаки (с. 87) ---
+- id: nn.psy.situational_thinking
+  level: NN
+  category: psycholinguistic
+  name: Использование ситуативного типа мышления
+  significance: low
+  method: llm
+  source: "с. 87"
+- id: nn.psy.categorical_thinking
+  level: NN
+  category: psycholinguistic
+  name: Использование категориального типа мышления
+  significance: low
+  method: llm
+  source: "с. 87"
+- id: nn.psy.general_to_particular
+  level: NN
+  category: psycholinguistic
+  name: Изложение материала от общего к частному
+  significance: low
+  method: llm
+  source: "с. 87"
+- id: nn.psy.particular_to_general
+  level: NN
+  category: psycholinguistic
+  name: Изложение материала от частного к общему
+  significance: low
+  method: llm
+  source: "с. 87"
+- id: nn.psy.emotionality
+  level: NN
+  category: psycholinguistic
+  name: Эмоциональность речи в целом
+  significance: low
+  method: hybrid
+  extractor: emotionality
+  source: "с. 87"

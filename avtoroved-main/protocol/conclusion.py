@@ -1,34 +1,21 @@
-"""
-protocol/conclusion.py — стадия 4: оценка результатов и вывод (Рубцова 2007).
+"""Стадия 4: нейтральный методический контроль и решение эксперта.
 
-Авто-рекомендация формы вывода по правилу методики (с.85–86) поверх
-ПОДТВЕРЖДЁННЫХ экспертом позиций сравнительного исследования:
-
-  • различие на уровне НН            → категорический отрицательный;
-  • различия на НС и/или НСВ         → вероятный отрицательный;
-  • совпадения на всех трёх уровнях, нет значимых различий и
-    ≥ MIN_FEATURES_FOR_CONCLUSION признаков → категорический положительный;
-  • совпадения только на НН и НС     → вероятный положительный;
-  • данных недостаточно              → НПВ (не представляется возможным).
-
-Флаг blocks_strong_conclusion из стадии пригодности ДЕГРАДИРУЕТ категорические
-формы до вероятных. Рекомендация — только подсказка: форму вывода фиксирует
-эксперт; несогласие с рекомендацией требует письменного обоснования.
-Решения хранятся append-only (conclusion_decisions) + текущее (conclusions).
+Модуль предъявляет наблюдаемые условия, но никогда не выбирает и не
+рекомендует форму вывода об авторстве. Форму и обоснование определяет эксперт.
 """
 from __future__ import annotations
 
+import json
 from typing import Any, Optional
 
-from protocol import db as protocol_db
 from protocol import comparison as cmp
+from protocol import db as protocol_db
 
-# ── Формы вывода ─────────────────────────────────────────────────────────────
 FORM_POS_CATEGORICAL = "категорический_положительный"
 FORM_POS_PROBABLE = "вероятный_положительный"
 FORM_NEG_CATEGORICAL = "категорический_отрицательный"
 FORM_NEG_PROBABLE = "вероятный_отрицательный"
-FORM_NPV = "НПВ"    # решить вопрос не представляется возможным
+FORM_NPV = "НПВ"
 
 FORMS = (FORM_POS_CATEGORICAL, FORM_POS_PROBABLE,
          FORM_NEG_CATEGORICAL, FORM_NEG_PROBABLE, FORM_NPV)
@@ -41,190 +28,146 @@ FORM_LABELS = {
     FORM_NPV: "Не представляется возможным (НПВ)",
 }
 
-# Типы позиций, считающиеся различием при подтверждении экспертом.
 _DIFF_TYPES = (cmp.MATCH_DIFFERENCE, cmp.MATCH_ONLY_A, cmp.MATCH_ONLY_B)
+_ID_KEYS = ("низкая", "средняя", "высокая", "без оценки")
 
 
-def _level_breakdown(pdb: "protocol_db.ProtocolDB",
-                     doc_a: int, doc_b: int) -> dict:
-    """Подтверждённые позиции пары: совпадения/различия по уровням НН/НС/НСВ."""
-    coin = {lv: 0 for lv in cmp.LEVELS}
-    diff = {lv: 0 for lv in cmp.LEVELS}
-    coin_nolevel = diff_nolevel = 0
+def _level_breakdown(pdb: "protocol_db.ProtocolDB", doc_a: int, doc_b: int) -> dict:
+    coin = {level: 0 for level in cmp.LEVELS}
+    diff = {level: 0 for level in cmp.LEVELS}
     total_confirmed = 0
-    for r in pdb.fetch_comparisons(doc_a, doc_b):
-        if r["match_type"] in cmp.GEN_TYPES:
-            continue    # общие признаки учитываются отдельно (правило Вула)
-        if r["status"] != cmp.STATUS_CONFIRMED:
+    for row in pdb.fetch_comparisons(doc_a, doc_b):
+        if row["match_type"] in cmp.GEN_TYPES or row["status"] != cmp.STATUS_CONFIRMED:
             continue
         total_confirmed += 1
-        lv = r["level"] or ""
-        if r["match_type"] == cmp.MATCH_COINCIDENCE:
-            if lv in coin:
-                coin[lv] += 1
-            else:
-                coin_nolevel += 1
-        elif r["match_type"] in _DIFF_TYPES:
-            if lv in diff:
-                diff[lv] += 1
-            else:
-                diff_nolevel += 1
+        level = row["level"] or ""
+        target = coin if row["match_type"] == cmp.MATCH_COINCIDENCE else (
+            diff if row["match_type"] in _DIFF_TYPES else None)
+        if target is not None and level in target:
+            target[level] += 1
     return {
         "coincidence": coin, "difference": diff,
-        "coincidence_nolevel": coin_nolevel, "difference_nolevel": diff_nolevel,
         "total_confirmed": total_confirmed,
-        "total_coincidence": sum(coin.values()) + coin_nolevel,
-        "total_difference": sum(diff.values()) + diff_nolevel,
+        "total_coincidence": sum(coin.values()),
+        "total_difference": sum(diff.values()),
+        "levels_with_coincidence": [lv for lv, count in coin.items() if count],
+        "levels_with_difference": [lv for lv, count in diff.items() if count],
     }
 
 
-def recommend(pdb: "protocol_db.ProtocolDB", project_id: int,
-              doc_a: int, doc_b: int) -> tuple[str, list[str], dict]:
-    """
-    Авто-рекомендация формы вывода по правилу Рубцовой (с.85–86).
-    Возвращает (форма, обоснование по пунктам, breakdown-словарь).
-    """
-    bd = _level_breakdown(pdb, doc_a, doc_b)
-    blocks = cmp.pair_blocks_strong_conclusion(pdb, project_id, doc_a, doc_b)
-    bd["blocks_strong_conclusion"] = blocks
-    reasons: list[str] = []
-    coin, diff = bd["coincidence"], bd["difference"]
+def _significance_counts(rows: list, match_types: tuple[str, ...]) -> dict[str, int]:
+    result = {key: 0 for key in _ID_KEYS}
+    for row in rows:
+        if row["status"] != cmp.STATUS_CONFIRMED or row["match_type"] not in match_types:
+            continue
+        result[row["identification_value"] or "без оценки"] += 1
+    return result
 
-    # 0) Решающее правило Вула (2007, с. 38; Минюст, с. 19): степень
-    # ГРАММАТИЧЕСКОГО и/или ЛЕКСИКО-ФРАЗЕОЛОГИЧЕСКОГО навыка в спорном ВЫШЕ,
-    # чем в образце, за пределами допуска (вердикт «навык_выше_в_спорном»
-    # ставится стадией сравнения только при превышении допуска) → основание
-    # категорического отрицательного вывода. Орфография/пунктуация в правиле
-    # НЕ участвуют (чувствительны к автокоррекции).
-    vul_hits = []
-    for r in pdb.fetch_comparisons(doc_a, doc_b):
-        if (r["match_type"] == cmp.GEN_HIGHER
-                and (r["subgroup"] or "") in cmp.VUL_DECISIVE_SKILLS):
-            vul_hits.append(r)
-    bd["правило_Вула"] = [r["subgroup"] for r in vul_hits]
-    if vul_hits:
-        for r in vul_hits:
-            tol = cmp.SKILL_TOLERANCE.get(r["subgroup"] or "", 0)
-            reasons.append(
-                f"Правило Вула: степень навыка «{r['subgroup']}» в спорном тексте "
-                f"выше, чем в образце, за пределами допуска ±{tol:g} "
-                f"(спорный: {r['value_a']}; образец: {r['value_b']}) — "
-                "автор образца не мог выполнить спорный текст с более высоким "
-                "навыком [Вул, 2007, с. 38; Минюст, с. 19].")
-        form = FORM_NEG_CATEGORICAL
-        if blocks:
-            reasons.append("Категорическая форма ЗАБЛОКИРОВАНА стадией пригодности "
-                           "(blocks_strong_conclusion=1) — форма понижена до вероятной.")
-            form = FORM_NEG_PROBABLE
-        return form, reasons, bd
 
-    if bd["total_confirmed"] == 0:
-        reasons.append("Нет ни одной подтверждённой экспертом позиции сравнения — "
-                       "оценка результатов невозможна.")
-        return FORM_NPV, reasons, bd
+def _load_json(value: Any, fallback: Any) -> Any:
+    if not value:
+        return fallback
+    try:
+        return json.loads(value)
+    except (TypeError, ValueError):
+        return fallback
 
-    # 1) Различие на НН — самый сильный сигнал (с.85).
-    if diff["НН"] > 0:
-        reasons.append(f"Выявлены различия на уровне НН (набор норм): {diff['НН']} — "
-                       "по методике это основание категорического отрицательного вывода.")
-        form = FORM_NEG_CATEGORICAL
-        if blocks:
-            reasons.append("Категорическая форма ЗАБЛОКИРОВАНА стадией пригодности "
-                           "(blocks_strong_conclusion=1) — форма понижена до вероятной.")
-            form = FORM_NEG_PROBABLE
-        return form, reasons, bd
 
-    # 2) Различия на НС/НСВ (или без уровня) → вероятный отрицательный.
-    if bd["total_difference"] > 0:
-        parts = [f"НС: {diff['НС']}", f"НСВ: {diff['НСВ']}"]
-        if bd["difference_nolevel"]:
-            parts.append(f"без уровня: {bd['difference_nolevel']}")
-        reasons.append("Выявлены различия (" + ", ".join(parts) + ") при отсутствии "
-                       "различий на НН — вероятный отрицательный вывод.")
-        return FORM_NEG_PROBABLE, reasons, bd
+def methodological_checks(
+    pdb: "protocol_db.ProtocolDB", project_id: int, doc_a: int, doc_b: int,
+) -> dict[str, Any]:
+    """Вернуть только наблюдения и формализованные проверки для эксперта."""
+    rows = list(pdb.fetch_comparisons(doc_a, doc_b))
+    rubtsova = _level_breakdown(pdb, doc_a, doc_b)
 
-    # 3) Только совпадения. Категорический положительный требует
-    # ОДНОВРЕМЕННО: суммарного порога ≥20 (Рубцова, с. 85), совпадений на
-    # всех трёх уровнях И всех покатегорийных минимумов
-    # (Моисеева/Огорелков, 2021, с. 89–93).
-    st = cmp.stats(pdb, project_id, doc_a, doc_b)
-    bd["разбивка_по_категориям"] = st["разбивка_по_категориям"]
-    cat_short = st["недобор_категорический"]
-    prob_short = st["недобор_вероятный"]
+    skill_rows = [row for row in rows if row["match_type"] in cmp.GEN_TYPES]
+    skills = {row["subgroup"] or row["label"]: {
+        "condition": row["match_type"], "disputed": row["value_a"],
+        "sample": row["value_b"],
+    } for row in skill_rows}
+    vula_hits = [row["subgroup"] for row in skill_rows
+                 if row["match_type"] == cmp.GEN_HIGHER
+                 and (row["subgroup"] or "") in cmp.VUL_DECISIVE_SKILLS]
+    vula_note = (
+        "Формализованное условие правила Вула выполнено. "
+        if vula_hits else "Формализованное условие правила Вула не выявлено. "
+    ) + "Экспертная оценка и вывод программой не формулируются."
 
-    all_levels = all(coin[lv] > 0 for lv in cmp.LEVELS)
-    enough = bd["total_coincidence"] >= cmp.MIN_FEATURES_FOR_CONCLUSION
-    reasons.append(
-        f"Значимых различий не выявлено; совпадений {bd['total_coincidence']} "
-        f"(НН: {coin['НН']}, НС: {coin['НС']}, НСВ: {coin['НСВ']}"
-        + (f", без уровня: {bd['coincidence_nolevel']}" if bd["coincidence_nolevel"] else "")
-        + ").")
+    by_category: dict[str, dict] = {}
+    for key in cmp.CATEGORY_MIN_CATEGORICAL:
+        cat_rows = [row for row in rows
+                    if row["match_type"] not in cmp.GEN_TYPES
+                    and cmp.category_key(row["group_name"], row["subgroup"]) == key]
+        coincidence = _significance_counts(cat_rows, (cmp.MATCH_COINCIDENCE,))
+        difference = _significance_counts(cat_rows, _DIFF_TYPES)
+        by_category[key] = {
+            "coincidence": sum(coincidence.values()),
+            "difference": sum(difference.values()),
+            "coincidence_by_identification_value": coincidence,
+            "difference_by_identification_value": difference,
+            "high_identification_value_coincidence": coincidence["высокая"],
+        }
 
-    if all_levels and enough and not cat_short:
-        reasons.append(
-            f"Совпадения на всех трёх уровнях, достигнут суммарный порог "
-            f"≥{cmp.MIN_FEATURES_FOR_CONCLUSION} и выполнены все покатегорийные "
-            "минимумы [Моисеева/Огорелков, 2021, с. 89–93] — "
-            "категорический положительный вывод.")
-        form = FORM_POS_CATEGORICAL
-        if blocks:
-            reasons.append("Категорическая форма ЗАБЛОКИРОВАНА стадией пригодности — "
-                           "форма понижена до вероятной.")
-            form = FORM_POS_PROBABLE
-        return form, reasons, bd
+    categorical_met = [key for key, values in by_category.items()
+                       if values["high_identification_value_coincidence"] >=
+                       cmp.CATEGORY_MIN_CATEGORICAL[key]]
+    probable_met = [key for key, values in by_category.items()
+                    if values["high_identification_value_coincidence"] >=
+                    cmp.CATEGORY_MIN_PROBABLE[key]]
 
-    if not all_levels:
-        missing = [lv for lv in cmp.LEVELS if coin[lv] == 0]
-        reasons.append(f"Совпадения не охватывают все уровни (нет: {', '.join(missing)}) — "
-                       "категорическая форма недоступна.")
-    if not enough:
-        reasons.append(f"Суммарный порог ≥{cmp.MIN_FEATURES_FOR_CONCLUSION} не достигнут "
-                       f"({bd['total_coincidence']}) — категорическая форма недоступна.")
-    if cat_short:
-        reasons.append(
-            "Не выполнены покатегорийные минимумы категорического вывода: "
-            + ", ".join(cat_short)
-            + " [Моисеева/Огорелков, 2021, с. 89–93].")
+    suitability = {"warnings": [], "methodological": [], "instrumental": []}
+    for row in pdb.fetch_suitability(project_id):
+        pair_hit = row["pair_doc_a"] == doc_a and row["pair_doc_b"] == doc_b
+        doc_hit = row["document_id"] in (doc_a, doc_b)
+        if not (pair_hit or doc_hit):
+            continue
+        suitability["methodological"].extend(_load_json(row["flags"], []))
+        if row["verdict"] != "пригоден":
+            suitability["warnings"].append(row["verdict"])
+        if row["blocks_strong_conclusion"]:
+            suitability["warnings"].append("Материал ограничивает сильные формы вывода")
 
-    if prob_short:
-        reasons.append(
-            "Не выполнены и половинные (вероятные) покатегорийные минимумы: "
-            + ", ".join(prob_short)
-            + " — данных недостаточно, форма понижена до НПВ.")
-        return FORM_NPV, reasons, bd
-
-    return FORM_POS_PROBABLE, reasons, bd
+    result = {
+        "rubtsova": rubtsova,
+        "vula": {
+            "skills": skills,
+            "condition_higher_in_disputed": vula_hits,
+            "condition_met": bool(vula_hits),
+            "note": vula_note,
+        },
+        "moiseeva_ogorelkov": {
+            "by_category": by_category,
+            "categorical_reference_thresholds": dict(cmp.CATEGORY_MIN_CATEGORICAL),
+            "probable_reference_thresholds": dict(cmp.CATEGORY_MIN_PROBABLE),
+            "categorical_thresholds_met": categorical_met,
+            "categorical_thresholds_not_met": [k for k in by_category if k not in categorical_met],
+            "probable_thresholds_met": probable_met,
+            "probable_thresholds_not_met": [k for k in by_category if k not in probable_met],
+        },
+        "suitability": suitability,
+    }
+    assert "recommended_form" not in result
+    return result
 
 
 def decide(
-    pdb: "protocol_db.ProtocolDB",
-    project_id: int,
-    doc_a: int,
-    doc_b: int,
-    form: str,
-    justification: str = "",
-    program_version: Optional[str] = None,
+    pdb: "protocol_db.ProtocolDB", project_id: int, doc_a: int, doc_b: int,
+    form: str, justification: str = "", program_version: Optional[str] = None,
 ) -> dict:
-    """
-    Зафиксировать форму вывода. Если форма отличается от авто-рекомендации,
-    обоснование обязательно. Пишет append-only + audit_log.
-    """
+    """Зафиксировать самостоятельное решение эксперта (append-only)."""
     if form not in FORMS:
         raise ValueError(f"Недопустимая форма вывода: {form}")
-    rec_form, rec_reasons, bd = recommend(pdb, project_id, doc_a, doc_b)
-    if form != rec_form and not justification.strip():
-        raise ValueError(
-            "Форма вывода отличается от рекомендации методики "
-            f"({rec_form}) — требуется письменное обоснование эксперта.")
+    snapshot = methodological_checks(pdb, project_id, doc_a, doc_b)
     pdb.record_conclusion(
-        project_id, doc_a, doc_b, form,
-        justification=justification, recommended_form=rec_form,
-        stats_snapshot=bd, program_version=program_version)
+        project_id, doc_a, doc_b, form, justification=justification,
+        recommended_form="", stats_snapshot=snapshot,
+        program_version=program_version)
     pdb.log_action(
         "зафиксирован вывод по паре", project_id=project_id,
         details={"pair_doc_a": doc_a, "pair_doc_b": doc_b,
-                 "форма": form, "рекомендация": rec_form,
-                 "совпадение_с_рекомендацией": form == rec_form,
-                 "обоснование": justification or None},
+                 "выбранная_экспертом_форма": form,
+                 "обоснование": justification,
+                 "methodological_checks": snapshot,
+                 "program_version": program_version},
         program_version=program_version)
-    return {"form": form, "recommended": rec_form, "breakdown": bd}
+    return {"form": form, "methodological_checks": snapshot}

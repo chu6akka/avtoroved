@@ -1,0 +1,63 @@
+id: minjust
+version: "1.0.0"
+title: "Методика судебной автороведческой экспертизы Минюста"
+source: "Предоставленный пользователем методический документ Минюста"
+applicability:
+  language: ru
+  tasks: [identification, classification_diagnostic, situational_diagnostic]
+suitability:
+  min_disputed_words: 100
+  min_sample_words: 100
+  min_sample_ratio: 10
+  min_cyrillic_ratio: 0.5
+  min_independent_groups: 3
+allowed_verdicts: [categorical_positive, probable_positive, probable_negative, categorical_negative, inconclusive]
+features:
+  - id: ns.lexical_diversity
+    name: "Лексическое разнообразие"
+    level: NS
+    category: lexical
+    source: "Методика Минюста"
+    page: "стадия раздельного исследования"
+    method: auto
+    unit: ratio
+    min_words: 200
+    stability: volume
+    expert_confirmation: true
+    tolerance: 0.12
+    dependency_group: lexical_diversity
+    extractor: stats.ttr
+  - id: ns.sentence_length
+    name: "Средняя длина предложения"
+    level: NS
+    category: syntactic
+    source: "Методика Минюста"
+    page: "стадия раздельного исследования"
+    method: auto
+    unit: words
+    min_words: 200
+    stability: volume
+    expert_confirmation: true
+    tolerance: 0.15
+    dependency_group: syntax_complexity
+    extractor: stats.avg_sentence_words
+  - id: nn.language_norms
+    name: "Набор языковых норм"
+    level: NN
+    category: language
+    source: "Методика Минюста"
+    page: "аналитическая стадия"
+    method: expert
+    stability: expert
+    expert_confirmation: true
+    dependency_group: norms
+  - id: nsv.individual_means
+    name: "Индивидуальные средства выражения"
+    level: NSV
+    category: integrated
+    source: "Методика Минюста"
+    page: "синтезирующая стадия"
+    method: expert
+    stability: recurrence
+    expert_confirmation: true
+    dependency_group: individual_means

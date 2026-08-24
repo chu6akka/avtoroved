@@ -187,7 +187,8 @@ def test_stats_category_breakdown(pdb):
     cmp.auto_match(pdb, pid, a, b)
     for r in pdb.fetch_comparisons(a, b):
         cmp.decide(pdb, pid, a, b, r["position_key"],
-                   match_type=cmp.MATCH_COINCIDENCE, level="НС")
+                   match_type=cmp.MATCH_COINCIDENCE, level="НС",
+                   identification_value="высокая")
     st = cmp.stats(pdb, pid, a, b)
     bl = st["разбивка_по_категориям"]["языковые/лексические"]
     assert bl["есть"] == 3
@@ -216,9 +217,11 @@ def test_stats_levels_and_threshold(pdb):
     cmp.auto_match(pdb, pid, a, b)
     rows = pdb.fetch_comparisons(a, b)
     cmp.decide(pdb, pid, a, b, rows[0]["position_key"],
-               match_type=cmp.MATCH_COINCIDENCE, level="НН")
+               match_type=cmp.MATCH_COINCIDENCE, level="НН",
+               identification_value="высокая")
     cmp.decide(pdb, pid, a, b, rows[1]["position_key"],
-               match_type=cmp.MATCH_COINCIDENCE, level="НСВ")
+               match_type=cmp.MATCH_COINCIDENCE, level="НСВ",
+               identification_value="высокая")
     st = cmp.stats(pdb, pid, a, b)
     assert st["всего"] == 3
     assert st["подтверждено"] == 2

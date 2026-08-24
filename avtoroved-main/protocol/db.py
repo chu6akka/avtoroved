@@ -181,6 +181,8 @@ CREATE TABLE IF NOT EXISTS comparisons (
   value_a TEXT, value_b TEXT, fragment_a TEXT, fragment_b TEXT,
   match_type TEXT NOT NULL,       -- 'совпадение'|'различие'|'только_у_спорного'|'только_у_образца'
   level TEXT DEFAULT '',          -- уровень индивидуализации: 'НН'|'НС'|'НСВ'|'' (Рубцова 2007, с.11)
+  source_expert_id_value TEXT DEFAULT '', -- справочная оценка из карты признаков
+  identification_value TEXT DEFAULT '',  -- итоговая оценка позиции экспертом
   status TEXT NOT NULL DEFAULT 'авто',   -- 'авто' (черновик) | 'подтверждено' (эксперт)
   expert_note TEXT,
   created_at TEXT NOT NULL,
@@ -195,7 +197,7 @@ CREATE TABLE IF NOT EXISTS comparison_decisions (
   pair_doc_a INTEGER NOT NULL REFERENCES documents(id),
   pair_doc_b INTEGER NOT NULL REFERENCES documents(id),
   position_key TEXT NOT NULL,
-  match_type TEXT, level TEXT, expert_note TEXT,
+  match_type TEXT, level TEXT, identification_value TEXT DEFAULT '', expert_note TEXT,
   status TEXT NOT NULL,           -- 'подтверждено' | 'сброшено'
   decided_at TEXT NOT NULL,
   program_version TEXT
@@ -307,6 +309,23 @@ class ProtocolDB:
             if "reliability" not in cols:
                 conn.execute(
                     "ALTER TABLE feature_candidates ADD COLUMN reliability TEXT DEFAULT ''")
+            # Стадия сравнения получила собственную экспертную оценку
+            # идентификационной значимости. ALTER сохраняет старые дела.
+            for table, additions in {
+                "comparisons": (
+                    "source_expert_id_value TEXT DEFAULT ''",
+                    "identification_value TEXT DEFAULT ''",
+                ),
+                "comparison_decisions": (
+                    "identification_value TEXT DEFAULT ''",
+                ),
+            }.items():
+                existing = {r["name"] for r in conn.execute(
+                    f"PRAGMA table_info({table})").fetchall()}
+                for definition in additions:
+                    name = definition.split()[0]
+                    if name not in existing:
+                        conn.execute(f"ALTER TABLE {table} ADD COLUMN {definition}")
 
     # ── проекты ─────────────────────────────────────────────────────────────
     def create_project(
@@ -696,14 +715,14 @@ class ProtocolDB:
                     "(project_id, pair_doc_a, pair_doc_b, position_key, "
                     " feature_key_a, feature_key_b, group_name, subgroup, label, "
                     " value_a, value_b, fragment_a, fragment_b, match_type, "
-                    " level, status, expert_note, created_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', 'авто', NULL, ?)",
+                    " level, source_expert_id_value, identification_value, status, expert_note, created_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, '', 'авто', NULL, ?)",
                     (project_id, pair_doc_a, pair_doc_b, p["position_key"],
                      p.get("feature_key_a"), p.get("feature_key_b"),
                      p.get("group_name"), p.get("subgroup"), p.get("label"),
                      p.get("value_a"), p.get("value_b"),
                      p.get("fragment_a"), p.get("fragment_b"),
-                     p["match_type"], ts))
+                     p["match_type"], p.get("source_expert_id_value", ""), ts))
                 inserted += 1
         return inserted, len(confirmed)
 
@@ -716,6 +735,7 @@ class ProtocolDB:
         status: str,                      # 'подтверждено' | 'сброшено'
         match_type: Optional[str] = None,
         level: str = "",
+        identification_value: str = "",
         expert_note: str = "",
         program_version: Optional[str] = None,
     ) -> int:
@@ -725,20 +745,21 @@ class ProtocolDB:
             cur = conn.execute(
                 "INSERT INTO comparison_decisions "
                 "(project_id, pair_doc_a, pair_doc_b, position_key, match_type, "
-                " level, expert_note, status, decided_at, program_version) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " level, identification_value, expert_note, status, decided_at, program_version) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (project_id, pair_doc_a, pair_doc_b, position_key, match_type,
-                 level, expert_note, status, ts, program_version))
+                 level, identification_value, expert_note, status, ts, program_version))
             if status == "подтверждено":
                 conn.execute(
                     "UPDATE comparisons SET match_type = COALESCE(?, match_type), "
-                    "level = ?, expert_note = ?, status = 'подтверждено', decided_at = ? "
+                    "level = ?, identification_value = ?, expert_note = ?, "
+                    "status = 'подтверждено', decided_at = ? "
                     "WHERE pair_doc_a = ? AND pair_doc_b = ? AND position_key = ?",
-                    (match_type, level, expert_note, ts,
+                    (match_type, level, identification_value, expert_note, ts,
                      pair_doc_a, pair_doc_b, position_key))
             else:  # 'сброшено' — вернуть позицию в авто-состояние
                 conn.execute(
-                    "UPDATE comparisons SET level = '', expert_note = NULL, "
+                    "UPDATE comparisons SET level = '', identification_value = '', expert_note = NULL, "
                     "status = 'авто', decided_at = NULL "
                     "WHERE pair_doc_a = ? AND pair_doc_b = ? AND position_key = ?",
                     (pair_doc_a, pair_doc_b, position_key))

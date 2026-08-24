@@ -178,6 +178,8 @@ def export_conclusion_docx(
     # Стадия 4: оценка результатов.
     doc.add_heading("4. Оценка результатов", level=2)
     bd = json.loads(conclusion_row["stats_snapshot"]) if conclusion_row["stats_snapshot"] else {}
+    if "rubtsova" in bd:
+        bd = bd["rubtsova"]
     if bd:
         coin, diff = bd.get("coincidence", {}), bd.get("difference", {})
         doc.add_paragraph(
@@ -186,12 +188,7 @@ def export_conclusion_docx(
             f"(НН {coin.get('НН', 0)}, НС {coin.get('НС', 0)}, НСВ {coin.get('НСВ', 0)}); "
             f"различий {bd.get('total_difference', 0)} "
             f"(НН {diff.get('НН', 0)}, НС {diff.get('НС', 0)}, НСВ {diff.get('НСВ', 0)}). "
-            f"Методический порог: ≥{cmp.MIN_FEATURES_FOR_CONCLUSION} признаков.")
-    if conclusion_row["recommended_form"]:
-        doc.add_paragraph(
-            f"Рекомендация по правилу методики (с.85–86): "
-            f"{concl.FORM_LABELS.get(conclusion_row['recommended_form'], conclusion_row['recommended_form'])}.")
-
+            "Форма вывода определена экспертом; программная рекомендация не формировалась.")
     # ── ВЫВОДЫ ───────────────────────────────────────────────────────────────
     doc.add_heading("ВЫВОДЫ", level=1)
     doc.add_paragraph(concl.FORM_LABELS.get(conclusion_row["form"],

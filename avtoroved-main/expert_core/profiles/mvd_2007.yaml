@@ -1,0 +1,79 @@
+id: mvd_2007
+version: "1.0.0"
+title: "Комплексная методика производства автороведческих экспертиз"
+source: "Рубцова И.И., Ермолаева Е.И., Безруков А.И., Огорелков И.В.; ЭКЦ МВД России, 2007"
+applicability:
+  language: ru
+  tasks: [identification]
+suitability:
+  min_disputed_words: 100
+  min_sample_words: 100
+  min_sample_ratio: 10
+  min_cyrillic_ratio: 0.5
+  min_independent_groups: 3
+allowed_verdicts: [categorical_positive, probable_positive, probable_negative, categorical_negative, inconclusive]
+features:
+  - id: ns.lexical_diversity
+    name: "Лексическое разнообразие"
+    level: NS
+    category: lexical
+    source: "Комплексная методика ЭКЦ МВД России"
+    page: "разд. 4.3.2"
+    method: auto
+    unit: ratio
+    min_words: 200
+    stability: volume
+    expert_confirmation: true
+    tolerance: 0.12
+    dependency_group: lexical_diversity
+    extractor: stats.ttr
+  - id: ns.hapax_ratio
+    name: "Доля однократных лемм"
+    level: NS
+    category: lexical
+    source: "Объективизирующий показатель; требует корпусной валидации"
+    page: "электронный профиль v1"
+    method: assisted
+    unit: ratio
+    min_words: 500
+    stability: volume
+    expert_confirmation: true
+    tolerance: 0.15
+    dependency_group: lexical_diversity
+    extractor: stats.hapax_ratio
+  - id: ns.sentence_length
+    name: "Средняя длина предложения"
+    level: NS
+    category: syntactic
+    source: "Комплексная методика ЭКЦ МВД России"
+    page: "разд. 4.3.2"
+    method: auto
+    unit: words
+    min_words: 200
+    stability: volume
+    expert_confirmation: true
+    tolerance: 0.15
+    dependency_group: syntax_complexity
+    extractor: stats.avg_sentence_words
+  - id: nn.language_norms
+    name: "Набор наиболее привычных языковых норм"
+    level: NN
+    category: language
+    source: "Комплексная методика ЭКЦ МВД России"
+    page: "разд. 4.3.1"
+    method: expert
+    min_words: 100
+    stability: expert
+    expert_confirmation: true
+    dependency_group: norms
+  - id: nsv.individual_means
+    name: "Индивидуальные средства выражения"
+    level: NSV
+    category: integrated
+    source: "Комплексная методика ЭКЦ МВД России"
+    page: "разд. 4.3.3"
+    method: expert
+    min_words: 100
+    stability: recurrence
+    expert_confirmation: true
+    dependency_group: individual_means

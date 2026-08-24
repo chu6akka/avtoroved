@@ -1,10 +1,8 @@
 """
 ui/tabs/conclusion_tab.py — вкладка «Вывод и заключение» (стадия 4 протокола).
 
-Показывает сводку сравнительного исследования пары, авто-рекомендацию формы
-вывода по правилу Рубцовой 2007 (с.85–86) с обоснованием; эксперт фиксирует
-форму (несогласие с рекомендацией требует обоснования) и экспортирует
-заключение в DOCX по структуре Приложения 1.
+Показывает нейтральный методический контроль по четырём блокам. Программа
+не выбирает и не выделяет форму вывода; решение фиксирует эксперт.
 """
 from __future__ import annotations
 
@@ -87,7 +85,7 @@ class ConclusionTab(QWidget):
         top.addStretch()
         layout.addLayout(top)
 
-        layout.addWidget(QLabel("Рекомендация методики (автоматическая, справочно):"))
+        layout.addWidget(QLabel("Методический контроль (без рекомендации формы вывода):"))
         self.recommend_view = QTextEdit()
         self.recommend_view.setReadOnly(True)
         self.recommend_view.setMaximumHeight(170)
@@ -101,7 +99,7 @@ class ConclusionTab(QWidget):
         form_row.addWidget(self.form_combo, stretch=1)
         layout.addLayout(form_row)
 
-        layout.addWidget(QLabel("Обоснование (обязательно при несогласии с рекомендацией):"))
+        layout.addWidget(QLabel("Обоснование эксперта:"))
         self.justification_edit = QTextEdit()
         self.justification_edit.setMaximumHeight(90)
         layout.addWidget(self.justification_edit)
@@ -162,20 +160,34 @@ class ConclusionTab(QWidget):
         super().showEvent(event)
         self._reload_projects()
 
-    # ── сводка и рекомендация ────────────────────────────────────────────────
+    # ── нейтральный методический контроль ───────────────────────────────────
     def _refresh(self):
         doc_a, doc_b = self._pair()
         if self._project_id is None or doc_a is None or doc_b is None:
             self.recommend_view.setPlainText("Выберите пару спорный↔образец.")
             self.status_label.setText("")
             return
-        form, reasons, bd = concl.recommend(self._pdb, self._project_id, doc_a, doc_b)
-        html = [f"<b>Рекомендуемая форма: {concl.FORM_LABELS[form]}</b>", ""]
-        html += [f"• {r}" for r in reasons]
+        checks = concl.methodological_checks(
+            self._pdb, self._project_id, doc_a, doc_b)
+        rub = checks["rubtsova"]
+        mo = checks["moiseeva_ogorelkov"]
+        vula = checks["vula"]
+        suitability = checks["suitability"]
+        html = [
+            "<b>A. Уровни НН/НС/НСВ (Рубцова)</b>",
+            f"Совпадения: {rub['coincidence']}; различия: {rub['difference']}.",
+            "<b>B. Категории и количественные ориентиры (Моисеева—Огорелков)</b>",
+            "Категорические ориентиры достигнуты: "
+            + (", ".join(mo["categorical_thresholds_met"]) or "нет") + ".",
+            "Вероятные ориентиры достигнуты: "
+            + (", ".join(mo["probable_thresholds_met"]) or "нет") + ".",
+            "<b>C. Общие признаки и правило Вула</b>",
+            vula["note"],
+            "<b>D. Ограничения материала</b>",
+            "; ".join(suitability["warnings"] + suitability["methodological"]
+                      + suitability["instrumental"]) or "Не зафиксированы.",
+        ]
         self.recommend_view.setHtml("<br>".join(html))
-        idx = self.form_combo.findData(form)
-        if idx >= 0:
-            self.form_combo.setCurrentIndex(idx)
         # Текущий зафиксированный вывод.
         row = self._pdb.fetch_conclusion(doc_a, doc_b)
         if row is not None:
@@ -197,7 +209,7 @@ class ConclusionTab(QWidget):
                          justification=self.justification_edit.toPlainText().strip(),
                          program_version=PROGRAM_VERSION)
         except ValueError as e:
-            QMessageBox.warning(self, "Требуется обоснование", str(e))
+            QMessageBox.warning(self, "Невозможно зафиксировать", str(e))
             return
         self._refresh()
         QMessageBox.information(self, "Вывод зафиксирован",

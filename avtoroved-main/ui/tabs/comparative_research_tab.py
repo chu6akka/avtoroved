@@ -31,7 +31,7 @@ _TYPE_COLOR = {
 
 
 class _ConfirmDialog(QDialog):
-    """Диалог подтверждения позиции: тип, уровень НН/НС/НСВ, примечание."""
+    """Решение эксперта: тип, уровень, значимость и примечание."""
 
     def __init__(self, default_type: str, parent=None):
         super().__init__(parent)
@@ -48,6 +48,11 @@ class _ConfirmDialog(QDialog):
         for lv in cmp_mod.LEVELS:
             self.level_combo.addItem(lv, lv)
         form.addRow("Уровень (НН/НС/НСВ):", self.level_combo)
+        self.id_value_combo = QComboBox()
+        self.id_value_combo.addItem("— без оценки —", "")
+        for value in ("низкая", "средняя", "высокая"):
+            self.id_value_combo.addItem(value, value)
+        form.addRow("Идентификационная значимость:", self.id_value_combo)
         self.note_edit = QTextEdit()
         self.note_edit.setPlaceholderText("Примечание эксперта (необязательно)…")
         self.note_edit.setMaximumHeight(80)
@@ -58,9 +63,10 @@ class _ConfirmDialog(QDialog):
         btns.rejected.connect(self.reject)
         form.addRow(btns)
 
-    def values(self) -> tuple[str, str, str]:
+    def values(self) -> tuple[str, str, str, str]:
         return (self.type_combo.currentText(),
                 self.level_combo.currentData() or "",
+                self.id_value_combo.currentData() or "",
                 self.note_edit.toPlainText().strip())
 
 
@@ -126,9 +132,10 @@ class ComparativeResearchTab(QWidget):
         filt.addStretch()
         layout.addLayout(filt)
 
-        self.table = QTableWidget(0, 7)
+        self.table = QTableWidget(0, 8)
         self.table.setHorizontalHeaderLabels(
-            ["Признак", "Группа", "У спорного", "У образца", "Тип", "Уровень", "Статус"])
+            ["Признак", "Группа", "У спорного", "У образца", "Тип", "Уровень",
+             "Ид. значимость", "Статус"])
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
@@ -140,7 +147,7 @@ class ComparativeResearchTab(QWidget):
         hh.resizeSection(0, 260)
         hh.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         hh.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
-        for c in (1, 4, 5, 6):
+        for c in (1, 4, 5, 6, 7):
             hh.setSectionResizeMode(c, QHeaderView.ResizeMode.ResizeToContents)
         self.table.itemSelectionChanged.connect(self._on_selection)
 
@@ -346,9 +353,8 @@ class ComparativeResearchTab(QWidget):
         # Плашка блокировки.
         if st["blocks_strong_conclusion"]:
             self.block_label.setText(
-                "⚠ По стадии пригодности категорический вывод для этой пары "
-                "ЗАБЛОКИРОВАН (blocks_strong_conclusion = 1) — результаты сравнения "
-                "смогут дать только вероятную форму вывода.")
+                "⚠ На стадии пригодности отмечено ограничение материала "
+                "(blocks_strong_conclusion = 1). Его влияние оценивает эксперт.")
             self.block_label.setVisible(True)
         else:
             self.block_label.setVisible(False)
@@ -373,9 +379,15 @@ class ComparativeResearchTab(QWidget):
                     f"{k} — {v.replace('навык_', '').replace('_', ' ')}"
                     for k, v in gen.items()) + "."
             short = st.get("недобор_категорический") or []
-            cat_txt = (" Покатегорийные минимумы выполнены."
+            cat_txt = (" Количественные ориентиры по категориям выполнены."
                        if not short else
-                       f" Недобор для категорического: {', '.join(short)}.")
+                       f" Не достигнуты справочные ориентиры: {', '.join(short)}.")
+            sig = st["по_идентификационной_значимости"]
+            sig_txt = (
+                " Совпадения по значимости: "
+                + ", ".join(f"{k} {v}" for k, v in sig["совпадение"].items())
+                + "; различия: "
+                + ", ".join(f"{k} {v}" for k, v in sig["различие"].items()) + ".")
             self.progress_label.setText(
                 f"Позиций {st['всего']}: совпадений {st[cmp_mod.MATCH_COINCIDENCE]}, "
                 f"различий {st[cmp_mod.MATCH_DIFFERENCE]}, "
@@ -383,8 +395,10 @@ class ComparativeResearchTab(QWidget):
                 f"только у образца {st[cmp_mod.MATCH_ONLY_B]}. "
                 f"Подтверждено {st['подтверждено']} "
                 f"(НН {st['уровень_НН']}, НС {st['уровень_НС']}, НСВ {st['уровень_НСВ']}). "
-                f"До суммарного порога ≥{st['порог_методики']}: {st['до_порога']}."
-                f"{gen_txt}{cat_txt}")
+                f"Высокоинформативных совпадений: "
+                f"{st['высокоинформативных_совпадений']}; до ориентира "
+                f"{st['порог_методики']}: {st['до_порога']}."
+                f"{sig_txt}{gen_txt}{cat_txt}")
 
     def _add_row(self, r):
         row = self.table.rowCount()
@@ -393,7 +407,8 @@ class ComparativeResearchTab(QWidget):
             r["label"], r["group_name"] or "",
             r["value_a"] or ("—" if r["match_type"] == cmp_mod.MATCH_ONLY_B else ""),
             r["value_b"] or ("—" if r["match_type"] == cmp_mod.MATCH_ONLY_A else ""),
-            r["match_type"], r["level"] or "", r["status"],
+            r["match_type"], r["level"] or "", r["identification_value"] or "без оценки",
+            r["status"],
         ]
         for col, text in enumerate(cells):
             item = QTableWidgetItem(str(text))
@@ -403,7 +418,7 @@ class ComparativeResearchTab(QWidget):
                 color = _TYPE_COLOR.get(r["match_type"])
                 if color:
                     item.setForeground(QColor(color))
-            if col == 6 and r["status"] == cmp_mod.STATUS_CONFIRMED:
+            if col == 7 and r["status"] == cmp_mod.STATUS_CONFIRMED:
                 item.setForeground(QColor("#a6e3a1"))
             self.table.setItem(row, col, item)
 
@@ -429,7 +444,11 @@ class ComparativeResearchTab(QWidget):
         if r["status"] == cmp_mod.STATUS_CONFIRMED:
             note = f" · примечание: {r['expert_note']}" if r["expert_note"] else ""
             parts.append(f"<b>Решение:</b> уровень {r['level'] or '—'} "
+                         f"· значимость {r['identification_value'] or 'без оценки'} "
                          f"({r['decided_at']}){note}")
+        elif r["source_expert_id_value"]:
+            parts.append("<b>Справочно по карте признаков:</b> "
+                         + r["source_expert_id_value"])
         self.detail.setHtml("<br>".join(parts))
 
     # ── решения ──────────────────────────────────────────────────────────────
@@ -442,10 +461,11 @@ class ComparativeResearchTab(QWidget):
         dlg = _ConfirmDialog(sel[0]["match_type"], self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
-        mtype, level, note = dlg.values()
+        mtype, level, identification_value, note = dlg.values()
         for r in sel:
             cmp_mod.decide(self._pdb, self._project_id, doc_a, doc_b,
                            r["position_key"], match_type=mtype, level=level,
+                           identification_value=identification_value,
                            expert_note=note, program_version=PROGRAM_VERSION)
         self._reload_table()
 
