@@ -93,8 +93,10 @@ def export_conclusion_docx(
         doc.add_paragraph(f"{target}: {r['verdict']} ({flag_txt})")
     blocks = cmp.pair_blocks_strong_conclusion(pdb, project_id, doc_a, doc_b)
     if blocks:
-        doc.add_paragraph("По результатам стадии пригодности категорическая форма "
-                          "вывода недоступна (blocks_strong_conclusion = 1).")
+        doc.add_paragraph(
+            "На стадии оценки пригодности зафиксированы ограничения исследуемого "
+            "материала. Их влияние на полноту исследования, достаточность "
+            "установленной совокупности признаков и форму вывода оценивается экспертом.")
 
     # Стадия 2: раздельное исследование.
     doc.add_heading("2. Раздельное исследование", level=2)
@@ -112,17 +114,19 @@ def export_conclusion_docx(
     confirmed = [r for r in pdb.fetch_comparisons(doc_a, doc_b)
                  if r["status"] == cmp.STATUS_CONFIRMED]
     if confirmed:
-        table = doc.add_table(rows=1, cols=4)
+        table = doc.add_table(rows=1, cols=5)
         table.style = "Table Grid"
         hdr = table.rows[0].cells
-        for i, t in enumerate(("Признак", "Тип", "Уровень", "Примечание")):
+        for i, t in enumerate(("Признак", "Тип", "Уровень",
+                               "Идентификационная значимость", "Примечание")):
             hdr[i].text = t
         for r in confirmed:
             row = table.add_row().cells
             row[0].text = r["label"] or ""
             row[1].text = r["match_type"]
             row[2].text = r["level"] or "—"
-            row[3].text = r["expert_note"] or ""
+            row[3].text = r["identification_value"] or "без оценки"
+            row[4].text = r["expert_note"] or ""
     else:
         doc.add_paragraph("Подтверждённых позиций сравнения нет.")
 
@@ -185,9 +189,11 @@ def export_conclusion_docx(
         doc.add_paragraph(
             f"Подтверждено позиций: {bd.get('total_confirmed', 0)}; "
             f"совпадений {bd.get('total_coincidence', 0)} "
-            f"(НН {coin.get('НН', 0)}, НС {coin.get('НС', 0)}, НСВ {coin.get('НСВ', 0)}); "
+            f"(НН {coin.get('НН', 0)}, НС {coin.get('НС', 0)}, НСВ {coin.get('НСВ', 0)}, "
+            f"без уровня {bd.get('coincidence_nolevel', 0)}); "
             f"различий {bd.get('total_difference', 0)} "
-            f"(НН {diff.get('НН', 0)}, НС {diff.get('НС', 0)}, НСВ {diff.get('НСВ', 0)}). "
+            f"(НН {diff.get('НН', 0)}, НС {diff.get('НС', 0)}, НСВ {diff.get('НСВ', 0)}, "
+            f"без уровня {bd.get('difference_nolevel', 0)}). "
             "Форма вывода определена экспертом; программная рекомендация не формировалась.")
     # ── ВЫВОДЫ ───────────────────────────────────────────────────────────────
     doc.add_heading("ВЫВОДЫ", level=1)

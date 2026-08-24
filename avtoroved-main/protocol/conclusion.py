@@ -35,6 +35,8 @@ _ID_KEYS = ("низкая", "средняя", "высокая", "без оцен
 def _level_breakdown(pdb: "protocol_db.ProtocolDB", doc_a: int, doc_b: int) -> dict:
     coin = {level: 0 for level in cmp.LEVELS}
     diff = {level: 0 for level in cmp.LEVELS}
+    coin_nolevel = 0
+    diff_nolevel = 0
     total_confirmed = 0
     for row in pdb.fetch_comparisons(doc_a, doc_b):
         if row["match_type"] in cmp.GEN_TYPES or row["status"] != cmp.STATUS_CONFIRMED:
@@ -43,13 +45,23 @@ def _level_breakdown(pdb: "protocol_db.ProtocolDB", doc_a: int, doc_b: int) -> d
         level = row["level"] or ""
         target = coin if row["match_type"] == cmp.MATCH_COINCIDENCE else (
             diff if row["match_type"] in _DIFF_TYPES else None)
-        if target is not None and level in target:
-            target[level] += 1
+        if target is coin:
+            if level in coin:
+                coin[level] += 1
+            else:
+                coin_nolevel += 1
+        elif target is diff:
+            if level in diff:
+                diff[level] += 1
+            else:
+                diff_nolevel += 1
     return {
         "coincidence": coin, "difference": diff,
         "total_confirmed": total_confirmed,
-        "total_coincidence": sum(coin.values()),
-        "total_difference": sum(diff.values()),
+        "coincidence_nolevel": coin_nolevel,
+        "difference_nolevel": diff_nolevel,
+        "total_coincidence": sum(coin.values()) + coin_nolevel,
+        "total_difference": sum(diff.values()) + diff_nolevel,
         "levels_with_coincidence": [lv for lv, count in coin.items() if count],
         "levels_with_difference": [lv for lv, count in diff.items() if count],
     }
@@ -89,9 +101,9 @@ def methodological_checks(
                  if row["match_type"] == cmp.GEN_HIGHER
                  and (row["subgroup"] or "") in cmp.VUL_DECISIVE_SKILLS]
     vula_note = (
-        "Формализованное условие правила Вула выполнено. "
-        if vula_hits else "Формализованное условие правила Вула не выявлено. "
-    ) + "Экспертная оценка и вывод программой не формулируются."
+        "Показано выполнение или невыполнение формализованного условия правила Вула. "
+        "Экспертная оценка и вывод программой не формулируются."
+    )
 
     by_category: dict[str, dict] = {}
     for key in cmp.CATEGORY_MIN_CATEGORICAL:
@@ -115,17 +127,62 @@ def methodological_checks(
                     if values["high_identification_value_coincidence"] >=
                     cmp.CATEGORY_MIN_PROBABLE[key]]
 
+    coincidences_by_category = {}
+    differences_by_category = {}
+    for key, values in by_category.items():
+        high_coincidences = values["high_identification_value_coincidence"]
+        total_differences = values["difference"]
+        coincidences_by_category[key] = {
+            "actual_count": values["coincidence"],
+            "high_identification_value_count": high_coincidences,
+            "categorical": {
+                "reference_minimum": cmp.CATEGORY_MIN_CATEGORICAL[key],
+                "condition_met": high_coincidences >= cmp.CATEGORY_MIN_CATEGORICAL[key],
+            },
+            "probable": {
+                "reference_minimum": cmp.CATEGORY_MIN_PROBABLE[key],
+                "condition_met": high_coincidences >= cmp.CATEGORY_MIN_PROBABLE[key],
+            },
+        }
+        differences_by_category[key] = {
+            "actual_count": total_differences,
+            "probable_negative": {
+                "reference_minimum": cmp.CATEGORY_MIN_PROBABLE_NEGATIVE[key],
+                "condition_met": total_differences >= cmp.CATEGORY_MIN_PROBABLE_NEGATIVE[key],
+            },
+        }
+
+    difference_counts_ru = _significance_counts(rows, _DIFF_TYPES)
+    difference_significance_counts = {
+        "low": difference_counts_ru["низкая"],
+        "medium": difference_counts_ru["средняя"],
+        "high": difference_counts_ru["высокая"],
+        "unset": difference_counts_ru["без оценки"],
+        "total": sum(difference_counts_ru.values()),
+    }
+    observed_conditions = {
+        "no_differences": difference_significance_counts["total"] == 0,
+        "low_differences_not_more_than_3": difference_significance_counts["low"] <= 3,
+        "high_differences_at_least_5": difference_significance_counts["high"] >= 5,
+    }
+
     suitability = {"warnings": [], "methodological": [], "instrumental": []}
     for row in pdb.fetch_suitability(project_id):
         pair_hit = row["pair_doc_a"] == doc_a and row["pair_doc_b"] == doc_b
         doc_hit = row["document_id"] in (doc_a, doc_b)
         if not (pair_hit or doc_hit):
             continue
-        suitability["methodological"].extend(_load_json(row["flags"], []))
+        for flag in _load_json(row["flags"], []):
+            message = flag.get("message", str(flag)) if isinstance(flag, dict) else str(flag)
+            target = "instrumental" if isinstance(flag, dict) and flag.get("code") == "извлечение" \
+                else "methodological"
+            suitability[target].append(message)
         if row["verdict"] != "пригоден":
             suitability["warnings"].append(row["verdict"])
         if row["blocks_strong_conclusion"]:
-            suitability["warnings"].append("Материал ограничивает сильные формы вывода")
+            suitability["warnings"].append(
+                "На стадии оценки пригодности зафиксированы ограничения материала; "
+                "их влияние на исследование и форму вывода оценивает эксперт")
 
     result = {
         "rubtsova": rubtsova,
@@ -136,6 +193,18 @@ def methodological_checks(
             "note": vula_note,
         },
         "moiseeva_ogorelkov": {
+            "coincidences_by_category": coincidences_by_category,
+            "differences_by_category": differences_by_category,
+            "reference_coincidence_thresholds": {
+                "categorical": dict(cmp.CATEGORY_MIN_CATEGORICAL),
+                "probable": dict(cmp.CATEGORY_MIN_PROBABLE),
+            },
+            "reference_difference_thresholds": {
+                "probable_negative": dict(cmp.CATEGORY_MIN_PROBABLE_NEGATIVE),
+            },
+            "difference_significance_counts": difference_significance_counts,
+            "observed_conditions": observed_conditions,
+            # Совместимые поля для ранее созданного UI/снимков.
             "by_category": by_category,
             "categorical_reference_thresholds": dict(cmp.CATEGORY_MIN_CATEGORICAL),
             "probable_reference_thresholds": dict(cmp.CATEGORY_MIN_PROBABLE),
@@ -160,7 +229,7 @@ def decide(
     snapshot = methodological_checks(pdb, project_id, doc_a, doc_b)
     pdb.record_conclusion(
         project_id, doc_a, doc_b, form, justification=justification,
-        recommended_form="", stats_snapshot=snapshot,
+        recommended_form=None, stats_snapshot=snapshot,
         program_version=program_version)
     pdb.log_action(
         "зафиксирован вывод по паре", project_id=project_id,

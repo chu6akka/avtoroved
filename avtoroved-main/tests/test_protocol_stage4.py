@@ -76,3 +76,20 @@ def test_old_sqlite_schema_migrates_without_data_loss(tmp_path):
         decision_cols = {r[1] for r in conn.execute(
             "PRAGMA table_info(comparison_decisions)")}
     assert "identification_value" in decision_cols
+
+
+def test_legacy_recommended_form_column_and_history_are_preserved(tmp_path):
+    path = str(tmp_path / "legacy-conclusion.db")
+    pdb = protocol_db.ProtocolDB(path)
+    pid, a, b = _pair(pdb)
+    pdb.record_conclusion(
+        pid, a, b, "НПВ", recommended_form="вероятный_положительный",
+        stats_snapshot={"legacy": True})
+    reopened = protocol_db.ProtocolDB(path)
+    current = reopened.fetch_conclusion(a, b)
+    history = reopened.fetch_conclusion_decisions(a, b)
+    assert current["recommended_form"] == "вероятный_положительный"
+    assert history[0]["recommended_form"] == "вероятный_положительный"
+    with sqlite3.connect(path) as conn:
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(conclusions)")}
+    assert "recommended_form" in columns

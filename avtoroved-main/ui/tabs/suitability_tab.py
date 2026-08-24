@@ -192,6 +192,7 @@ class SuitabilityTab(QWidget):
         if color:
             item.setForeground(QColor(color))
         if blocks:
-            item.setToolTip("Блокирует категорический вывод на следующих этапах "
-                            "(blocks_strong_conclusion = 1)")
+            item.setToolTip(
+                "Зафиксированы ограничения материала "
+                "(legacy: blocks_strong_conclusion = 1). Их влияние оценивает эксперт.")
         table.setItem(row, col, item)

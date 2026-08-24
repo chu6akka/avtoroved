@@ -780,7 +780,7 @@ class MainWindow(QMainWindow):
         self.tab_materials = MaterialsTab(self.stanza)
         self.stack.addWidget(self.tab_materials)
 
-        # 12 — Пригодность (гейт перед анализом): читает материалы из protocol.db
+        # 12 — Пригодность: измерения и ограничения для оценки экспертом
         self.tab_suitability = SuitabilityTab()
         self.stack.addWidget(self.tab_suitability)
 
@@ -796,7 +796,7 @@ class MainWindow(QMainWindow):
         self.tab_comparative = ComparativeResearchTab()
         self.stack.addWidget(self.tab_comparative)
 
-        # 16 — Вывод и заключение: правило Рубцовой + экспорт DOCX
+        # 16 — Методический контроль, фиксация решения эксперта и экспорт DOCX
         self.tab_conclusion = ConclusionTab()
         self.stack.addWidget(self.tab_conclusion)
 

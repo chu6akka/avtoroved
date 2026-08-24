@@ -86,14 +86,15 @@ class ConclusionTab(QWidget):
         layout.addLayout(top)
 
         layout.addWidget(QLabel("Методический контроль (без рекомендации формы вывода):"))
-        self.recommend_view = QTextEdit()
-        self.recommend_view.setReadOnly(True)
-        self.recommend_view.setMaximumHeight(170)
-        layout.addWidget(self.recommend_view)
+        self.checks_view = QTextEdit()
+        self.checks_view.setReadOnly(True)
+        self.checks_view.setMaximumHeight(240)
+        layout.addWidget(self.checks_view)
 
         form_row = QHBoxLayout()
         form_row.addWidget(QLabel("Форма вывода эксперта:"))
         self.form_combo = QComboBox()
+        self.form_combo.addItem("— выберите форму самостоятельно —", None)
         for f in concl.FORMS:
             self.form_combo.addItem(concl.FORM_LABELS[f], f)
         form_row.addWidget(self.form_combo, stretch=1)
@@ -164,7 +165,7 @@ class ConclusionTab(QWidget):
     def _refresh(self):
         doc_a, doc_b = self._pair()
         if self._project_id is None or doc_a is None or doc_b is None:
-            self.recommend_view.setPlainText("Выберите пару спорный↔образец.")
+            self.checks_view.setPlainText("Выберите пару спорный↔образец.")
             self.status_label.setText("")
             return
         checks = concl.methodological_checks(
@@ -173,21 +174,37 @@ class ConclusionTab(QWidget):
         mo = checks["moiseeva_ogorelkov"]
         vula = checks["vula"]
         suitability = checks["suitability"]
+        category_lines = []
+        for category, data in mo["coincidences_by_category"].items():
+            cat = data["categorical"]
+            prob = data["probable"]
+            category_lines.append(
+                f"{category}: всего {data['actual_count']}, высокой значимости "
+                f"{data['high_identification_value_count']}; "
+                f"ориентир {cat['reference_minimum']} — {cat['condition_met']}; "
+                f"ориентир {prob['reference_minimum']} — {prob['condition_met']}")
+        diff_counts = mo["difference_significance_counts"]
+        observed = mo["observed_conditions"]
         html = [
             "<b>A. Уровни НН/НС/НСВ (Рубцова)</b>",
-            f"Совпадения: {rub['coincidence']}; различия: {rub['difference']}.",
+            f"Совпадения: {rub['coincidence']}, без уровня "
+            f"{rub['coincidence_nolevel']}; различия: {rub['difference']}, "
+            f"без уровня {rub['difference_nolevel']}.",
             "<b>B. Категории и количественные ориентиры (Моисеева—Огорелков)</b>",
-            "Категорические ориентиры достигнуты: "
-            + (", ".join(mo["categorical_thresholds_met"]) or "нет") + ".",
-            "Вероятные ориентиры достигнуты: "
-            + (", ".join(mo["probable_thresholds_met"]) or "нет") + ".",
+            *category_lines,
+            ("Различия по значимости: низкая {low}, средняя {medium}, "
+             "высокая {high}, без оценки {unset}, всего {total}.").format(**diff_counts),
+            "Наблюдаемые условия: " + ", ".join(
+                f"{name}={value}" for name, value in observed.items()) + ".",
+            "True/False означает только результат отдельной формализованной проверки, "
+            "а не итоговую экспертную оценку.",
             "<b>C. Общие признаки и правило Вула</b>",
             vula["note"],
             "<b>D. Ограничения материала</b>",
             "; ".join(suitability["warnings"] + suitability["methodological"]
                       + suitability["instrumental"]) or "Не зафиксированы.",
         ]
-        self.recommend_view.setHtml("<br>".join(html))
+        self.checks_view.setHtml("<br>".join(html))
         # Текущий зафиксированный вывод.
         row = self._pdb.fetch_conclusion(doc_a, doc_b)
         if row is not None:
@@ -204,6 +221,11 @@ class ConclusionTab(QWidget):
         if self._project_id is None or doc_a is None or doc_b is None:
             return
         form = self.form_combo.currentData()
+        if form is None:
+            QMessageBox.information(
+                self, "Форма не выбрана",
+                "Выберите форму вывода самостоятельно.")
+            return
         try:
             concl.decide(self._pdb, self._project_id, doc_a, doc_b, form,
                          justification=self.justification_edit.toPlainText().strip(),

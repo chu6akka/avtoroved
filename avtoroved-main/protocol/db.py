@@ -211,7 +211,7 @@ CREATE TABLE IF NOT EXISTS conclusions (
   pair_doc_b INTEGER NOT NULL REFERENCES documents(id),
   form TEXT NOT NULL,             -- форма вывода (см. protocol/conclusion.py)
   justification TEXT,             -- обоснование эксперта
-  recommended_form TEXT,          -- авто-рекомендация на момент решения
+  recommended_form TEXT,          -- legacy: историческая авто-рекомендация старых версий
   stats_snapshot TEXT,            -- JSON: счётчики сравнения на момент решения
   decided_at TEXT NOT NULL,
   UNIQUE(pair_doc_a, pair_doc_b)
@@ -782,7 +782,7 @@ class ProtocolDB:
         pair_doc_b: int,
         form: str,
         justification: str = "",
-        recommended_form: str = "",
+        recommended_form: Optional[str] = None,
         stats_snapshot: Optional[dict] = None,
         program_version: Optional[str] = None,
     ) -> int:

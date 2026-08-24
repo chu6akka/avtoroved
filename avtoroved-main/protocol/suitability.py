@@ -109,6 +109,8 @@ def evaluate_document(doc: dict[str, Any]) -> tuple[str, list[dict], dict, bool]
     doc: {filename, role, provenance, genre, word_count, sentence_count,
           token_count, text}.
     Возвращает (verdict, flags, metrics, blocks_strong_conclusion).
+    Последнее поле — legacy-индикатор ограничений материала для совместимости;
+    оно не определяет допустимую форму экспертного вывода.
     """
     filename = doc.get("filename", "")
     provenance = doc.get("provenance") or ""
@@ -229,7 +231,7 @@ def _avg_sentence_len(doc: dict[str, Any]) -> float:
 
 
 def _verdict_from_flags(flags: list[dict]) -> tuple[str, bool]:
-    """Свести флаги к вердикту и признаку блокировки категорического вывода."""
+    """Свести флаги к оценке пригодности и legacy-индикатору ограничений."""
     if any(f["level"] == LEVEL_UNFIT for f in flags):
         return VERDICT_UNFIT, True
     if any(f["level"] == LEVEL_LIMIT for f in flags):
