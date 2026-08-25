@@ -19,6 +19,7 @@ from protocol import comparison as cmp
 from protocol import conclusion as concl
 from protocol import detector_filter
 from protocol import feature_map as fm
+from protocol import feature_model as model
 
 
 def export_conclusion_docx(
@@ -102,11 +103,12 @@ def export_conclusion_docx(
     doc.add_heading("2. Раздельное исследование", level=2)
     for d in (da, db_):
         accepted = [f for f in pdb.fetch_features(document_id=d["id"])
-                    if f["status"] == fm.STATUS_ACCEPTED]
+                    if f["status"] == fm.STATUS_ACCEPTED
+                    and model.normalized_role(f) == model.METHOD_FEATURE]
         cand_total = len([c for c in pdb.fetch_feature_candidates(d["id"])
-                          if c["kind"] == "кандидат_признак"])
+                          if model.normalized_role(c) == model.METHOD_FEATURE])
         doc.add_paragraph(
-            f"{d['filename']}: профиль построен, кандидатов признаков {cand_total}, "
+            f"{d['filename']}: профиль построен, методических кандидатов {cand_total}, "
             f"принято экспертом {len(accepted)}.")
 
     # Стадия 3: сравнительное исследование — таблица подтверждённых позиций.

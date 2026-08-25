@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
 
 from protocol import db as protocol_db
 from protocol import feature_map as fm
+from protocol import feature_model as model
 from protocol import PROGRAM_VERSION
 
 # Цвета статусов.
@@ -34,16 +35,19 @@ _STATUS_COLOR = {
 class _AcceptDialog(QDialog):
     """Диалог принятия признака: ид. ценность + примечание эксперта."""
 
-    def __init__(self, auto_id_value: str, parent=None):
+    def __init__(self, reference_value: str, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Принять признак")
         self.resize(440, 220)
         form = QFormLayout(self)
         self.id_combo = QComboBox()
-        self.id_combo.addItems(fm.ID_VALUES)
-        default = auto_id_value if auto_id_value in fm.ID_VALUES else "средняя"
-        self.id_combo.setCurrentText(default)
-        form.addRow("Идентификационная ценность:", self.id_combo)
+        self.id_combo.addItem("— эксперт не оценил —", "")
+        for value in fm.ID_VALUES:
+            self.id_combo.addItem(value, value)
+        form.addRow("Экспертная идентификационная ценность:", self.id_combo)
+        ref = QLabel(reference_value or "не установлена источником")
+        ref.setToolTip("Справочное значение источника не является решением эксперта")
+        form.addRow("Справочно по источнику:", ref)
         self.note_edit = QTextEdit()
         self.note_edit.setPlaceholderText("Примечание эксперта (необязательно)…")
         self.note_edit.setMaximumHeight(90)
@@ -55,7 +59,7 @@ class _AcceptDialog(QDialog):
         form.addRow(btns)
 
     def values(self) -> tuple[str, str]:
-        return self.id_combo.currentText(), self.note_edit.toPlainText().strip()
+        return self.id_combo.currentData() or "", self.note_edit.toPlainText().strip()
 
 
 class FeatureMapTab(QWidget):
@@ -112,10 +116,10 @@ class FeatureMapTab(QWidget):
         layout.addLayout(filt)
 
         # Таблица кандидатов.
-        self.table = QTableWidget(0, 7)
+        self.table = QTableWidget(0, 9)
         self.table.setHorizontalHeaderLabels(
-            ["Кандидат", "Группа", "Фрагмент", "Источник",
-             "Надёжн.", "Ид. ценность", "Статус"])
+            ["Кандидат", "Группа", "Фрагмент", "Источник", "Методический ID",
+             "Надёжн. детектора", "Справ. информ.", "Экспертная ценность", "Статус"])
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
@@ -126,7 +130,7 @@ class FeatureMapTab(QWidget):
         hh.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
         hh.resizeSection(0, 280)
         hh.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
-        for c in (1, 3, 4, 5, 6):
+        for c in (1, 3, 4, 5, 6, 7, 8):
             hh.setSectionResizeMode(c, QHeaderView.ResizeMode.ResizeToContents)
         self.table.itemSelectionChanged.connect(self._on_selection)
 
@@ -262,19 +266,21 @@ class FeatureMapTab(QWidget):
         row = self.table.rowCount()
         self.table.insertRow(row)
         status = feat["status"] if feat is not None else "—"
-        id_val = (feat["expert_id_value"] if feat is not None and feat["expert_id_value"]
-                  else (cand["id_value"] or ""))
+        id_val = ((feat["expert_identification_value"] or feat["expert_id_value"])
+                  if feat is not None else "")
         cells = [
             cand["label"], cand["group_name"], cand["fragment"] or "",
-            cand["source"] or "", cand["reliability"] or "", id_val, status,
+            cand["source"] or "", cand["method_feature_id"] or "",
+            cand["detection_reliability"] or cand["reliability"] or "",
+            cand["method_reference_informativeness"] or "", id_val, status,
         ]
         for col, text in enumerate(cells):
             item = QTableWidgetItem(str(text))
             if text:
                 item.setToolTip(str(text))
-            if col == 6 and status in _STATUS_COLOR:
+            if col == 8 and status in _STATUS_COLOR:
                 item.setForeground(QColor(_STATUS_COLOR[status]))
-            if col == 4 and text == "низкая":
+            if col == 5 and text == "низкая":
                 item.setForeground(QColor("#f9e2af"))
             self.table.setItem(row, col, item)
 
@@ -290,8 +296,13 @@ class FeatureMapTab(QWidget):
         cand, feat = sel[0]
         parts = [f"<b>{cand['label']}</b>",
                  f"<span style='color:#a6adc8'>{cand['group_name']} · "
-                 f"{cand['subgroup'] or ''} · {cand['source'] or ''} · "
-                 f"надёжность: {cand['reliability'] or '—'}</span>"]
+                 f"{cand['subgroup'] or ''} · {model.ROLE_LABELS[model.METHOD_FEATURE]} · "
+                 f"{cand['source_kind'] or ''} · {cand['source'] or ''} · "
+                 f"надёжность детектора: {cand['detection_reliability'] or cand['reliability'] or '—'}</span>",
+                 f"<b>Методический ID:</b> {cand['method_feature_id'] or '—'}",
+                 f"<b>Справочная информативность источника:</b> "
+                 f"{cand['method_reference_informativeness'] or '—'} "
+                 "(не решение эксперта)"]
         if cand["value"]:
             parts.append(f"<b>Значение:</b> {cand['value']}")
         if cand["fragment"]:
@@ -300,7 +311,8 @@ class FeatureMapTab(QWidget):
             note = f" · примечание: {feat['expert_note']}" if feat["expert_note"] else ""
             parts.append(
                 f"<b>Решение:</b> {feat['status']} ({feat['decided_at']})"
-                f" · ид. ценность: {feat['expert_id_value'] or feat['auto_id_value'] or '—'}{note}")
+                f" · экспертная ид. ценность: "
+                f"{feat['expert_identification_value'] or feat['expert_id_value'] or '—'}{note}")
         self.detail.setHtml("<br>".join(parts))
 
     # ── решения ──────────────────────────────────────────────────────────────
@@ -310,7 +322,8 @@ class FeatureMapTab(QWidget):
             QMessageBox.information(self, "Нет выбора", "Выделите кандидатов в таблице.")
             return
         # Ид. ценность/примечание запрашиваем один раз для всей выборки.
-        dlg = _AcceptDialog(sel[0][0]["id_value"] or "", self)
+        dlg = _AcceptDialog(
+            sel[0][0]["method_reference_informativeness"] or "", self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         id_value, note = dlg.values()

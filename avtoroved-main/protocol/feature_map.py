@@ -21,6 +21,7 @@ import hashlib
 from typing import Any, Optional
 
 from protocol import db as protocol_db
+from protocol import feature_model as model
 
 # ── Статусы решений ──────────────────────────────────────────────────────────
 STATUS_ACCEPTED = "принят"
@@ -66,6 +67,11 @@ def _snapshot(candidate: Any) -> dict:
         "label": g("label"), "value": g("value"), "fragment": g("fragment"),
         "source": g("source"), "reliability": g("reliability"),
         "id_value": g("id_value"),
+        "role": model.normalized_role(candidate),
+        "source_kind": g("source_kind"),
+        "method_feature_id": g("method_feature_id"),
+        "method_reference_informativeness": g("method_reference_informativeness"),
+        "detection_reliability": g("detection_reliability") or g("reliability"),
     }
 
 
@@ -76,6 +82,7 @@ def decide(
     candidate: Any,
     status: str,
     expert_id_value: str = "",
+    expert_identification_value: Optional[str] = None,
     expert_note: str = "",
     program_version: Optional[str] = None,
 ) -> str:
@@ -85,17 +92,25 @@ def decide(
     """
     if status not in DECISION_STATUSES + (STATUS_RESET,):
         raise ValueError(f"Недопустимый статус решения: {status}")
+    role = model.normalized_role(candidate)
+    if status == STATUS_ACCEPTED and role != model.METHOD_FEATURE:
+        raise ValueError("Принять как идентификационный признак можно только METHOD_FEATURE")
+    expert_value = (expert_identification_value
+                    if expert_identification_value is not None else expert_id_value)
+    if expert_value and expert_value not in ID_VALUES:
+        raise ValueError(f"Недопустимая экспертная идентификационная ценность: {expert_value}")
     key = candidate_key(candidate)
     snap = _snapshot(candidate)
     pdb.record_feature_decision(
         project_id, document_id, key, status, snap,
-        expert_id_value=expert_id_value, expert_note=expert_note,
+        expert_id_value=expert_value, expert_note=expert_note,
         program_version=program_version)
     pdb.log_action(
         f"признак: {status}", project_id=project_id,
         details={"document_id": document_id, "candidate_key": key,
                  "label": snap["label"],
-                 "ид_ценность_эксперта": expert_id_value or None,
+                 "role": role,
+                 "ид_ценность_эксперта": expert_value or None,
                  "примечание": expert_note or None},
         program_version=program_version)
     return key
@@ -104,14 +119,14 @@ def decide(
 def candidates_with_state(pdb: "protocol_db.ProtocolDB",
                           document_id: int) -> list[tuple[Any, Optional[Any]]]:
     """
-    Кандидаты-признаки документа (kind='кандидат_признак') вместе с текущим
-    решением из features (или None, если решения нет). Счётчики не включаются —
-    их не «принимают», они остаются справочными в раздельном исследовании.
+    Только METHOD_FEATURE-кандидаты вместе с текущим решением. Метрики,
+    evidence и общие навыки доступны в раздельном исследовании, но не могут
+    быть случайно приняты как идентификационный признак.
     """
     state = {f["candidate_key"]: f for f in pdb.fetch_features(document_id=document_id)}
     out = []
     for c in pdb.fetch_feature_candidates(document_id):
-        if c["kind"] != "кандидат_признак":
+        if model.normalized_role(c) != model.METHOD_FEATURE:
             continue
         # Подавленные фильтром сырые срабатывания хранятся для
         # воспроизводимости, но кандидатами для принятия не являются.

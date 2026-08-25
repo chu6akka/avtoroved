@@ -210,7 +210,9 @@ def test_ogorelkov_lemma_candidate_thresholds(count, ipm_rnc, expect_candidate):
     if expect_candidate:
         c = lemma_cands[0]
         assert "«не»" in c["label"]
-        assert c["id_value"] == "высокая"
+        assert c["id_value"] == ""
+        assert c["expert_identification_value"] is None
+        assert c["role"] == "EVIDENCE"
         assert "коэффициент отклонения" in c["value"]
 
 

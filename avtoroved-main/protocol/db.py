@@ -131,6 +131,12 @@ CREATE TABLE IF NOT EXISTS feature_candidates (
   value TEXT,                   -- значение счётчика или описание признака
   fragment TEXT,                -- фрагмент текста, где проявился
   source TEXT,                  -- модуль-источник
+  role TEXT NOT NULL DEFAULT '',
+  source_kind TEXT NOT NULL DEFAULT '',
+  method_feature_id TEXT,
+  method_reference_informativeness TEXT,
+  expert_identification_value TEXT,
+  detection_reliability TEXT DEFAULT '',
   id_value TEXT,                -- метка идентификационной ценности: 'низкая'|'средняя'|'высокая'|''
   reliability TEXT DEFAULT '',  -- надёжность кандидата: 'низкая'|'средняя'|'высокая'|''
   created_at TEXT NOT NULL
@@ -146,6 +152,9 @@ CREATE TABLE IF NOT EXISTS feature_decisions (
   status TEXT NOT NULL,          -- 'принят'|'отклонён'|'сомнителен'|'не_учитывать'|'сброшен'
   group_name TEXT, subgroup TEXT, label TEXT, value TEXT, fragment TEXT,
   source TEXT, reliability TEXT, auto_id_value TEXT,
+  role TEXT DEFAULT '', source_kind TEXT DEFAULT '', method_feature_id TEXT,
+  method_reference_informativeness TEXT, detection_reliability TEXT DEFAULT '',
+  expert_identification_value TEXT,
   expert_id_value TEXT,          -- ид. ценность по оценке эксперта (может отличаться от авто)
   expert_note TEXT,
   decided_at TEXT NOT NULL,
@@ -162,6 +171,9 @@ CREATE TABLE IF NOT EXISTS features (
   status TEXT NOT NULL,
   group_name TEXT, subgroup TEXT, label TEXT, value TEXT, fragment TEXT,
   source TEXT, reliability TEXT, auto_id_value TEXT,
+  role TEXT DEFAULT '', source_kind TEXT DEFAULT '', method_feature_id TEXT,
+  method_reference_informativeness TEXT, detection_reliability TEXT DEFAULT '',
+  expert_identification_value TEXT,
   expert_id_value TEXT, expert_note TEXT,
   decided_at TEXT NOT NULL,
   UNIQUE(document_id, candidate_key)
@@ -312,6 +324,30 @@ class ProtocolDB:
             # Стадия сравнения получила собственную экспертную оценку
             # идентификационной значимости. ALTER сохраняет старые дела.
             for table, additions in {
+                "feature_candidates": (
+                    "role TEXT NOT NULL DEFAULT ''",
+                    "source_kind TEXT NOT NULL DEFAULT ''",
+                    "method_feature_id TEXT",
+                    "method_reference_informativeness TEXT",
+                    "expert_identification_value TEXT",
+                    "detection_reliability TEXT DEFAULT ''",
+                ),
+                "feature_decisions": (
+                    "role TEXT DEFAULT ''",
+                    "source_kind TEXT DEFAULT ''",
+                    "method_feature_id TEXT",
+                    "method_reference_informativeness TEXT",
+                    "expert_identification_value TEXT",
+                    "detection_reliability TEXT DEFAULT ''",
+                ),
+                "features": (
+                    "role TEXT DEFAULT ''",
+                    "source_kind TEXT DEFAULT ''",
+                    "method_feature_id TEXT",
+                    "method_reference_informativeness TEXT",
+                    "expert_identification_value TEXT",
+                    "detection_reliability TEXT DEFAULT ''",
+                ),
                 "comparisons": (
                     "source_expert_id_value TEXT DEFAULT ''",
                     "identification_value TEXT DEFAULT ''",
@@ -581,13 +617,18 @@ class ProtocolDB:
     def save_feature_candidates(self, document_id: int, candidates: list[dict]) -> int:
         """
         Сохранить элементы профиля документа. Каждый элемент:
-        {group_name, subgroup, kind, label, value, fragment, source, id_value}.
+        {group_name, subgroup, kind, role, label, value, fragment, source,
+         source_kind, method_feature_id, method_reference_informativeness,
+         detection_reliability}. Legacy id_value/reliability сохраняются.
         Возвращает число записанных строк.
         """
         ts = _now()
         rows = [
             (document_id, c["group_name"], c.get("subgroup"), c["kind"],
              c["label"], c.get("value"), c.get("fragment"), c.get("source"),
+             c.get("role", ""), c.get("source_kind", ""),
+             c.get("method_feature_id"), c.get("method_reference_informativeness"),
+             c.get("expert_identification_value"), c.get("detection_reliability", ""),
              c.get("id_value", ""), c.get("reliability", ""), ts)
             for c in candidates
         ]
@@ -595,8 +636,10 @@ class ProtocolDB:
             conn.executemany(
                 "INSERT INTO feature_candidates "
                 "(document_id, group_name, subgroup, kind, label, value, fragment, "
-                " source, id_value, reliability, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " source, role, source_kind, method_feature_id, "
+                " method_reference_informativeness, expert_identification_value, "
+                " detection_reliability, id_value, reliability, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 rows,
             )
         return len(rows)
@@ -625,7 +668,8 @@ class ProtocolDB:
         журнал feature_decisions, а таблица features обновляется до текущего
         состояния (последнее решение по ключу; статус 'сброшен' удаляет строку).
         snapshot — содержимое кандидата: {group_name, subgroup, label, value,
-        fragment, source, reliability, id_value}.
+        fragment, source, role, source_kind, method_feature_id,
+        method_reference_informativeness, detection_reliability, id_value}.
         """
         ts = _now()
         snap = (
@@ -634,15 +678,24 @@ class ProtocolDB:
             snapshot.get("fragment"), snapshot.get("source"),
             snapshot.get("reliability"), snapshot.get("id_value"),
         )
+        normalized = (
+            snapshot.get("role", ""), snapshot.get("source_kind", ""),
+            snapshot.get("method_feature_id"),
+            snapshot.get("method_reference_informativeness"),
+            snapshot.get("detection_reliability", snapshot.get("reliability", "")),
+        )
         with self._connect() as conn:
             cur = conn.execute(
                 "INSERT INTO feature_decisions "
                 "(project_id, document_id, candidate_key, status, group_name, subgroup, "
                 " label, value, fragment, source, reliability, auto_id_value, "
+                " role, source_kind, method_feature_id, method_reference_informativeness, "
+                " detection_reliability, expert_identification_value, "
                 " expert_id_value, expert_note, decided_at, program_version) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (project_id, document_id, candidate_key, status, *snap,
-                 expert_id_value, expert_note, ts, program_version),
+                 *normalized, expert_id_value or None, expert_id_value,
+                 expert_note, ts, program_version),
             )
             decision_id = int(cur.lastrowid)
             # Материализация текущего состояния.
@@ -654,10 +707,13 @@ class ProtocolDB:
                     "INSERT INTO features "
                     "(project_id, document_id, candidate_key, status, group_name, subgroup, "
                     " label, value, fragment, source, reliability, auto_id_value, "
+                    " role, source_kind, method_feature_id, method_reference_informativeness, "
+                    " detection_reliability, expert_identification_value, "
                     " expert_id_value, expert_note, decided_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (project_id, document_id, candidate_key, status, *snap,
-                     expert_id_value, expert_note, ts),
+                     *normalized, expert_id_value or None, expert_id_value,
+                     expert_note, ts),
                 )
         return decision_id
 

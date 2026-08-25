@@ -2,12 +2,14 @@
 import pytest
 
 from protocol import db as protocol_db
+from protocol import feature_model as model
 from protocol import profile as pf
 
 
 # ── чистые сборщики ──────────────────────────────────────────────────────────
 class _FakeDomain:
     def __init__(self):
+        self.key = "law"
         self.label = "Право"
         self.cosine = 0.42
         self.match_count = 7
@@ -18,12 +20,15 @@ class _FakeThematic:
     top_domains = [_FakeDomain()]
 
 
-def test_semantic_candidates_low_id_value():
+def test_semantic_arbitrary_domain_is_auxiliary():
     out = pf.semantic_candidates(_FakeThematic())
     assert len(out) == 1
     c = out[0]
     assert c["group_name"] == pf.GROUP_SEMANTIC
-    assert c["id_value"] == "низкая"          # тема ≠ автор
+    assert c["role"] == model.AUX_METRIC
+    assert c["source_kind"] == model.SOURCE_ENGINEERING
+    assert c["id_value"] == ""
+    assert c["expert_identification_value"] is None
     assert "Право" in c["label"]
     assert c["source"] == "thematic_engine"
 
@@ -38,6 +43,7 @@ def test_textological_counters():
     labels = {c["label"]: c for c in out}
     assert labels["Число абзацев"]["value"] == "2"
     assert all(c["kind"] == pf.KIND_COUNTER for c in out)
+    assert all(c["role"] == model.AUX_METRIC for c in out)
     assert all(c["group_name"] == pf.GROUP_TEXTOLOGICAL for c in out)
 
 
@@ -76,6 +82,9 @@ def test_syntactic_sentence_types():
     assert labels["Восклицательные предложения"] == "1"
     assert labels["Предложения с многоточием"] == "1"
     assert any(l.startswith("Доля POS") for l in labels)
+    pos = next(c for c in out if c["label"].startswith("Доля POS"))
+    assert pos["subgroup"] == pf.SUB_MORPHOLOGICAL
+    assert pos["role"] == model.AUX_METRIC
 
 
 # ── кандидаты ошибок: требование проверки и ненадёжность ─────────────────────
@@ -101,7 +110,9 @@ def test_error_candidates_default_needs_review():
     assert pf.NOTE_NEEDS_REVIEW in c["value"]
     assert pf.NOTE_UNRELIABLE_AUTOCORRECT not in c["value"]
     assert c["subgroup"] == pf.SUB_PUNCTUATION
-    assert c["id_value"] == "высокая"
+    assert c["role"] == model.EVIDENCE
+    assert c["id_value"] == ""
+    assert c["expert_identification_value"] is None
     assert c["fragment"]
 
 
@@ -136,9 +147,8 @@ def test_general_skill_candidates():
     subs = {c["subgroup"]: c for c in out}
     assert set(subs) == {"орфографический", "грамматический", "общий_уровень"}
     assert "7.5 ошибок/200" in subs["грамматический"]["value"]
-    # Решающие навыки Вула — высокая идентификационная ценность.
-    assert subs["грамматический"]["id_value"] == "высокая"
-    assert subs["орфографический"]["id_value"] == "средняя"
+    assert all(c["role"] == model.GENERAL_SKILL for c in out)
+    assert all(c["id_value"] == "" for c in out)
     assert all(c["kind"] == pf.KIND_GENERAL for c in out)
 
 
@@ -197,7 +207,10 @@ def test_internet_candidates_concrete_with_fragments():
     # Конкретные вхождения с числом употреблений и фрагментом.
     kr = next(c for c in out if "кринж" in c["value"])
     assert "×2" in kr["value"]
-    assert kr["id_value"] == "высокая"          # устойчивое употребление
+    assert kr["role"] == model.EVIDENCE
+    assert kr["source_kind"] == model.SOURCE_EXPERIMENTAL
+    assert kr["id_value"] == ""
+    assert kr["expert_identification_value"] is None
     assert kr["fragment"]                        # фрагмент присутствует
     assert kr["subgroup"] == pf.SUB_INTERNET
     assert any("СРОЧНО" in c["value"] for c in out)        # капс
@@ -210,9 +223,12 @@ def test_lexical_marker_candidates_values():
         def lookup(self, lemma):
             return {"движуха": (50000, 1.0, "s")}.get(lemma)   # редкое (rank>30000)
     out = pf.lexical_marker_candidates(_FakeStrat(), freq_engine=_Freq())
-    by_val = {c["value"]: c for c in out}
-    assert by_val["«хрень»"]["id_value"] == "высокая"      # обсценный слой
-    assert by_val["«движуха»"]["id_value"] == "высокая"    # жаргон + редкое
+    obscene = next(c for c in out if "хрень" in c["value"])
+    jargon = next(c for c in out if "движуха" in c["value"])
+    assert obscene["role"] == model.EVIDENCE
+    assert jargon["role"] == model.EVIDENCE
+    assert obscene["id_value"] == jargon["id_value"] == ""
+    assert "частотный ранг: 50000" in jargon["value"]
     assert all(c["subgroup"] == pf.SUB_LEXICAL for c in out)
 
 

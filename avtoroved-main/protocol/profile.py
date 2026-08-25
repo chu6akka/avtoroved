@@ -5,7 +5,7 @@ protocol/profile.py — стадия «раздельное исследован
 стадийности по Огорелкову/Моисеевой) и складывает его в таблицу feature_candidates.
 Сравнения здесь НЕТ. UI «принять/отклонить признак» здесь НЕТ — но данные
 записываются так, чтобы следующий этап пристыковался без переделок
-(kind/source/fragment/id_value заполняются уже сейчас).
+(role/source_kind/method_feature_id заполняются вместе с legacy kind).
 
 Переиспользуются существующие модули анализа (analyzer.*), NLP не дублируется:
 токены даёт уже инициализированный в приложении бэкенд (StanzaBackend).
@@ -19,6 +19,7 @@ from typing import Any, Optional
 
 from protocol import db as protocol_db
 from protocol import detector_filter
+from protocol import feature_model as model
 
 # ── Группы (по методике: 4 группы признаков) ─────────────────────────────────
 GROUP_SEMANTIC = "смысловые"
@@ -30,6 +31,7 @@ GROUP_PSYCHO = "психолингвистические"
 SUB_LEXICAL = "лексические"
 SUB_STYLISTIC = "стилистические"
 SUB_SYNTACTIC = "синтаксические"
+SUB_MORPHOLOGICAL = "морфологические"
 SUB_ORTHOGRAPHIC = "орфографические"
 SUB_PUNCTUATION = "пунктуационные"
 SUB_GRAMMAR = "грамматические"
@@ -72,8 +74,6 @@ GENERAL_SKILLS = {
     "Грамматический навык": "грамматический",
     "Лексико-фразеологический навык": "лексико-фразеологический",
 }
-# Решающие навыки правила Вула — идентификационная ценность выше.
-_VUL_DECISIVE = ("грамматический", "лексико-фразеологический")
 # Подгруппы, ненадёжные при автокоррекции (цифровой/опубликованный текст).
 _AUTOCORRECT_SENSITIVE = ("орфографический", "пунктуационный")
 
@@ -98,16 +98,31 @@ MAX_PSYCHO_CANDIDATES = 10
 
 def _c(group: str, kind: str, label: str, value: Any = None,
        subgroup: Optional[str] = None, fragment: Optional[str] = None,
-       source: Optional[str] = None, id_value: str = "") -> dict:
+       source: Optional[str] = None, role: Optional[str] = None,
+       source_kind: str = model.SOURCE_ENGINEERING,
+       method_feature_id: Optional[str] = None,
+       method_reference_informativeness: Optional[str] = None,
+       detection_reliability: str = "") -> dict:
     """Собрать один элемент профиля в формате feature_candidates."""
+    if role is None:
+        role = (model.AUX_METRIC if kind == KIND_COUNTER else
+                model.GENERAL_SKILL if kind == KIND_GENERAL else model.EVIDENCE)
     return {
         "group_name": group, "subgroup": subgroup, "kind": kind,
         "label": label, "value": None if value is None else str(value),
-        "fragment": fragment, "source": source, "id_value": id_value,
+        "fragment": fragment, "source": source,
+        "role": role, "source_kind": source_kind,
+        "method_feature_id": method_feature_id,
+        "method_reference_informativeness": method_reference_informativeness,
+        "expert_identification_value": None,
+        "detection_reliability": detection_reliability,
+        # Legacy-поле не является решением эксперта и для новых записей пусто.
+        "id_value": "",
+        "reliability": detection_reliability,
     }
 
 
-# ── 1. Смысловые (тематические): тема ≠ автор → id_value «низкая» ─────────────
+# ── 1. Смысловые (тематические): engineering detection ≠ экспертная оценка ──
 def semantic_candidates(thematic_result: Any) -> list[dict]:
     out: list[dict] = []
     if thematic_result is None:
@@ -119,11 +134,22 @@ def semantic_candidates(thematic_result: Any) -> list[dict]:
             continue
         weak = " · слабая атрибуция" if d.cosine < THEMATIC_WEAK_COSINE else ""
         examples = ", ".join(getattr(d, "examples", [])[:5])
+        registered = model.registry_by_detector_key().get(getattr(d, "key", ""))
+        detection_reliability = ("низкая" if d.cosine < THEMATIC_WEAK_COSINE
+                                 else "средняя")
         out.append(_c(
-            GROUP_SEMANTIC, KIND_COUNTER, f"Доминирующая тема: {d.label}",
+            GROUP_SEMANTIC,
+            KIND_CANDIDATE if registered else KIND_COUNTER,
+            registered["label"] if registered else f"Доминирующая тема: {d.label}",
             value=f"cosine {d.cosine:.2f}, совпадений лемм {d.match_count}{weak}",
             subgroup="тематические", fragment=examples or None,
-            source="thematic_engine", id_value="низкая"))
+            source="thematic_engine",
+            role=model.METHOD_FEATURE if registered else model.AUX_METRIC,
+            source_kind=model.SOURCE_METHOD if registered else model.SOURCE_ENGINEERING,
+            method_feature_id=registered["id"] if registered else None,
+            method_reference_informativeness=(
+                registered["reference_informativeness"] if registered else None),
+            detection_reliability=detection_reliability))
     return out
 
 
@@ -188,23 +214,26 @@ def stylistic_candidates(metrics: dict, internet_profile: Any) -> list[dict]:
                       subgroup=SUB_STYLISTIC, fragment=frag, source="metrics"))
     if internet_profile is not None:
         pairs = [
-            ("Эмодзи", internet_profile.emoji_count),
-            ("Эмотиконы", internet_profile.emoticon_count),
-            ("Хэштеги", internet_profile.hashtag_count),
-            ("Слова КАПСОМ", internet_profile.caps_words),
-            ("Интернет-сленг", internet_profile.slang_count),
-            ("Аббревиатуры", internet_profile.abbreviation_count),
-            ("Повторная пунктуация (!!, ??)", internet_profile.repeated_punct_count),
+            ("Эмодзи", internet_profile.emoji_count, SUB_INTERNET),
+            ("Эмотиконы", internet_profile.emoticon_count, SUB_INTERNET),
+            ("Хэштеги", internet_profile.hashtag_count, SUB_INTERNET),
+            ("Слова КАПСОМ", internet_profile.caps_words, SUB_INTERNET),
+            ("Интернет-сленг", internet_profile.slang_count, SUB_INTERNET),
+            ("Аббревиатуры", internet_profile.abbreviation_count, SUB_INTERNET),
+            ("Повторная пунктуация (!!, ??)", internet_profile.repeated_punct_count,
+             SUB_PUNCTUATION),
         ]
-        for label, cnt in pairs:
+        for label, cnt, subgroup in pairs:
             if cnt:
                 out.append(_c(GROUP_LINGUISTIC, KIND_COUNTER,
                               f"Интернет-коммуникация: {label}", cnt,
-                              subgroup=SUB_STYLISTIC, source="errors.internet"))
+                              subgroup=subgroup, source="errors.internet",
+                              role=model.AUX_METRIC,
+                              source_kind=model.SOURCE_EXPERIMENTAL))
     return out
 
 
-# ── 3в. Языковые / синтаксические: POS-распределение, типы предложений ───────
+# ── 3в. Языковые: морфологические POS-метрики и типы предложений ─────────────
 def syntactic_candidates(metrics: dict, text: str) -> list[dict]:
     out: list[dict] = []
     freq = (metrics or {}).get("частоты", {})
@@ -212,7 +241,7 @@ def syntactic_candidates(metrics: dict, text: str) -> list[dict]:
         out.append(_c(GROUP_LINGUISTIC, KIND_COUNTER,
                       f"Доля POS: {pos_label}",
                       f"{data['коэффициент']:.3f} ({data['количество']})",
-                      subgroup=SUB_SYNTACTIC, source="metrics"))
+                      subgroup=SUB_MORPHOLOGICAL, source="metrics"))
     # Типы предложений по финальному знаку.
     sents = [s.strip() for s in re.split(r"(?<=[.!?…])\s+", text or "") if s.strip()]
     if sents:
@@ -222,9 +251,9 @@ def syntactic_candidates(metrics: dict, text: str) -> list[dict]:
         out.append(_c(GROUP_LINGUISTIC, KIND_COUNTER, "Вопросительные предложения",
                       q, subgroup=SUB_SYNTACTIC, source="profile"))
         out.append(_c(GROUP_LINGUISTIC, KIND_COUNTER, "Восклицательные предложения",
-                      e, subgroup=SUB_SYNTACTIC, source="profile"))
+                      e, subgroup=SUB_PUNCTUATION, source="profile"))
         out.append(_c(GROUP_LINGUISTIC, KIND_COUNTER, "Предложения с многоточием",
-                      ell, subgroup=SUB_SYNTACTIC, source="profile"))
+                      ell, subgroup=SUB_PUNCTUATION, source="profile"))
     return out
 
 
@@ -266,8 +295,8 @@ def error_candidates(errors: list, autocorrect_unreliable: bool,
             # rule_ref (напр. LT:MORFOLOGIK_RULE_RU_RU) — чтобы правило можно
             # было найти и занести в detector_filter.json прямо из UI.
             source=getattr(err, "rule_ref", "") or err.source or "errors",
-            id_value=err.significance or "средняя")
-        c["reliability"] = rel
+            role=model.EVIDENCE, source_kind=model.SOURCE_ENGINEERING,
+            detection_reliability=rel)
         out.append(c)
     return out
 
@@ -290,8 +319,8 @@ def suppressed_candidates(suppressed_hits: list) -> list[dict]:
             subgroup=subgroup,
             fragment=err.fragment or err.context or None,
             source=getattr(err, "rule_ref", "") or err.source or "errors",
-            id_value="")
-        c["reliability"] = RELIABILITY_SUPPRESSED
+            role=model.EVIDENCE, source_kind=model.SOURCE_ENGINEERING,
+            detection_reliability=RELIABILITY_SUPPRESSED)
         out.append(c)
     return out
 
@@ -299,10 +328,9 @@ def suppressed_candidates(suppressed_hits: list) -> list[dict]:
 # ── 3е. Интернет-коммуникация: конкретные кандидаты с фрагментами ────────────
 def internet_candidates(text: str, max_items: int = 15) -> list[dict]:
     """
-    Частные признаки интернет-коммуникации (Колокольцева Т.Н.): конкретные
-    вхождения сленга, эмотиконов, повторной пунктуации, слов КАПСОМ — каждое
-    как кандидат-признак с фрагментом. Устойчивое употребление (2+ раза) —
-    высокая идентификационная ценность (графические привычки автора).
+    Конкретные вхождения сленга, эмотиконов, повторной пунктуации и CAPS.
+    Это экспериментальные наблюдения: частота влияет только на предъявление,
+    но не присваивает экспертную идентификационную значимость.
     Словари/паттерны переиспользуются из analyzer/errors.py (не меняются).
     """
     if not text:
@@ -356,23 +384,19 @@ def internet_candidates(text: str, max_items: int = 15) -> list[dict]:
             value=val + (" · устойчивое употребление" if count >= 2 else ""),
             subgroup=SUB_INTERNET, fragment=fragment,
             source="errors.internet",
-            id_value="высокая" if count >= 2 else "средняя"))
+            role=model.EVIDENCE, source_kind=model.SOURCE_EXPERIMENTAL,
+            detection_reliability="средняя" if count >= 2 else "низкая"))
     return out
 
 
-# ── 3ж. Маркированная лексика: частные лексические признаки с ценностью ──────
-# Слои, дающие высокую идентификационную ценность сами по себе.
-_HIGH_VALUE_LAYERS = {"obscene", "criminal_jargon", "drug_jargon",
-                      "dialect", "archaism"}
+# ── 3ж. Маркированная лексика: конкретные evidence-наблюдения ───────────────
 
 
 def lexical_marker_candidates(strat_result: Any, freq_engine: Any = None,
                               max_items: int = 20) -> list[dict]:
     """
-    Маркированные словоупотребления как частные ЛЕКСИЧЕСКИЕ кандидаты с
-    вычисляемой идентификационной ценностью: редкий/закрытый регистровый слой
-    (обсценная, крим/нарко-жаргон, диалект, архаизмы) — высокая; прочий жаргон
-    — высокая, если слово редкое по НКРЯ, иначе средняя; разговорное — средняя.
+    Маркированные словоупотребления как evidence. Частотный ранг сохраняется
+    в значении только как инженерная справка и не определяет значимость.
     """
     if strat_result is None:
         return []
@@ -384,24 +408,22 @@ def lexical_marker_candidates(strat_result: Any, freq_engine: Any = None,
         if key in seen or tok.layer == "book_neutral":
             continue
         seen.add(key)
-        if tok.layer in _HIGH_VALUE_LAYERS:
-            id_value = "высокая"
-        else:
-            rare = False
-            if freq_engine is not None:
-                try:
-                    hit = freq_engine.lookup(tok.lemma)
-                    rare = hit is None or hit[0] > 30000
-                except Exception:
-                    pass
-            id_value = "высокая" if rare else "средняя"
+        frequency_note = ""
+        if freq_engine is not None:
+            try:
+                hit = freq_engine.lookup(tok.lemma)
+                frequency_note = (" · частотный ранг: н/д" if hit is None
+                                  else f" · частотный ранг: {hit[0]}")
+            except Exception:
+                frequency_note = " · частотный ранг: н/д"
         label_ru = LAYER_META.get(tok.layer, {}).get("label", tok.layer)
         out.append(_c(
             GROUP_LINGUISTIC, KIND_CANDIDATE,
             f"Маркированная лексика: {label_ru}",
-            value=f"«{tok.surface}»",
+            value=f"«{tok.surface}»{frequency_note}",
             subgroup=SUB_LEXICAL, fragment=tok.context or None,
-            source="stratification_engine", id_value=id_value))
+            source="stratification_engine", role=model.EVIDENCE,
+            source_kind=model.SOURCE_ENGINEERING))
         if len(out) >= max_items:
             break
     return out
@@ -444,7 +466,7 @@ def ogorelkov_candidates(og_result: Optional[dict]) -> list[dict]:
                    f"использовано {data['used']} из {data['total_lemmas']} лемм класса"),
             subgroup=SUB_FUNCTION_WORDS,
             source=f"ogorelkov:{cat}",
-            id_value="средняя"))
+            role=model.AUX_METRIC, source_kind=model.SOURCE_ENGINEERING))
 
         for lemma, ld in (data.get("lemmas") or {}).items():
             ratio = ld.get("ratio")
@@ -461,7 +483,8 @@ def ogorelkov_candidates(og_result: Optional[dict]) -> list[dict]:
                        f"отклонения {_na(ratio)} — {direction} нормы)"),
                 subgroup=SUB_FUNCTION_WORDS,
                 source=f"ogorelkov:{cat}:{lemma}",
-                id_value="высокая"))
+                role=model.EVIDENCE, source_kind=model.SOURCE_ENGINEERING,
+                detection_reliability="средняя"))
     return out
 
 
@@ -491,9 +514,10 @@ def general_skill_candidates(skill_levels: list, general_level: str,
                value=f"{sk.level} · {sk.error_rate:.1f} ошибок/200 словоформ",
                subgroup=subgroup,
                source="errors.skills",
-               id_value="высокая" if subgroup in _VUL_DECISIVE else "средняя")
+               role=model.GENERAL_SKILL, source_kind=model.SOURCE_METHOD)
         if autocorrect_unreliable and subgroup in _AUTOCORRECT_SENSITIVE:
             c["reliability"] = "низкая"
+            c["detection_reliability"] = "низкая"
             c["value"] += " · ненадёжен (автокоррекция)"
         out.append(c)
     if general_level:
@@ -501,7 +525,7 @@ def general_skill_candidates(skill_levels: list, general_level: str,
                       "Общий уровень владения письменной речью",
                       value=f"{general_level} · {general_desc}",
                       subgroup="общий_уровень", source="errors.skills",
-                      id_value="средняя"))
+                      role=model.GENERAL_SKILL, source_kind=model.SOURCE_METHOD))
     return out
 
 
@@ -530,7 +554,8 @@ def psycho_candidates(strat_result: Any) -> list[dict]:
             f"Единичный маркер ({tok.layer})",
             value=f"«{tok.surface}» · интерпретация — эксперту",
             fragment=tok.context or None,
-            source="stratification_engine", id_value=""))
+            source="stratification_engine", role=model.EVIDENCE,
+            source_kind=model.SOURCE_ENGINEERING))
         if len(out) >= MAX_PSYCHO_CANDIDATES:
             break
     return out

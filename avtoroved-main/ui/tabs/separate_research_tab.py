@@ -3,9 +3,10 @@ ui/tabs/separate_research_tab.py — вкладка «Раздельное ис�
 
 Стадия построения профиля КАЖДОГО текста по отдельности (Огорелков/Моисеева:
 раздельное исследование предшествует сравнительному). Профиль группируется по
-четырём группам признаков и подгруппам; видно, что счётчик, а что
-кандидат-признак; видна идентификационная ценность и пометка ненадёжности
-(автокоррекция). Сравнений между документами здесь НЕТ — это будущий этап.
+четырём группам признаков и подгруппам; методические признаки, вспомогательные
+метрики, наблюдения-доказательства и общие навыки показаны раздельно. Здесь
+нет автоматической экспертной идентификационной оценки. Сравнений между
+документами здесь НЕТ — это будущий этап.
 Расчёт — protocol/profile.py, запись — feature_candidates + audit_log.
 """
 from __future__ import annotations
@@ -19,6 +20,7 @@ from PyQt6.QtWidgets import (
 )
 
 from protocol import db as protocol_db
+from protocol import feature_model as model
 from protocol import profile as profile_mod
 from protocol import PROGRAM_VERSION
 
@@ -31,7 +33,12 @@ _GROUP_ORDER = [
 ]
 
 _UNRELIABLE_COLOR = "#f9e2af"   # жёлтый — ненадёжные кандидаты (автокоррекция)
-_CANDIDATE_COLOR = "#89dceb"    # голубой — кандидат-признак (в отличие от счётчика)
+_ROLE_COLOR = {
+    model.METHOD_FEATURE: "#a6e3a1",
+    model.AUX_METRIC: "#89b4fa",
+    model.EVIDENCE: "#f9e2af",
+    model.GENERAL_SKILL: "#cba6f7",
+}
 
 
 class _ProfileThread(QThread):
@@ -112,10 +119,10 @@ class SeparateResearchTab(QWidget):
         layout.addLayout(top)
 
         self.tree = QTreeWidget()
-        self.tree.setColumnCount(7)
+        self.tree.setColumnCount(8)
         self.tree.setHeaderLabels(
-            ["Элемент профиля", "Вид", "Значение", "Фрагмент", "Источник",
-             "Ид. ценность", "Надёжность"])
+            ["Элемент профиля", "Роль", "Значение", "Фрагмент", "Источник",
+             "Методический ID", "Справ. информ.", "Надёжн. детектора"])
         self.tree.setAlternatingRowColors(True)
         self.tree.setIndentation(20)
         self.tree.setUniformRowHeights(False)
@@ -134,6 +141,7 @@ class SeparateResearchTab(QWidget):
         hh.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
         hh.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
         hh.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
+        hh.setSectionResizeMode(7, QHeaderView.ResizeMode.ResizeToContents)
         self.tree.itemSelectionChanged.connect(self._on_selection)
 
         # Панель деталей: полный текст значения/фрагмента выбранной строки —
@@ -240,8 +248,6 @@ class SeparateResearchTab(QWidget):
         profile_mod.GROUP_LINGUISTIC: "🔤 Языковые",
         profile_mod.GROUP_PSYCHO: "🧠 Психолингвистические (интерпретация — эксперту)",
     }
-    _ID_VALUE_COLOR = {"высокая": "#a6e3a1", "низкая": "#7f849c"}
-
     def _reload_tree(self):
         self.tree.clear()
         self.detail.clear()
@@ -259,7 +265,7 @@ class SeparateResearchTab(QWidget):
         hidden = 0
         hidden_suppressed = 0
         for r in all_rows:
-            rel = r["reliability"] or ""
+            rel = r["detection_reliability"] or r["reliability"] or ""
             if rel == "подавлен" and not show_suppressed:
                 hidden_suppressed += 1
                 continue
@@ -318,28 +324,31 @@ class SeparateResearchTab(QWidget):
 
     def _add_row(self, parent: QTreeWidgetItem, r):
         value = r["value"] or ""
-        # Короткая подпись вида — «кандидат_признак» не влезает в колонку.
-        kind_short = "◆ кандидат" if r["kind"] == profile_mod.KIND_CANDIDATE else "Σ счётчик"
-        reliability = r["reliability"] or ""
+        role = model.normalized_role(r)
+        role_badge = model.ROLE_LABELS.get(role, role)
+        if r["source_kind"] == model.EXPERIMENTAL:
+            role_badge += " · [ЭКСПЕРИМЕНТАЛЬНО]"
+        reliability = r["detection_reliability"] or r["reliability"] or ""
+        source = r["source"] or ""
+        if r["source_kind"]:
+            source = f"{model.SOURCE_KIND_LABELS.get(r['source_kind'], r['source_kind'])}: {source}"
         item = QTreeWidgetItem([
-            r["label"], kind_short, value, r["fragment"] or "",
-            r["source"] or "", r["id_value"] or "", reliability])
+            r["label"], role_badge, value, r["fragment"] or "",
+            source, r["method_feature_id"] or "",
+            r["method_reference_informativeness"] or "", reliability])
         if reliability == "низкая":
-            item.setForeground(6, QColor(_UNRELIABLE_COLOR))
+            item.setForeground(7, QColor(_UNRELIABLE_COLOR))
         # Полный текст каждой ячейки — во всплывающей подсказке.
         for col, text in ((0, r["label"]), (2, value), (3, r["fragment"] or ""),
-                          (4, r["source"] or "")):
+                          (4, source), (5, r["method_feature_id"] or "")):
             if text:
                 item.setToolTip(col, text)
         if profile_mod.NOTE_UNRELIABLE_AUTOCORRECT in value:
             for col in range(item.columnCount()):
                 item.setForeground(col, QColor(_UNRELIABLE_COLOR))
             item.setToolTip(2, "Ненадёжен: происхождение текста предполагает автокоррекцию")
-        elif r["kind"] == profile_mod.KIND_CANDIDATE:
-            item.setForeground(1, QColor(_CANDIDATE_COLOR))
-        id_color = self._ID_VALUE_COLOR.get(r["id_value"] or "")
-        if id_color and profile_mod.NOTE_UNRELIABLE_AUTOCORRECT not in value:
-            item.setForeground(5, QColor(id_color))
+        else:
+            item.setForeground(1, QColor(_ROLE_COLOR.get(role, "#cdd6f4")))
         # Данные строки для панели деталей.
         item.setData(0, Qt.ItemDataRole.UserRole, dict(r))
         parent.addChild(item)
@@ -354,10 +363,16 @@ class SeparateResearchTab(QWidget):
             self.detail.clear()
             return
         parts = [f"<b>{r['label']}</b>"]
+        role = model.normalized_role(r)
         meta = " · ".join(x for x in (
-            r.get("kind"), r.get("subgroup"), r.get("source"),
-            f"ид. ценность: {r['id_value']}" if r.get("id_value") else "",
-            f"надёжность: {r['reliability']}" if r.get("reliability") else "") if x)
+            model.ROLE_LABELS.get(role, role), r.get("subgroup"),
+            model.SOURCE_KIND_LABELS.get(r.get("source_kind"), r.get("source_kind")),
+            r.get("source"),
+            f"методический ID: {r['method_feature_id']}" if r.get("method_feature_id") else "",
+            (f"справочная информативность: {r['method_reference_informativeness']}"
+             if r.get("method_reference_informativeness") else ""),
+            (f"надёжность детектора: {r['detection_reliability'] or r['reliability']}"
+             if r.get("detection_reliability") or r.get("reliability") else "")) if x)
         if meta:
             parts.append(f"<span style='color:#a6adc8'>{meta}</span>")
         if r.get("value"):

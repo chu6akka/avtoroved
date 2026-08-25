@@ -6,6 +6,7 @@ import pytest
 from protocol import db as protocol_db
 from protocol import comparison as cmp
 from protocol import feature_map as fm
+from protocol import feature_model as model
 
 
 @pytest.fixture()
@@ -31,7 +32,11 @@ def _accept_feature(pdb, pid, did, label, subgroup="пунктуационные
         snapshot={"group_name": "языковые", "subgroup": subgroup,
                   "label": label, "value": value, "fragment": f"фраг {label}",
                   "source": "PUNCT:TEST", "reliability": "средняя",
-                  "id_value": "средняя"},
+                  "role": model.METHOD_FEATURE,
+                  "source_kind": model.SOURCE_METHOD,
+                  "method_feature_id": f"test.{subgroup}.{label}",
+                  "method_reference_informativeness": "средняя",
+                  "detection_reliability": "средняя", "id_value": ""},
         expert_id_value="средняя")
     return key
 
@@ -156,7 +161,8 @@ def _general_candidate(pdb, did, skill, rate):
         "label": f"Степень развития: {skill} навык",
         "value": f"средняя · {rate} ошибок/200 словоформ",
         "fragment": None, "source": "errors.skills",
-        "id_value": "высокая", "reliability": "",
+        "role": model.GENERAL_SKILL, "source_kind": model.SOURCE_METHOD,
+        "id_value": "", "reliability": "",
     }])
 
 
@@ -175,7 +181,7 @@ def test_auto_match_general_positions(pdb):
     st = cmp.stats(pdb, pid, a, b)
     assert st["общие_признаки"]["грамматический"] == cmp.GEN_HIGHER
     # Общие признаки не попадают в счёт обычных позиций.
-    assert st["всего"] == 2 and st[cmp.MATCH_COINCIDENCE] == 0
+    assert st["всего"] == 0 and st[cmp.MATCH_COINCIDENCE] == 0
 
 
 def test_stats_category_breakdown(pdb):

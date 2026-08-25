@@ -20,6 +20,7 @@ from typing import Any, Optional
 
 from protocol import db as protocol_db
 from protocol import feature_map as fm
+from protocol import feature_model as model
 
 # ── Типы сопоставления ───────────────────────────────────────────────────────
 MATCH_COINCIDENCE = "совпадение"
@@ -122,7 +123,8 @@ def _accepted_features(pdb: "protocol_db.ProtocolDB", document_id: int) -> dict:
     """
     by_key: dict[tuple, dict] = {}
     for f in pdb.fetch_features(document_id=document_id):
-        if f["status"] != fm.STATUS_ACCEPTED:
+        if (f["status"] != fm.STATUS_ACCEPTED
+                or model.normalized_role(f) != model.METHOD_FEATURE):
             continue
         k = (f["group_name"] or "", f["subgroup"] or "", f["label"] or "")
         slot = by_key.setdefault(k, {"feature_key": f["candidate_key"],
@@ -132,8 +134,9 @@ def _accepted_features(pdb: "protocol_db.ProtocolDB", document_id: int) -> dict:
             slot["values"].append(f["value"])
         if f["fragment"]:
             slot["fragments"].append(f["fragment"])
-        if f["expert_id_value"]:
-            slot["expert_id_values"].append(f["expert_id_value"])
+        expert_value = f["expert_identification_value"] or f["expert_id_value"]
+        if expert_value:
+            slot["expert_id_values"].append(expert_value)
     return by_key
 
 
@@ -175,15 +178,14 @@ def general_positions(pdb: "protocol_db.ProtocolDB",
                       doc_a: int, doc_b: int) -> list[dict]:
     """
     Позиции сопоставления общих признаков (степеней навыков) пары.
-    Берутся напрямую из профилей (kind='общий_признак'): по методике общие
-    признаки сопоставляются всегда и через экспертный отбор не проходят.
+    Берутся напрямую из профилей (role=GENERAL_SKILL): общие навыки
+    сопоставляются отдельно и через счётчик частных признаков не проходят.
     """
-    from protocol.profile import KIND_GENERAL
-
     def _skills(document_id: int) -> dict[str, dict]:
         out = {}
         for c in pdb.fetch_feature_candidates(document_id):
-            if c["kind"] == KIND_GENERAL and (c["subgroup"] or "") in SKILL_TOLERANCE:
+            if (model.normalized_role(c) == model.GENERAL_SKILL
+                    and (c["subgroup"] or "") in SKILL_TOLERANCE):
                 out[c["subgroup"]] = c
         return out
 
@@ -440,7 +442,10 @@ def stats(pdb: "protocol_db.ProtocolDB", project_id: int,
     справочный ориентир ≥20 и legacy-индикатор ограничений материала.
     """
     rows = pdb.fetch_comparisons(doc_a, doc_b)
-    st: dict = {"всего": len(rows), "подтверждено": 0}
+    # Общие навыки хранятся рядом для нейтрального контроля, но не являются
+    # частными позициями и не увеличивают методический feature count.
+    private_total = sum(1 for r in rows if r["match_type"] not in GEN_TYPES)
+    st: dict = {"всего": private_total, "подтверждено": 0}
     for t in MATCH_TYPES:
         st[t] = 0
     for lv in LEVELS:

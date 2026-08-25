@@ -3,6 +3,7 @@ import sqlite3
 from protocol import comparison as cmp
 from protocol import db as protocol_db
 from protocol import feature_map as fm
+from protocol import feature_model as model
 
 
 def _pair(pdb):
@@ -21,7 +22,10 @@ def test_feature_map_value_is_reference_not_comparison_decision(tmp_path):
         pdb.save_feature_candidates(doc, [{
             "group_name": "смысловые", "subgroup": "тематические",
             "kind": "кандидат_признак", "label": "устойчивая тема",
-            "value": "x", "source": "test", "id_value": "средняя",
+            "value": "x", "source": "test", "id_value": "",
+            "role": model.METHOD_FEATURE, "source_kind": model.SOURCE_METHOD,
+            "method_feature_id": "test.theme",
+            "method_reference_informativeness": "средняя",
         }])
         candidate = pdb.fetch_feature_candidates(doc)[0]
         fm.decide(pdb, pid, doc, candidate, fm.STATUS_ACCEPTED,

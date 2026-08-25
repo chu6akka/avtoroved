@@ -1,0 +1,35 @@
+[
+  {
+    "id": "nn.smysl.political",
+    "label": "Политическая направленность текста",
+    "group": "смысловые",
+    "subgroup": "тематические",
+    "source": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007",
+    "source_section": "с. 86",
+    "reference_informativeness": "низкая",
+    "automation_level": "AUTO_DETECTABLE",
+    "detector_key": "politics"
+  },
+  {
+    "id": "nn.smysl.military",
+    "label": "Военная направленность текста",
+    "group": "смысловые",
+    "subgroup": "тематические",
+    "source": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007",
+    "source_section": "с. 86",
+    "reference_informativeness": "низкая",
+    "automation_level": "AUTO_DETECTABLE",
+    "detector_key": "military"
+  },
+  {
+    "id": "nn.smysl.everyday",
+    "label": "Бытовая тематика текста",
+    "group": "смысловые",
+    "subgroup": "тематические",
+    "source": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007",
+    "source_section": "с. 86",
+    "reference_informativeness": "низкая",
+    "automation_level": "AUTO_DETECTABLE",
+    "detector_key": "everyday"
+  }
+]
