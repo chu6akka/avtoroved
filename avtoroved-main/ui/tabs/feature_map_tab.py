@@ -21,6 +21,10 @@ from PyQt6.QtWidgets import (
 from protocol import db as protocol_db
 from protocol import feature_map as fm
 from protocol import feature_model as model
+from protocol.expert_features import (
+    COMPARABILITY_STATUSES, OPPORTUNITY_STATUSES, STABILITY_STATUSES,
+    EvidenceLinkService, ExpertFeatureService,
+)
 from protocol import PROGRAM_VERSION
 
 # Цвета статусов.
@@ -38,7 +42,7 @@ class _AcceptDialog(QDialog):
     def __init__(self, reference_value: str, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Принять признак")
-        self.resize(440, 220)
+        self.resize(540, 380)
         form = QFormLayout(self)
         self.id_combo = QComboBox()
         self.id_combo.addItem("— эксперт не оценил —", "")
@@ -49,17 +53,30 @@ class _AcceptDialog(QDialog):
         ref.setToolTip("Справочное значение источника не является решением эксперта")
         form.addRow("Справочно по источнику:", ref)
         self.note_edit = QTextEdit()
-        self.note_edit.setPlaceholderText("Примечание эксперта (необязательно)…")
+        self.note_edit.setPlaceholderText("Обязательная мотивировка квалификации…")
         self.note_edit.setMaximumHeight(90)
         form.addRow("Примечание:", self.note_edit)
+        self.stability_combo = QComboBox()
+        self.stability_combo.addItems(STABILITY_STATUSES)
+        form.addRow("Устойчивость:", self.stability_combo)
+        self.opportunity_combo = QComboBox()
+        self.opportunity_combo.addItems(OPPORTUNITY_STATUSES)
+        self.opportunity_combo.setCurrentText("NOT_APPLICABLE")
+        form.addRow("Возможность проявления:", self.opportunity_combo)
+        self.comparability_combo = QComboBox()
+        self.comparability_combo.addItems(COMPARABILITY_STATUSES)
+        form.addRow("Сопоставимость:", self.comparability_combo)
         btns = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         btns.accepted.connect(self.accept)
         btns.rejected.connect(self.reject)
         form.addRow(btns)
 
-    def values(self) -> tuple[str, str]:
-        return self.id_combo.currentData() or "", self.note_edit.toPlainText().strip()
+    def values(self):
+        return (self.id_combo.currentData() or "", self.note_edit.toPlainText().strip(),
+                self.stability_combo.currentText(),
+                self.opportunity_combo.currentText(),
+                self.comparability_combo.currentText())
 
 
 class FeatureMapTab(QWidget):
@@ -116,9 +133,9 @@ class FeatureMapTab(QWidget):
         layout.addLayout(filt)
 
         # Таблица кандидатов.
-        self.table = QTableWidget(0, 9)
+        self.table = QTableWidget(0, 10)
         self.table.setHorizontalHeaderLabels(
-            ["Кандидат", "Группа", "Фрагмент", "Источник", "Методический ID",
+            ["Кандидат", "Происх.", "Группа", "Фрагмент", "Источник", "Методический ID",
              "Надёжн. детектора", "Справ. информ.", "Экспертная ценность", "Статус"])
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -129,8 +146,8 @@ class FeatureMapTab(QWidget):
         hh = self.table.horizontalHeader()
         hh.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
         hh.resizeSection(0, 280)
-        hh.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
-        for c in (1, 3, 4, 5, 6, 7, 8):
+        hh.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        for c in (1, 2, 4, 5, 6, 7, 8, 9):
             hh.setSectionResizeMode(c, QHeaderView.ResizeMode.ResizeToContents)
         self.table.itemSelectionChanged.connect(self._on_selection)
 
@@ -269,7 +286,8 @@ class FeatureMapTab(QWidget):
         id_val = ((feat["expert_identification_value"] or feat["expert_id_value"])
                   if feat is not None else "")
         cells = [
-            cand["label"], cand["group_name"], cand["fragment"] or "",
+            cand["label"], cand["candidate_origin"] or "AUTO",
+            cand["group_name"], cand["fragment"] or "",
             cand["source"] or "", cand["method_feature_id"] or "",
             cand["detection_reliability"] or cand["reliability"] or "",
             cand["method_reference_informativeness"] or "", id_val, status,
@@ -278,9 +296,9 @@ class FeatureMapTab(QWidget):
             item = QTableWidgetItem(str(text))
             if text:
                 item.setToolTip(str(text))
-            if col == 8 and status in _STATUS_COLOR:
+            if col == 9 and status in _STATUS_COLOR:
                 item.setForeground(QColor(_STATUS_COLOR[status]))
-            if col == 5 and text == "низкая":
+            if col == 6 and text == "низкая":
                 item.setForeground(QColor("#f9e2af"))
             self.table.setItem(row, col, item)
 
@@ -303,6 +321,56 @@ class FeatureMapTab(QWidget):
                  f"<b>Справочная информативность источника:</b> "
                  f"{cand['method_reference_informativeness'] or '—'} "
                  "(не решение эксперта)"]
+        parts.append(f"<b>Происхождение кандидата:</b> {cand['candidate_origin'] or 'AUTO'}")
+        if cand["candidate_origin"] == model.CANDIDATE_ORIGIN_EXPERT:
+            parts.append(
+                f"<b>Создан:</b> {cand['created_at']} · версия программы "
+                f"{cand['program_version'] or '—'}")
+        if cand["source_section"]:
+            parts.append(f"<b>Раздел источника:</b> {cand['source_section']}")
+        key = fm.candidate_key(cand)
+        links = EvidenceLinkService.linked_evidence(self._pdb, self._document_id, key)
+        qualification = ExpertFeatureService.current_qualification(self._pdb, key)
+        parts.append(f"<b>Связано evidence:</b> {len(links)}")
+        for evidence in links:
+            evidence_text = evidence["fragment"] or evidence["value"] or evidence["label"]
+            parts.append(f"&nbsp;&nbsp;• {evidence_text}")
+        parts.append(
+            f"<b>Устойчивость:</b> {qualification['stability_status']} · "
+            f"<b>возможность:</b> {qualification['opportunity_status']} · "
+            f"<b>сопоставимость:</b> {qualification['comparability_status']}")
+        if qualification.get("expert_rationale"):
+            parts.append(f"<b>Мотивировка:</b> {qualification['expert_rationale']}")
+        stability = ExpertFeatureService.stability_summary(
+            self._pdb, self._project_id, cand["method_feature_id"])
+        if stability["observations"]:
+            interval = stability["normalized_frequency_interval"]
+            interval_text = (f"{interval['min']:.3g}–{interval['max']:.3g} на 1000 слов"
+                             if interval else "не вычислен")
+            parts.append(f"<b>Справочный интервал по образцам:</b> {interval_text}")
+            for observation in stability["observations"]:
+                freq = observation["per_1000_words"]
+                frequency_text = (f"{freq:.3g} на 1000 слов"
+                                  if freq is not None else "частота не вычислена")
+                parts.append(
+                    f"&nbsp;&nbsp;• {observation['filename']}: "
+                    f"{observation['evidence_count']} проявл., {frequency_text}")
+                parts.append(
+                    f"&nbsp;&nbsp;&nbsp;жанр {observation['genre'] or '—'}; "
+                    f"дата {observation['document_date'] or '—'}; ситуация "
+                    f"{observation['communicative_situation'] or '—'}")
+        qualification_history = ExpertFeatureService.history(self._pdb, key)
+        decision_history = [row for row in self._pdb.fetch_feature_decisions(
+            self._document_id) if row["candidate_key"] == key]
+        if qualification_history or decision_history:
+            parts.append("<b>История решений:</b>")
+            for event in qualification_history:
+                parts.append(
+                    f"&nbsp;&nbsp;• {event['created_at']} — {event['action']} "
+                    f"({event['stability_status']}, {event['comparability_status']})")
+            for decision in reversed(decision_history):
+                parts.append(
+                    f"&nbsp;&nbsp;• {decision['decided_at']} — {decision['status']}")
         if cand["value"]:
             parts.append(f"<b>Значение:</b> {cand['value']}")
         if cand["fragment"]:
@@ -326,11 +394,19 @@ class FeatureMapTab(QWidget):
             sel[0][0]["method_reference_informativeness"] or "", self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
-        id_value, note = dlg.values()
+        id_value, note, stability, opportunity, comparability = dlg.values()
         for cand, _f in sel:
-            fm.decide(self._pdb, self._project_id, self._document_id, cand,
-                      fm.STATUS_ACCEPTED, expert_id_value=id_value,
-                      expert_note=note, program_version=PROGRAM_VERSION)
+            try:
+                ExpertFeatureService.confirm(
+                    self._pdb, self._project_id, self._document_id, cand,
+                    expert_identification_value=id_value,
+                    expert_rationale=note, stability_status=stability,
+                    opportunity_status=opportunity,
+                    comparability_status=comparability,
+                    program_version=PROGRAM_VERSION)
+            except ValueError as exc:
+                QMessageBox.warning(self, "Признак не принят", str(exc))
+                break
         self._reload_table()
 
     def _decide_selected(self, status: str):
@@ -339,6 +415,15 @@ class FeatureMapTab(QWidget):
             QMessageBox.information(self, "Нет выбора", "Выделите кандидатов в таблице.")
             return
         for cand, _f in sel:
-            fm.decide(self._pdb, self._project_id, self._document_id, cand,
-                      status, program_version=PROGRAM_VERSION)
+            if status == fm.STATUS_REJECTED:
+                ExpertFeatureService.reject(
+                    self._pdb, self._project_id, self._document_id, cand,
+                    program_version=PROGRAM_VERSION)
+            elif status == fm.STATUS_DOUBTFUL:
+                ExpertFeatureService.mark_doubtful(
+                    self._pdb, self._project_id, self._document_id, cand,
+                    program_version=PROGRAM_VERSION)
+            else:
+                fm.decide(self._pdb, self._project_id, self._document_id, cand,
+                          status, program_version=PROGRAM_VERSION)
         self._reload_table()

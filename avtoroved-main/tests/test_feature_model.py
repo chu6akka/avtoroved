@@ -9,6 +9,7 @@ from protocol import db as protocol_db
 from protocol import feature_map as fm
 from protocol import feature_model as model
 from protocol import profile as pf
+from tests.method_feature_helpers import qualified_feature
 
 
 def _pair(tmp_path):
@@ -184,8 +185,8 @@ def test_16_aux_metric_not_in_category_counts(tmp_path):
 
 def test_17_accepted_method_feature_is_in_method_count(tmp_path):
     pdb, pid, a, b = _pair(tmp_path)
-    _record(pdb, pid, a, model.METHOD_FEATURE)
-    _record(pdb, pid, b, model.METHOD_FEATURE)
+    qualified_feature(pdb, pid, a, "nn.smysl.political", "политическая тематика")
+    qualified_feature(pdb, pid, b, "nn.smysl.political", "политическая тематика")
     cmp.auto_match(pdb, pid, a, b)
     assert cmp.stats(pdb, pid, a, b)["всего"] == 1
 

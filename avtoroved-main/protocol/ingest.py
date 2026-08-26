@@ -199,6 +199,8 @@ def import_document(
     backend: Any,
     provenance: Optional[str] = None,
     genre: Optional[str] = None,
+    document_date: Optional[str] = None,
+    communicative_situation: Optional[str] = None,
     note: Optional[str] = None,
     program_version: Optional[str] = None,
     status_cb: StatusCb = None,
@@ -230,6 +232,8 @@ def import_document(
         file_sha256=sha,
         provenance=provenance,
         genre=genre,
+        document_date=document_date,
+        communicative_situation=communicative_situation,
         word_count=wc,
         note=note,
     )

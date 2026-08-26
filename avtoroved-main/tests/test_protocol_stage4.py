@@ -4,6 +4,7 @@ from protocol import comparison as cmp
 from protocol import db as protocol_db
 from protocol import feature_map as fm
 from protocol import feature_model as model
+from tests.method_feature_helpers import qualified_feature
 
 
 def _pair(pdb):
@@ -19,17 +20,9 @@ def test_feature_map_value_is_reference_not_comparison_decision(tmp_path):
     pdb = protocol_db.ProtocolDB(str(tmp_path / "case.db"))
     pid, a, b = _pair(pdb)
     for doc in (a, b):
-        pdb.save_feature_candidates(doc, [{
-            "group_name": "смысловые", "subgroup": "тематические",
-            "kind": "кандидат_признак", "label": "устойчивая тема",
-            "value": "x", "source": "test", "id_value": "",
-            "role": model.METHOD_FEATURE, "source_kind": model.SOURCE_METHOD,
-            "method_feature_id": "test.theme",
-            "method_reference_informativeness": "средняя",
-        }])
-        candidate = pdb.fetch_feature_candidates(doc)[0]
-        fm.decide(pdb, pid, doc, candidate, fm.STATUS_ACCEPTED,
-                  expert_id_value="высокая")
+        qualified_feature(
+            pdb, pid, doc, "устойчивая тема", group="смысловые",
+            subgroup="тематические", value="x", expert_value="высокая")
     cmp.auto_match(pdb, pid, a, b)
     row = pdb.fetch_comparisons(a, b)[0]
     assert "высокая" in row["source_expert_id_value"]

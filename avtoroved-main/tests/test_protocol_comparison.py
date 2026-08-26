@@ -7,6 +7,7 @@ from protocol import db as protocol_db
 from protocol import comparison as cmp
 from protocol import feature_map as fm
 from protocol import feature_model as model
+from tests.method_feature_helpers import qualified_feature
 
 
 @pytest.fixture()
@@ -25,20 +26,9 @@ def _setup_pair(pdb):
 
 def _accept_feature(pdb, pid, did, label, subgroup="пунктуационные",
                     value="значение", status=fm.STATUS_ACCEPTED, key_suffix=""):
-    """Утвердить признак напрямую через record_feature_decision."""
-    key = f"key-{did}-{label}{key_suffix}"[:64]
-    pdb.record_feature_decision(
-        pid, did, key, status,
-        snapshot={"group_name": "языковые", "subgroup": subgroup,
-                  "label": label, "value": value, "fragment": f"фраг {label}",
-                  "source": "PUNCT:TEST", "reliability": "средняя",
-                  "role": model.METHOD_FEATURE,
-                  "source_kind": model.SOURCE_METHOD,
-                  "method_feature_id": f"test.{subgroup}.{label}",
-                  "method_reference_informativeness": "средняя",
-                  "detection_reliability": "средняя", "id_value": ""},
-        expert_id_value="средняя")
-    return key
+    return qualified_feature(
+        pdb, pid, did, label, subgroup=subgroup, value=value,
+        status=status, suffix=key_suffix)
 
 
 # ── авто-сопоставление ───────────────────────────────────────────────────────
@@ -106,7 +96,9 @@ def test_decide_can_reclassify_type(pdb):
     cmp.auto_match(pdb, pid, a, b)
     pos = pdb.fetch_comparisons(a, b)[0]
     cmp.decide(pdb, pid, a, b, pos["position_key"],
-               match_type=cmp.MATCH_DIFFERENCE, level="НН")
+               match_type=cmp.MATCH_DIFFERENCE, level="НН",
+               difference_qualification="SUBSTANTIAL",
+               opportunity_status="SUFFICIENT", expert_note="существенное различие")
     row = pdb.fetch_comparisons(a, b)[0]
     assert row["match_type"] == cmp.MATCH_DIFFERENCE
     assert row["level"] == "НН"
@@ -118,7 +110,9 @@ def test_reset_returns_to_auto_keeps_history(pdb):
     cmp.auto_match(pdb, pid, a, b)
     pos = pdb.fetch_comparisons(a, b)[0]
     cmp.decide(pdb, pid, a, b, pos["position_key"],
-               match_type=cmp.MATCH_ONLY_A, level="НСВ")
+               match_type=cmp.MATCH_ONLY_A, level="НСВ",
+               difference_qualification="SUBSTANTIAL",
+               opportunity_status="SUFFICIENT", expert_note="достаточная возможность")
     cmp.reset(pdb, pid, a, b, pos["position_key"])
     row = pdb.fetch_comparisons(a, b)[0]
     assert row["status"] == cmp.STATUS_AUTO

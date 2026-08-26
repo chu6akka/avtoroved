@@ -20,6 +20,8 @@ from protocol import conclusion as concl
 from protocol import detector_filter
 from protocol import feature_map as fm
 from protocol import feature_model as model
+from protocol.expert_features import EvidenceLinkService, ExpertFeatureService
+from protocol.methodological_guard import MethodologicalGuard
 
 
 def export_conclusion_docx(
@@ -102,25 +104,45 @@ def export_conclusion_docx(
     # Стадия 2: раздельное исследование.
     doc.add_heading("2. Раздельное исследование", level=2)
     for d in (da, db_):
-        accepted = [f for f in pdb.fetch_features(document_id=d["id"])
-                    if f["status"] == fm.STATUS_ACCEPTED
-                    and model.normalized_role(f) == model.METHOD_FEATURE]
+        accepted = MethodologicalGuard.countable_features(pdb, d["id"])
         cand_total = len([c for c in pdb.fetch_feature_candidates(d["id"])
                           if model.normalized_role(c) == model.METHOD_FEATURE])
         doc.add_paragraph(
             f"{d['filename']}: профиль построен, методических кандидатов {cand_total}, "
             f"принято экспертом {len(accepted)}.")
+        for feature in accepted:
+            qualification = ExpertFeatureService.current_qualification(
+                pdb, feature["candidate_key"])
+            evidence = EvidenceLinkService.linked_evidence(
+                pdb, d["id"], feature["candidate_key"])
+            registry = model.registered_method_feature(feature["method_feature_id"]) or {}
+            doc.add_paragraph(
+                f"• {feature['label']} [{feature['method_feature_id']}]; "
+                f"источник: {registry.get('source', feature['source'] or '—')}, "
+                f"{registry.get('source_section', '—')}; evidence: "
+                f"{'; '.join((row['fragment'] or row['value'] or row['label']) for row in evidence)}; "
+                f"документ проявления: {d['filename']} (жанр {d['genre'] or '—'}, "
+                f"дата {d['document_date'] or '—'}, коммуникативная ситуация "
+                f"{d['communicative_situation'] or '—'}); "
+                f"устойчивость: {qualification['stability_status']}; "
+                f"сопоставимость: {qualification['comparability_status']}; "
+                f"экспертная ценность: "
+                f"{feature['expert_identification_value'] or feature['expert_id_value'] or 'без оценки'}; "
+                f"мотивировка: {qualification['expert_rationale']}.")
 
     # Стадия 3: сравнительное исследование — таблица подтверждённых позиций.
     doc.add_heading("3. Сравнительное исследование", level=2)
     confirmed = [r for r in pdb.fetch_comparisons(doc_a, doc_b)
-                 if r["status"] == cmp.STATUS_CONFIRMED]
+                 if r["status"] == cmp.STATUS_CONFIRMED
+                 and cmp.position_is_countable(pdb, r)]
     if confirmed:
-        table = doc.add_table(rows=1, cols=5)
+        table = doc.add_table(rows=1, cols=7)
         table.style = "Table Grid"
         hdr = table.rows[0].cells
         for i, t in enumerate(("Признак", "Тип", "Уровень",
-                               "Идентификационная значимость", "Примечание")):
+                               "Идентификационная значимость",
+                               "Квалификация различия", "Возможность проявления",
+                               "Примечание")):
             hdr[i].text = t
         for r in confirmed:
             row = table.add_row().cells
@@ -128,7 +150,9 @@ def export_conclusion_docx(
             row[1].text = r["match_type"]
             row[2].text = r["level"] or "—"
             row[3].text = r["identification_value"] or "без оценки"
-            row[4].text = r["expert_note"] or ""
+            row[4].text = r["difference_qualification"] or ""
+            row[5].text = r["opportunity_status"] or ""
+            row[6].text = r["expert_note"] or ""
     else:
         doc.add_paragraph("Подтверждённых позиций сравнения нет.")
 

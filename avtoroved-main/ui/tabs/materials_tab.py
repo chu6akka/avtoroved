@@ -29,7 +29,8 @@ class _ImportThread(QThread):
     failed = pyqtSignal(str)
 
     def __init__(self, pdb, project_id, filepath, role, backend,
-                 provenance, genre, note, parent=None):
+                 provenance, genre, document_date, communicative_situation,
+                 note, parent=None):
         super().__init__(parent)
         self.pdb = pdb
         self.project_id = project_id
@@ -38,6 +39,8 @@ class _ImportThread(QThread):
         self.backend = backend
         self.provenance = provenance
         self.genre = genre
+        self.document_date = document_date
+        self.communicative_situation = communicative_situation
         self.note = note
 
     def run(self):
@@ -45,6 +48,8 @@ class _ImportThread(QThread):
             summary = ingest.import_document(
                 self.pdb, self.project_id, self.filepath, self.role,
                 self.backend, provenance=self.provenance, genre=self.genre,
+                document_date=self.document_date,
+                communicative_situation=self.communicative_situation,
                 note=self.note, program_version=PROGRAM_VERSION,
                 status_cb=self.status.emit)
             self.done.emit(summary)
@@ -126,6 +131,15 @@ class MaterialsTab(QWidget):
         self.genre_edit.setPlaceholderText("напр. письмо, статья…")
         self.genre_edit.setMaximumWidth(160)
         meta_row.addWidget(self.genre_edit)
+        meta_row.addWidget(QLabel("Дата текста:"))
+        self.document_date_edit = QLineEdit()
+        self.document_date_edit.setPlaceholderText("ГГГГ-ММ-ДД")
+        self.document_date_edit.setMaximumWidth(110)
+        meta_row.addWidget(self.document_date_edit)
+        meta_row.addWidget(QLabel("Коммуникативная ситуация:"))
+        self.communicative_situation_edit = QLineEdit()
+        self.communicative_situation_edit.setPlaceholderText("адресат, условия…")
+        meta_row.addWidget(self.communicative_situation_edit)
         meta_row.addWidget(QLabel("Примечание:"))
         self.note_edit = QLineEdit()
         self.note_edit.setPlaceholderText("необязательно")
@@ -230,13 +244,17 @@ class MaterialsTab(QWidget):
 
         provenance = self.provenance_combo.currentText()
         genre = self.genre_edit.text().strip() or None
+        document_date = self.document_date_edit.text().strip() or None
+        communicative_situation = (
+            self.communicative_situation_edit.text().strip() or None)
         note = self.note_edit.text().strip() or None
 
         self._set_busy(True)
         self.status_label.setText(f"Импорт ({role})…{pdf_note}")
         self._import_thread = _ImportThread(
             self._pdb, self._project_id, fp, role, self._backend,
-            provenance, genre, note, parent=self)
+            provenance, genre, document_date, communicative_situation,
+            note, parent=self)
         self._import_thread.status.connect(self.status_label.setText)
         self._import_thread.done.connect(self._on_import_done)
         self._import_thread.failed.connect(self._on_import_failed)

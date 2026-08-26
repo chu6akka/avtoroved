@@ -17,6 +17,10 @@ SOURCE_EXPERIMENTAL = "EXPERIMENTAL"
 SOURCE_ENGINEERING = "ENGINEERING"
 SOURCE_KINDS = (SOURCE_METHOD, SOURCE_EXPERIMENTAL, SOURCE_ENGINEERING)
 
+CANDIDATE_ORIGIN_AUTO = "AUTO"
+CANDIDATE_ORIGIN_EXPERT = "EXPERT"
+CANDIDATE_ORIGINS = (CANDIDATE_ORIGIN_AUTO, CANDIDATE_ORIGIN_EXPERT)
+
 REFERENCE_VALUES = ("низкая", "средняя", "высокая")
 AUTOMATION_LEVELS = ("AUTO_DETECTABLE", "CANDIDATE_ONLY", "EXPERT_ONLY")
 
@@ -79,3 +83,14 @@ def load_method_registry() -> list[dict]:
 def registry_by_detector_key() -> dict[str, dict]:
     return {row["detector_key"]: row for row in load_method_registry()
             if row.get("detector_key")}
+
+
+@lru_cache(maxsize=1)
+def registry_by_id() -> dict[str, dict]:
+    """Реестр методических признаков по стабильному method_feature_id."""
+    return {row["id"]: row for row in load_method_registry()}
+
+
+def registered_method_feature(method_feature_id: str | None) -> dict | None:
+    """Вернуть запись registry; неизвестный ID никогда не считается методическим."""
+    return registry_by_id().get(method_feature_id or "")

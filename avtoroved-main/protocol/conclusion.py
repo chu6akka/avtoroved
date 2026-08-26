@@ -41,6 +41,8 @@ def _level_breakdown(pdb: "protocol_db.ProtocolDB", doc_a: int, doc_b: int) -> d
     for row in pdb.fetch_comparisons(doc_a, doc_b):
         if row["match_type"] in cmp.GEN_TYPES or row["status"] != cmp.STATUS_CONFIRMED:
             continue
+        if not cmp.position_is_countable(pdb, row):
+            continue
         total_confirmed += 1
         level = row["level"] or ""
         target = coin if row["match_type"] == cmp.MATCH_COINCIDENCE else (
@@ -89,7 +91,10 @@ def methodological_checks(
     pdb: "protocol_db.ProtocolDB", project_id: int, doc_a: int, doc_b: int,
 ) -> dict[str, Any]:
     """Вернуть только наблюдения и формализованные проверки для эксперта."""
-    rows = list(pdb.fetch_comparisons(doc_a, doc_b))
+    all_rows = list(pdb.fetch_comparisons(doc_a, doc_b))
+    rows = [row for row in all_rows
+            if row["match_type"] in cmp.GEN_TYPES
+            or cmp.position_is_countable(pdb, row)]
     rubtsova = _level_breakdown(pdb, doc_a, doc_b)
 
     skill_rows = [row for row in rows if row["match_type"] in cmp.GEN_TYPES]

@@ -21,6 +21,7 @@ from typing import Any, Optional
 from protocol import db as protocol_db
 from protocol import feature_map as fm
 from protocol import feature_model as model
+from protocol.methodological_guard import MethodologicalGuard
 
 # ── Типы сопоставления ───────────────────────────────────────────────────────
 MATCH_COINCIDENCE = "совпадение"
@@ -108,6 +109,15 @@ STATUS_AUTO = "авто"
 STATUS_CONFIRMED = "подтверждено"
 STATUS_RESET = "сброшено"
 
+DIFFERENCE_QUALIFICATIONS = (
+    "SUBSTANTIAL", "NON_SUBSTANTIAL", "EXPLAINED_BY_GENRE",
+    "EXPLAINED_BY_TIME", "EXPLAINED_BY_STATE",
+    "EXPLAINED_BY_COMMUNICATIVE_SITUATION", "UNASSESSABLE",
+)
+OPPORTUNITY_STATUSES = (
+    "NOT_ASSESSED", "SUFFICIENT", "INSUFFICIENT", "NOT_APPLICABLE",
+)
+
 
 def position_key(doc_a: int, doc_b: int, group: str, subgroup: str, label: str) -> str:
     """Стабильный ключ позиции сопоставления пары."""
@@ -123,8 +133,7 @@ def _accepted_features(pdb: "protocol_db.ProtocolDB", document_id: int) -> dict:
     """
     by_key: dict[tuple, dict] = {}
     for f in pdb.fetch_features(document_id=document_id):
-        if (f["status"] != fm.STATUS_ACCEPTED
-                or model.normalized_role(f) != model.METHOD_FEATURE):
+        if not MethodologicalGuard.is_countable(pdb, f):
             continue
         k = (f["group_name"] or "", f["subgroup"] or "", f["label"] or "")
         slot = by_key.setdefault(k, {"feature_key": f["candidate_key"],
@@ -282,20 +291,39 @@ def decide(
     match_type: Optional[str] = None,
     level: str = "",
     identification_value: str = "",
+    difference_qualification: str = "",
+    opportunity_status: str = "NOT_ASSESSED",
     expert_note: str = "",
     program_version: Optional[str] = None,
 ) -> None:
-    """Подтвердить позицию: тип (совпадение/различие), уровень НН/НС/НСВ, примечание."""
+    """Подтвердить позицию; различия требуют квалификации и мотивировки."""
     if match_type is not None and match_type not in MATCH_TYPES:
         raise ValueError(f"Недопустимый тип сопоставления: {match_type}")
     if level and level not in LEVELS:
         raise ValueError(f"Недопустимый уровень: {level}")
     if identification_value not in IDENTIFICATION_VALUES:
         raise ValueError(f"Недопустимая идентификационная значимость: {identification_value}")
+    current = next((r for r in pdb.fetch_comparisons(doc_a, doc_b)
+                    if r["position_key"] == pos_key), None)
+    effective_type = match_type or (current["match_type"] if current else "")
+    is_difference = effective_type in (MATCH_DIFFERENCE, MATCH_ONLY_A, MATCH_ONLY_B)
+    if is_difference:
+        if difference_qualification not in DIFFERENCE_QUALIFICATIONS:
+            raise ValueError("Различие требует экспертной квалификации")
+        if not expert_note.strip():
+            raise ValueError("Различие требует мотивировки эксперта")
+    elif difference_qualification:
+        raise ValueError("Квалификация различия неприменима к совпадению")
+    if opportunity_status not in OPPORTUNITY_STATUSES:
+        raise ValueError(f"Недопустимый статус возможности проявления: {opportunity_status}")
+    if effective_type in (MATCH_ONLY_A, MATCH_ONLY_B) and opportunity_status != "SUFFICIENT":
+        raise ValueError("Отсутствие можно подтвердить только при SUFFICIENT opportunity")
     pdb.record_comparison_decision(
         project_id, doc_a, doc_b, pos_key, STATUS_CONFIRMED,
         match_type=match_type, level=level,
-        identification_value=identification_value, expert_note=expert_note,
+        identification_value=identification_value,
+        difference_qualification=difference_qualification,
+        opportunity_status=opportunity_status, expert_note=expert_note,
         program_version=program_version)
     pdb.log_action(
         "сравнение: позиция подтверждена", project_id=project_id,
@@ -303,6 +331,8 @@ def decide(
                  "position_key": pos_key, "тип": match_type,
                  "уровень": level or None,
                  "идентификационная_значимость": identification_value or None,
+                 "квалификация_различия": difference_qualification or None,
+                 "возможность_проявления": opportunity_status,
                  "примечание": expert_note or None},
         program_version=program_version)
 
@@ -435,6 +465,22 @@ def pair_blocks_strong_conclusion(pdb: "protocol_db.ProtocolDB",
     return False
 
 
+def position_is_countable(pdb: "protocol_db.ProtocolDB", position: Any) -> bool:
+    """Проверить, что позиция опирается на прошедшие единые методические ворота."""
+    if position["match_type"] in GEN_TYPES:
+        return False
+    keys = {k for k in (position["feature_key_a"], position["feature_key_b"]) if k}
+    if not keys:
+        return False
+    features = {
+        f["candidate_key"]: f
+        for document_id in (position["pair_doc_a"], position["pair_doc_b"])
+        for f in pdb.fetch_features(document_id=document_id)
+    }
+    return all(key in features and MethodologicalGuard.is_countable(pdb, features[key])
+               for key in keys)
+
+
 def stats(pdb: "protocol_db.ProtocolDB", project_id: int,
           doc_a: int, doc_b: int) -> dict:
     """
@@ -444,7 +490,9 @@ def stats(pdb: "protocol_db.ProtocolDB", project_id: int,
     rows = pdb.fetch_comparisons(doc_a, doc_b)
     # Общие навыки хранятся рядом для нейтрального контроля, но не являются
     # частными позициями и не увеличивают методический feature count.
-    private_total = sum(1 for r in rows if r["match_type"] not in GEN_TYPES)
+    private_total = sum(1 for r in rows
+                        if r["match_type"] not in GEN_TYPES
+                        and position_is_countable(pdb, r))
     st: dict = {"всего": private_total, "подтверждено": 0}
     for t in MATCH_TYPES:
         st[t] = 0
@@ -460,6 +508,8 @@ def stats(pdb: "protocol_db.ProtocolDB", project_id: int,
         if r["match_type"] in GEN_TYPES:
             # Общие признаки — отдельная секция, в счёт позиций/уровней не идут.
             general[r["subgroup"] or "?"] = r["match_type"]
+            continue
+        if not position_is_countable(pdb, r):
             continue
         st[r["match_type"]] = st.get(r["match_type"], 0) + 1
         if r["status"] == STATUS_CONFIRMED:

@@ -64,6 +64,8 @@ CREATE TABLE IF NOT EXISTS documents (
   role TEXT NOT NULL,                 -- 'спорный' | 'образец'
   provenance TEXT,                    -- рукопись | печатная_машинка | цифровой | опубликованный | расшифровка_устной_речи
   genre TEXT,
+  document_date TEXT,
+  communicative_situation TEXT,
   file_sha256 TEXT NOT NULL,
   imported_at TEXT NOT NULL,
   word_count INTEGER,
@@ -131,6 +133,10 @@ CREATE TABLE IF NOT EXISTS feature_candidates (
   value TEXT,                   -- значение счётчика или описание признака
   fragment TEXT,                -- фрагмент текста, где проявился
   source TEXT,                  -- модуль-источник
+  source_section TEXT,
+  candidate_origin TEXT NOT NULL DEFAULT 'AUTO', -- AUTO | EXPERT
+  candidate_uid TEXT,           -- стабильный UID экспертного кандидата
+  program_version TEXT,
   role TEXT NOT NULL DEFAULT '',
   source_kind TEXT NOT NULL DEFAULT '',
   method_feature_id TEXT,
@@ -151,7 +157,8 @@ CREATE TABLE IF NOT EXISTS feature_decisions (
   candidate_key TEXT NOT NULL,   -- стабильный хэш содержимого кандидата (переживает пересборку профиля)
   status TEXT NOT NULL,          -- 'принят'|'отклонён'|'сомнителен'|'не_учитывать'|'сброшен'
   group_name TEXT, subgroup TEXT, label TEXT, value TEXT, fragment TEXT,
-  source TEXT, reliability TEXT, auto_id_value TEXT,
+  source TEXT, source_section TEXT, reliability TEXT, auto_id_value TEXT,
+  candidate_origin TEXT DEFAULT 'AUTO', candidate_uid TEXT,
   role TEXT DEFAULT '', source_kind TEXT DEFAULT '', method_feature_id TEXT,
   method_reference_informativeness TEXT, detection_reliability TEXT DEFAULT '',
   expert_identification_value TEXT,
@@ -170,7 +177,8 @@ CREATE TABLE IF NOT EXISTS features (
   candidate_key TEXT NOT NULL,
   status TEXT NOT NULL,
   group_name TEXT, subgroup TEXT, label TEXT, value TEXT, fragment TEXT,
-  source TEXT, reliability TEXT, auto_id_value TEXT,
+  source TEXT, source_section TEXT, reliability TEXT, auto_id_value TEXT,
+  candidate_origin TEXT DEFAULT 'AUTO', candidate_uid TEXT,
   role TEXT DEFAULT '', source_kind TEXT DEFAULT '', method_feature_id TEXT,
   method_reference_informativeness TEXT, detection_reliability TEXT DEFAULT '',
   expert_identification_value TEXT,
@@ -195,6 +203,8 @@ CREATE TABLE IF NOT EXISTS comparisons (
   level TEXT DEFAULT '',          -- уровень индивидуализации: 'НН'|'НС'|'НСВ'|'' (Рубцова 2007, с.11)
   source_expert_id_value TEXT DEFAULT '', -- справочная оценка из карты признаков
   identification_value TEXT DEFAULT '',  -- итоговая оценка позиции экспертом
+  difference_qualification TEXT DEFAULT '',
+  opportunity_status TEXT DEFAULT '',
   status TEXT NOT NULL DEFAULT 'авто',   -- 'авто' (черновик) | 'подтверждено' (эксперт)
   expert_note TEXT,
   created_at TEXT NOT NULL,
@@ -209,7 +219,9 @@ CREATE TABLE IF NOT EXISTS comparison_decisions (
   pair_doc_a INTEGER NOT NULL REFERENCES documents(id),
   pair_doc_b INTEGER NOT NULL REFERENCES documents(id),
   position_key TEXT NOT NULL,
-  match_type TEXT, level TEXT, identification_value TEXT DEFAULT '', expert_note TEXT,
+  match_type TEXT, level TEXT, identification_value TEXT DEFAULT '',
+  difference_qualification TEXT DEFAULT '', opportunity_status TEXT DEFAULT '',
+  expert_note TEXT,
   status TEXT NOT NULL,           -- 'подтверждено' | 'сброшено'
   decided_at TEXT NOT NULL,
   program_version TEXT
@@ -262,6 +274,37 @@ CREATE INDEX IF NOT EXISTS idx_features_document ON features(document_id);
 CREATE INDEX IF NOT EXISTS idx_features_project ON features(project_id);
 CREATE INDEX IF NOT EXISTS idx_comparisons_pair ON comparisons(pair_doc_a, pair_doc_b);
 CREATE INDEX IF NOT EXISTS idx_cd_pair ON comparison_decisions(pair_doc_a, pair_doc_b);
+CREATE TABLE IF NOT EXISTS evidence_link_events (
+  -- Append-only история LINK/UNLINK между evidence и методическим признаком.
+  id INTEGER PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  document_id INTEGER NOT NULL REFERENCES documents(id),
+  feature_candidate_key TEXT NOT NULL,
+  evidence_candidate_key TEXT NOT NULL,
+  action TEXT NOT NULL,          -- LINK | UNLINK
+  expert_note TEXT,
+  created_at TEXT NOT NULL,
+  program_version TEXT
+);
+
+CREATE TABLE IF NOT EXISTS feature_qualification_events (
+  -- Append-only снимки экспертной квалификации METHOD_FEATURE.
+  id INTEGER PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  document_id INTEGER NOT NULL REFERENCES documents(id),
+  candidate_key TEXT NOT NULL,
+  action TEXT NOT NULL,
+  expert_rationale TEXT,
+  stability_status TEXT NOT NULL DEFAULT 'NOT_ASSESSED',
+  opportunity_status TEXT NOT NULL DEFAULT 'NOT_ASSESSED',
+  comparability_status TEXT NOT NULL DEFAULT 'NOT_ASSESSED',
+  expert_note TEXT,
+  created_at TEXT NOT NULL,
+  program_version TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_ele_feature ON evidence_link_events(feature_candidate_key, id);
+CREATE INDEX IF NOT EXISTS idx_fqe_candidate ON feature_qualification_events(candidate_key, id);
 CREATE TABLE IF NOT EXISTS ogorelkov_results (
   -- Частотный анализ служебной лексики (Огорелков, гл.3, п.3.2–3.4).
   -- Привязка к sha256 текста; версия словаря маркеров — для воспроизводимости.
@@ -324,6 +367,10 @@ class ProtocolDB:
             # Стадия сравнения получила собственную экспертную оценку
             # идентификационной значимости. ALTER сохраняет старые дела.
             for table, additions in {
+                "documents": (
+                    "document_date TEXT",
+                    "communicative_situation TEXT",
+                ),
                 "feature_candidates": (
                     "role TEXT NOT NULL DEFAULT ''",
                     "source_kind TEXT NOT NULL DEFAULT ''",
@@ -331,6 +378,10 @@ class ProtocolDB:
                     "method_reference_informativeness TEXT",
                     "expert_identification_value TEXT",
                     "detection_reliability TEXT DEFAULT ''",
+                    "source_section TEXT",
+                    "candidate_origin TEXT NOT NULL DEFAULT 'AUTO'",
+                    "candidate_uid TEXT",
+                    "program_version TEXT",
                 ),
                 "feature_decisions": (
                     "role TEXT DEFAULT ''",
@@ -339,6 +390,9 @@ class ProtocolDB:
                     "method_reference_informativeness TEXT",
                     "expert_identification_value TEXT",
                     "detection_reliability TEXT DEFAULT ''",
+                    "source_section TEXT",
+                    "candidate_origin TEXT DEFAULT 'AUTO'",
+                    "candidate_uid TEXT",
                 ),
                 "features": (
                     "role TEXT DEFAULT ''",
@@ -347,13 +401,20 @@ class ProtocolDB:
                     "method_reference_informativeness TEXT",
                     "expert_identification_value TEXT",
                     "detection_reliability TEXT DEFAULT ''",
+                    "source_section TEXT",
+                    "candidate_origin TEXT DEFAULT 'AUTO'",
+                    "candidate_uid TEXT",
                 ),
                 "comparisons": (
                     "source_expert_id_value TEXT DEFAULT ''",
                     "identification_value TEXT DEFAULT ''",
+                    "difference_qualification TEXT DEFAULT ''",
+                    "opportunity_status TEXT DEFAULT ''",
                 ),
                 "comparison_decisions": (
                     "identification_value TEXT DEFAULT ''",
+                    "difference_qualification TEXT DEFAULT ''",
+                    "opportunity_status TEXT DEFAULT ''",
                 ),
             }.items():
                 existing = {r["name"] for r in conn.execute(
@@ -401,6 +462,8 @@ class ProtocolDB:
         file_sha256: str,
         provenance: Optional[str] = None,
         genre: Optional[str] = None,
+        document_date: Optional[str] = None,
+        communicative_situation: Optional[str] = None,
         word_count: Optional[int] = None,
         note: Optional[str] = None,
     ) -> int:
@@ -408,10 +471,11 @@ class ProtocolDB:
         with self._connect() as conn:
             cur = conn.execute(
                 "INSERT INTO documents "
-                "(project_id, filename, role, provenance, genre, file_sha256, imported_at, word_count, note) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (project_id, filename, role, provenance, genre,
-                 file_sha256, _now(), word_count, note),
+                "(project_id, filename, role, provenance, genre, document_date, "
+                " communicative_situation, file_sha256, imported_at, word_count, note) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (project_id, filename, role, provenance, genre, document_date,
+                 communicative_situation, file_sha256, _now(), word_count, note),
             )
             return int(cur.lastrowid)
 
@@ -609,10 +673,12 @@ class ProtocolDB:
 
     # ── кандидаты признаков (раздельное исследование) ────────────────────────
     def clear_feature_candidates(self, document_id: int) -> None:
-        """Удалить профиль документа (перед пересборкой)."""
+        """Удалить AUTO/legacy-профиль, сохранив экспертные METHOD_FEATURE."""
         with self._connect() as conn:
-            conn.execute("DELETE FROM feature_candidates WHERE document_id = ?",
-                         (document_id,))
+            conn.execute(
+                "DELETE FROM feature_candidates WHERE document_id = ? "
+                "AND COALESCE(candidate_origin, 'AUTO') <> 'EXPERT'",
+                (document_id,))
 
     def save_feature_candidates(self, document_id: int, candidates: list[dict]) -> int:
         """
@@ -626,6 +692,8 @@ class ProtocolDB:
         rows = [
             (document_id, c["group_name"], c.get("subgroup"), c["kind"],
              c["label"], c.get("value"), c.get("fragment"), c.get("source"),
+             c.get("source_section"), c.get("candidate_origin", "AUTO"),
+             c.get("candidate_uid"), c.get("program_version"),
              c.get("role", ""), c.get("source_kind", ""),
              c.get("method_feature_id"), c.get("method_reference_informativeness"),
              c.get("expert_identification_value"), c.get("detection_reliability", ""),
@@ -636,10 +704,11 @@ class ProtocolDB:
             conn.executemany(
                 "INSERT INTO feature_candidates "
                 "(document_id, group_name, subgroup, kind, label, value, fragment, "
-                " source, role, source_kind, method_feature_id, "
+                " source, source_section, candidate_origin, candidate_uid, program_version, "
+                " role, source_kind, method_feature_id, "
                 " method_reference_informativeness, expert_identification_value, "
                 " detection_reliability, id_value, reliability, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 rows,
             )
         return len(rows)
@@ -676,9 +745,11 @@ class ProtocolDB:
             snapshot.get("group_name"), snapshot.get("subgroup"),
             snapshot.get("label"), snapshot.get("value"),
             snapshot.get("fragment"), snapshot.get("source"),
+            snapshot.get("source_section"),
             snapshot.get("reliability"), snapshot.get("id_value"),
         )
         normalized = (
+            snapshot.get("candidate_origin", "AUTO"), snapshot.get("candidate_uid"),
             snapshot.get("role", ""), snapshot.get("source_kind", ""),
             snapshot.get("method_feature_id"),
             snapshot.get("method_reference_informativeness"),
@@ -688,11 +759,11 @@ class ProtocolDB:
             cur = conn.execute(
                 "INSERT INTO feature_decisions "
                 "(project_id, document_id, candidate_key, status, group_name, subgroup, "
-                " label, value, fragment, source, reliability, auto_id_value, "
-                " role, source_kind, method_feature_id, method_reference_informativeness, "
+                " label, value, fragment, source, source_section, reliability, auto_id_value, "
+                " candidate_origin, candidate_uid, role, source_kind, method_feature_id, method_reference_informativeness, "
                 " detection_reliability, expert_identification_value, "
                 " expert_id_value, expert_note, decided_at, program_version) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (project_id, document_id, candidate_key, status, *snap,
                  *normalized, expert_id_value or None, expert_id_value,
                  expert_note, ts, program_version),
@@ -706,11 +777,11 @@ class ProtocolDB:
                 conn.execute(
                     "INSERT INTO features "
                     "(project_id, document_id, candidate_key, status, group_name, subgroup, "
-                    " label, value, fragment, source, reliability, auto_id_value, "
-                    " role, source_kind, method_feature_id, method_reference_informativeness, "
+                    " label, value, fragment, source, source_section, reliability, auto_id_value, "
+                    " candidate_origin, candidate_uid, role, source_kind, method_feature_id, method_reference_informativeness, "
                     " detection_reliability, expert_identification_value, "
                     " expert_id_value, expert_note, decided_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (project_id, document_id, candidate_key, status, *snap,
                      *normalized, expert_id_value or None, expert_id_value,
                      expert_note, ts),
@@ -735,6 +806,61 @@ class ProtocolDB:
             return conn.execute(
                 "SELECT * FROM feature_decisions WHERE document_id = ? ORDER BY id DESC",
                 (document_id,)).fetchall()
+
+    # ── экспертная квалификация и связи evidence (append-only) ─────────────
+    def append_evidence_link_event(
+        self, project_id: int, document_id: int, feature_candidate_key: str,
+        evidence_candidate_key: str, action: str, expert_note: str = "",
+        program_version: Optional[str] = None,
+    ) -> int:
+        with self._connect() as conn:
+            cur = conn.execute(
+                "INSERT INTO evidence_link_events "
+                "(project_id, document_id, feature_candidate_key, evidence_candidate_key, "
+                " action, expert_note, created_at, program_version) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (project_id, document_id, feature_candidate_key, evidence_candidate_key,
+                 action, expert_note, _now(), program_version))
+            return int(cur.lastrowid)
+
+    def fetch_evidence_link_events(
+        self, feature_candidate_key: str, document_id: Optional[int] = None,
+    ) -> list[sqlite3.Row]:
+        with self._connect() as conn:
+            if document_id is None:
+                return conn.execute(
+                    "SELECT * FROM evidence_link_events WHERE feature_candidate_key = ? "
+                    "ORDER BY id", (feature_candidate_key,)).fetchall()
+            return conn.execute(
+                "SELECT * FROM evidence_link_events WHERE feature_candidate_key = ? "
+                "AND document_id = ? ORDER BY id",
+                (feature_candidate_key, document_id)).fetchall()
+
+    def append_feature_qualification_event(
+        self, project_id: int, document_id: int, candidate_key: str,
+        action: str, expert_rationale: str = "",
+        stability_status: str = "NOT_ASSESSED",
+        opportunity_status: str = "NOT_ASSESSED",
+        comparability_status: str = "NOT_ASSESSED",
+        expert_note: str = "", program_version: Optional[str] = None,
+    ) -> int:
+        with self._connect() as conn:
+            cur = conn.execute(
+                "INSERT INTO feature_qualification_events "
+                "(project_id, document_id, candidate_key, action, expert_rationale, "
+                " stability_status, opportunity_status, comparability_status, "
+                " expert_note, created_at, program_version) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (project_id, document_id, candidate_key, action, expert_rationale,
+                 stability_status, opportunity_status, comparability_status,
+                 expert_note, _now(), program_version))
+            return int(cur.lastrowid)
+
+    def fetch_feature_qualification_events(self, candidate_key: str) -> list[sqlite3.Row]:
+        with self._connect() as conn:
+            return conn.execute(
+                "SELECT * FROM feature_qualification_events WHERE candidate_key = ? "
+                "ORDER BY id", (candidate_key,)).fetchall()
 
     # ── сравнительное исследование ───────────────────────────────────────────
     def fetch_comparisons(self, pair_doc_a: int, pair_doc_b: int) -> list[sqlite3.Row]:
@@ -792,6 +918,8 @@ class ProtocolDB:
         match_type: Optional[str] = None,
         level: str = "",
         identification_value: str = "",
+        difference_qualification: str = "",
+        opportunity_status: str = "",
         expert_note: str = "",
         program_version: Optional[str] = None,
     ) -> int:
@@ -801,21 +929,26 @@ class ProtocolDB:
             cur = conn.execute(
                 "INSERT INTO comparison_decisions "
                 "(project_id, pair_doc_a, pair_doc_b, position_key, match_type, "
-                " level, identification_value, expert_note, status, decided_at, program_version) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " level, identification_value, difference_qualification, opportunity_status, "
+                " expert_note, status, decided_at, program_version) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (project_id, pair_doc_a, pair_doc_b, position_key, match_type,
-                 level, identification_value, expert_note, status, ts, program_version))
+                 level, identification_value, difference_qualification, opportunity_status,
+                 expert_note, status, ts, program_version))
             if status == "подтверждено":
                 conn.execute(
                     "UPDATE comparisons SET match_type = COALESCE(?, match_type), "
-                    "level = ?, identification_value = ?, expert_note = ?, "
+                    "level = ?, identification_value = ?, difference_qualification = ?, "
+                    "opportunity_status = ?, expert_note = ?, "
                     "status = 'подтверждено', decided_at = ? "
                     "WHERE pair_doc_a = ? AND pair_doc_b = ? AND position_key = ?",
-                    (match_type, level, identification_value, expert_note, ts,
+                    (match_type, level, identification_value, difference_qualification,
+                     opportunity_status, expert_note, ts,
                      pair_doc_a, pair_doc_b, position_key))
             else:  # 'сброшено' — вернуть позицию в авто-состояние
                 conn.execute(
-                    "UPDATE comparisons SET level = '', identification_value = '', expert_note = NULL, "
+                    "UPDATE comparisons SET level = '', identification_value = '', "
+                    "difference_qualification = '', opportunity_status = '', expert_note = NULL, "
                     "status = 'авто', decided_at = NULL "
                     "WHERE pair_doc_a = ? AND pair_doc_b = ? AND position_key = ?",
                     (pair_doc_a, pair_doc_b, position_key))

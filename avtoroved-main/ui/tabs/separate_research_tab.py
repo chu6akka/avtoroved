@@ -17,10 +17,13 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox,
     QTreeWidget, QTreeWidgetItem, QHeaderView, QMessageBox, QTextEdit, QSplitter,
     QCheckBox,
+    QDialog, QDialogButtonBox, QFormLayout,
 )
 
 from protocol import db as protocol_db
 from protocol import feature_model as model
+from protocol import feature_map as feature_map_mod
+from protocol.expert_features import EvidenceLinkService, ExpertFeatureService
 from protocol import profile as profile_mod
 from protocol import PROGRAM_VERSION
 
@@ -39,6 +42,44 @@ _ROLE_COLOR = {
     model.EVIDENCE: "#f9e2af",
     model.GENERAL_SKILL: "#cba6f7",
 }
+
+
+class _CreateMethodFeatureDialog(QDialog):
+    """Выбор зарегистрированного признака и обязательная мотивировка."""
+
+    def __init__(self, evidence_count: int, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Создать методический признак")
+        self.resize(560, 300)
+        form = QFormLayout(self)
+        self.registry_combo = QComboBox()
+        for row in model.load_method_registry():
+            self.registry_combo.addItem(f"{row['label']} ({row['id']})", row["id"])
+        self.registry_combo.currentIndexChanged.connect(self._update_source)
+        form.addRow("Признак method registry:", self.registry_combo)
+        self.source_label = QLabel()
+        self.source_label.setWordWrap(True)
+        form.addRow("Методический источник:", self.source_label)
+        form.addRow("Выбрано evidence:", QLabel(str(evidence_count)))
+        self.rationale = QTextEdit()
+        self.rationale.setPlaceholderText(
+            "Почему выбранные наблюдения квалифицируются как этот признак…")
+        self.rationale.setMaximumHeight(100)
+        form.addRow("Мотивировка эксперта:", self.rationale)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        form.addRow(buttons)
+        self._update_source()
+
+    def _update_source(self):
+        row = model.registered_method_feature(self.registry_combo.currentData())
+        self.source_label.setText(
+            f"{row['source']}; {row['source_section']}" if row else "—")
+
+    def values(self):
+        return self.registry_combo.currentData(), self.rationale.toPlainText().strip()
 
 
 class _ProfileThread(QThread):
@@ -124,6 +165,7 @@ class SeparateResearchTab(QWidget):
             ["Элемент профиля", "Роль", "Значение", "Фрагмент", "Источник",
              "Методический ID", "Справ. информ.", "Надёжн. детектора"])
         self.tree.setAlternatingRowColors(True)
+        self.tree.setSelectionMode(QTreeWidget.SelectionMode.ExtendedSelection)
         self.tree.setIndentation(20)
         self.tree.setUniformRowHeights(False)
         self.tree.setWordWrap(True)
@@ -158,6 +200,14 @@ class SeparateResearchTab(QWidget):
         split.addWidget(self.detail)
         split.setSizes([560, 130])
         layout.addWidget(split, stretch=1)
+
+        actions = QHBoxLayout()
+        self.btn_create_method = QPushButton(
+            "Создать METHOD_FEATURE из выбранных наблюдений…")
+        self.btn_create_method.clicked.connect(self._create_method_feature)
+        actions.addWidget(self.btn_create_method)
+        actions.addStretch()
+        layout.addLayout(actions)
 
         self.status_label = QLabel("Выберите документ и постройте профиль.")
         self.status_label.setObjectName("caption")
@@ -379,7 +429,55 @@ class SeparateResearchTab(QWidget):
             parts.append(f"<b>Значение:</b> {r['value']}")
         if r.get("fragment"):
             parts.append(f"<b>Фрагмент:</b> {r['fragment']}")
+        if role == model.METHOD_FEATURE:
+            key = feature_map_mod.candidate_key(r)
+            links = EvidenceLinkService.linked_evidence(
+                self._pdb, self._document_id, key)
+            qualification = ExpertFeatureService.current_qualification(self._pdb, key)
+            parts.append(f"<b>Происхождение:</b> {r.get('candidate_origin') or 'AUTO'}")
+            if r.get("source_section"):
+                parts.append(f"<b>Раздел источника:</b> {r['source_section']}")
+            parts.append(f"<b>Связано evidence:</b> {len(links)}")
+            parts.append(
+                "<b>Экспертная квалификация:</b> "
+                f"устойчивость {qualification['stability_status']}; "
+                f"возможность проявления {qualification['opportunity_status']}; "
+                f"сопоставимость {qualification['comparability_status']}")
+            if qualification.get("expert_rationale"):
+                parts.append(
+                    f"<b>Мотивировка:</b> {qualification['expert_rationale']}")
         self.detail.setHtml("<br>".join(parts))
+
+    def _create_method_feature(self):
+        if self._project_id is None or self._document_id is None:
+            return
+        evidence = []
+        for item in self.tree.selectedItems():
+            row = item.data(0, Qt.ItemDataRole.UserRole)
+            if row and model.normalized_role(row) == model.EVIDENCE:
+                evidence.append(row)
+        if not evidence:
+            QMessageBox.information(
+                self, "Нет evidence",
+                "Выделите одно или несколько наблюдений [НАБЛЮДЕНИЕ] в дереве.")
+            return
+        dialog = _CreateMethodFeatureDialog(len(evidence), self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        method_id, rationale = dialog.values()
+        try:
+            ExpertFeatureService.create_from_registry(
+                self._pdb, self._project_id, self._document_id, method_id,
+                [feature_map_mod.candidate_key(row) for row in evidence], rationale,
+                program_version=PROGRAM_VERSION)
+        except ValueError as exc:
+            QMessageBox.warning(self, "Кандидат не создан", str(exc))
+            return
+        self._reload_tree()
+        QMessageBox.information(
+            self, "METHOD_FEATURE создан",
+            "Экспертный кандидат создан, но не принят. Оцените его в карте признаков.")
 
     def _update_buttons(self):
         self.btn_build.setEnabled(self._document_id is not None)
+        self.btn_create_method.setEnabled(self._document_id is not None)

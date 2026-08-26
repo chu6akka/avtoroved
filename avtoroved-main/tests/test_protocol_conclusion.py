@@ -7,6 +7,7 @@ import pytest
 from protocol import comparison as cmp
 from protocol import conclusion as concl
 from protocol import db as protocol_db
+from tests.method_feature_helpers import qualified_feature
 
 
 @pytest.fixture()
@@ -26,15 +27,26 @@ def _pair(pdb):
 def _position(pdb, pid, a, b, label, match=cmp.MATCH_COINCIDENCE,
               level="НСВ", group="языковые", subgroup="лексические",
               identification_value="высокая"):
+    fa = qualified_feature(
+        pdb, pid, a, label, group=group, subgroup=subgroup,
+        expert_value=identification_value, suffix=f"a-{label}")
+    fb = qualified_feature(
+        pdb, pid, b, label, group=group, subgroup=subgroup,
+        expert_value=identification_value, suffix=f"b-{label}")
     key = cmp.position_key(a, b, group, subgroup or "", label)
     pdb.replace_auto_comparisons(pid, a, b, [{
-        "position_key": key, "feature_key_a": "fa", "feature_key_b": "fb",
+        "position_key": key, "feature_key_a": fa, "feature_key_b": fb,
         "group_name": group, "subgroup": subgroup, "label": label,
         "value_a": "v", "value_b": "v", "fragment_a": None,
         "fragment_b": None, "match_type": match,
     }])
+    kwargs = {}
+    if match != cmp.MATCH_COINCIDENCE:
+        kwargs = {"difference_qualification": "SUBSTANTIAL",
+                  "opportunity_status": "SUFFICIENT",
+                  "expert_note": "мотивированное различие"}
     cmp.decide(pdb, pid, a, b, key, match_type=match, level=level,
-               identification_value=identification_value)
+               identification_value=identification_value, **kwargs)
     return key
 
 

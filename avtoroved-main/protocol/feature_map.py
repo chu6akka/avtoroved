@@ -49,6 +49,12 @@ def candidate_key(candidate: Any) -> str:
             v = None
         return str(v) if v is not None else ""
 
+    # Экспертный кандидат имеет стабильный UID и не теряет решения при
+    # уточнении отображаемого текста/мотивировки. AUTO-кандидаты сохраняют
+    # прежний содержательный hash.
+    uid = g("candidate_uid")
+    if uid:
+        return uid
     payload = "|".join((
         g("document_id"), g("group_name"), g("subgroup"),
         g("label"), g("value"), g("fragment"),
@@ -65,8 +71,11 @@ def _snapshot(candidate: Any) -> dict:
     return {
         "group_name": g("group_name"), "subgroup": g("subgroup"),
         "label": g("label"), "value": g("value"), "fragment": g("fragment"),
-        "source": g("source"), "reliability": g("reliability"),
+        "source": g("source"), "source_section": g("source_section"),
+        "reliability": g("reliability"),
         "id_value": g("id_value"),
+        "candidate_origin": g("candidate_origin") or model.CANDIDATE_ORIGIN_AUTO,
+        "candidate_uid": g("candidate_uid"),
         "role": model.normalized_role(candidate),
         "source_kind": g("source_kind"),
         "method_feature_id": g("method_feature_id"),
