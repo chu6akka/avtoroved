@@ -1,0 +1,440 @@
+[
+  {
+    "id": "metrics.particles.01",
+    "label": "же",
+    "style": "unresolved",
+    "detector": "exact_word_or_phrase:же",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.metrics.STYLE_MARKERS",
+    "data_roles": [
+      "AUX_METRIC"
+    ]
+  },
+  {
+    "id": "metrics.particles.02",
+    "label": "ли",
+    "style": "unresolved",
+    "detector": "exact_word_or_phrase:ли",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.metrics.STYLE_MARKERS",
+    "data_roles": [
+      "AUX_METRIC"
+    ]
+  },
+  {
+    "id": "metrics.particles.03",
+    "label": "вот",
+    "style": "unresolved",
+    "detector": "exact_word_or_phrase:вот",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.metrics.STYLE_MARKERS",
+    "data_roles": [
+      "AUX_METRIC"
+    ]
+  },
+  {
+    "id": "metrics.particles.04",
+    "label": "ну",
+    "style": "unresolved",
+    "detector": "exact_word_or_phrase:ну",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.metrics.STYLE_MARKERS",
+    "data_roles": [
+      "AUX_METRIC"
+    ]
+  },
+  {
+    "id": "metrics.particles.05",
+    "label": "уж",
+    "style": "unresolved",
+    "detector": "exact_word_or_phrase:уж",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.metrics.STYLE_MARKERS",
+    "data_roles": [
+      "AUX_METRIC"
+    ]
+  },
+  {
+    "id": "metrics.particles.06",
+    "label": "даже",
+    "style": "unresolved",
+    "detector": "exact_word_or_phrase:даже",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.metrics.STYLE_MARKERS",
+    "data_roles": [
+      "AUX_METRIC"
+    ]
+  },
+  {
+    "id": "metrics.particles.07",
+    "label": "лишь",
+    "style": "unresolved",
+    "detector": "exact_word_or_phrase:лишь",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.metrics.STYLE_MARKERS",
+    "data_roles": [
+      "AUX_METRIC"
+    ]
+  },
+  {
+    "id": "metrics.particles.08",
+    "label": "только",
+    "style": "unresolved",
+    "detector": "exact_word_or_phrase:только",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.metrics.STYLE_MARKERS",
+    "data_roles": [
+      "AUX_METRIC"
+    ]
+  },
+  {
+    "id": "metrics.connectors.01",
+    "label": "в общем",
+    "style": "unresolved",
+    "detector": "exact_word_or_phrase:в общем",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.metrics.STYLE_MARKERS",
+    "data_roles": [
+      "AUX_METRIC"
+    ]
+  },
+  {
+    "id": "metrics.connectors.02",
+    "label": "короче",
+    "style": "unresolved",
+    "detector": "exact_word_or_phrase:короче",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.metrics.STYLE_MARKERS",
+    "data_roles": [
+      "AUX_METRIC"
+    ]
+  },
+  {
+    "id": "metrics.connectors.03",
+    "label": "на самом деле",
+    "style": "unresolved",
+    "detector": "exact_word_or_phrase:на самом деле",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.metrics.STYLE_MARKERS",
+    "data_roles": [
+      "AUX_METRIC"
+    ]
+  },
+  {
+    "id": "metrics.connectors.04",
+    "label": "так сказать",
+    "style": "unresolved",
+    "detector": "exact_word_or_phrase:так сказать",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.metrics.STYLE_MARKERS",
+    "data_roles": [
+      "AUX_METRIC"
+    ]
+  },
+  {
+    "id": "metrics.connectors.05",
+    "label": "как бы",
+    "style": "unresolved",
+    "detector": "exact_word_or_phrase:как бы",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.metrics.STYLE_MARKERS",
+    "data_roles": [
+      "AUX_METRIC"
+    ]
+  },
+  {
+    "id": "metrics.conjunctions.01",
+    "label": "потому что",
+    "style": "unresolved",
+    "detector": "exact_word_or_phrase:потому что",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.metrics.STYLE_MARKERS",
+    "data_roles": [
+      "AUX_METRIC"
+    ]
+  },
+  {
+    "id": "metrics.conjunctions.02",
+    "label": "так как",
+    "style": "unresolved",
+    "detector": "exact_word_or_phrase:так как",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.metrics.STYLE_MARKERS",
+    "data_roles": [
+      "AUX_METRIC"
+    ]
+  },
+  {
+    "id": "metrics.conjunctions.03",
+    "label": "однако",
+    "style": "unresolved",
+    "detector": "exact_word_or_phrase:однако",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.metrics.STYLE_MARKERS",
+    "data_roles": [
+      "AUX_METRIC"
+    ]
+  },
+  {
+    "id": "metrics.conjunctions.04",
+    "label": "поэтому",
+    "style": "unresolved",
+    "detector": "exact_word_or_phrase:поэтому",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.metrics.STYLE_MARKERS",
+    "data_roles": [
+      "AUX_METRIC"
+    ]
+  },
+  {
+    "id": "metrics.conjunctions.05",
+    "label": "следовательно",
+    "style": "unresolved",
+    "detector": "exact_word_or_phrase:следовательно",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.metrics.STYLE_MARKERS",
+    "data_roles": [
+      "AUX_METRIC"
+    ]
+  },
+  {
+    "id": "strat.layer.obscene",
+    "label": "Обсценная лексика",
+    "style": "conversational",
+    "detector": "lexicon_layer:obscene",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.stratification_engine.LAYER_META",
+    "data_roles": [
+      "AUX_METRIC",
+      "EVIDENCE"
+    ],
+    "legacy_priority": 10
+  },
+  {
+    "id": "strat.layer.criminal_jargon",
+    "label": "Криминальный жаргон",
+    "style": "conversational",
+    "detector": "lexicon_layer:criminal_jargon",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.stratification_engine.LAYER_META",
+    "data_roles": [
+      "AUX_METRIC",
+      "EVIDENCE"
+    ],
+    "legacy_priority": 9
+  },
+  {
+    "id": "strat.layer.drug_jargon",
+    "label": "Наркотический жаргон",
+    "style": "conversational",
+    "detector": "lexicon_layer:drug_jargon",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.stratification_engine.LAYER_META",
+    "data_roles": [
+      "AUX_METRIC",
+      "EVIDENCE"
+    ],
+    "legacy_priority": 8
+  },
+  {
+    "id": "strat.layer.youth_jargon",
+    "label": "Молодёжный жаргон",
+    "style": "conversational",
+    "detector": "lexicon_layer:youth_jargon",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.stratification_engine.LAYER_META",
+    "data_roles": [
+      "AUX_METRIC",
+      "EVIDENCE"
+    ],
+    "legacy_priority": 7
+  },
+  {
+    "id": "strat.layer.general_jargon",
+    "label": "Общий жаргон",
+    "style": "conversational",
+    "detector": "lexicon_layer:general_jargon",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.stratification_engine.LAYER_META",
+    "data_roles": [
+      "AUX_METRIC",
+      "EVIDENCE"
+    ],
+    "legacy_priority": 6
+  },
+  {
+    "id": "strat.layer.vernacular",
+    "label": "Просторечие",
+    "style": "conversational",
+    "detector": "lexicon_layer:vernacular",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.stratification_engine.LAYER_META",
+    "data_roles": [
+      "AUX_METRIC",
+      "EVIDENCE"
+    ],
+    "legacy_priority": 5
+  },
+  {
+    "id": "strat.layer.colloquial_reduced",
+    "label": "Разговорно-сниженная",
+    "style": "conversational",
+    "detector": "lexicon_layer:colloquial_reduced",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.stratification_engine.LAYER_META",
+    "data_roles": [
+      "AUX_METRIC",
+      "EVIDENCE"
+    ],
+    "legacy_priority": 4
+  },
+  {
+    "id": "strat.layer.literary_standard",
+    "label": "Книжная / нейтральная",
+    "style": "unresolved",
+    "detector": "lexicon_layer:literary_standard",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.stratification_engine.LAYER_META",
+    "data_roles": [
+      "AUX_METRIC",
+      "EVIDENCE"
+    ],
+    "legacy_priority": 1
+  },
+  {
+    "id": "strat.layer.archaic",
+    "label": "Архаизмы",
+    "style": "unresolved",
+    "detector": "lexicon_layer:archaic",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.stratification_engine.LAYER_META",
+    "data_roles": [
+      "AUX_METRIC",
+      "EVIDENCE"
+    ],
+    "legacy_priority": 2
+  },
+  {
+    "id": "strat.layer.dialectal",
+    "label": "Диалектизмы",
+    "style": "unresolved",
+    "detector": "lexicon_layer:dialectal",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.stratification_engine.LAYER_META",
+    "data_roles": [
+      "AUX_METRIC",
+      "EVIDENCE"
+    ],
+    "legacy_priority": 3
+  },
+  {
+    "id": "strat.layer.euphemistic",
+    "label": "Эвфемизмы",
+    "style": "unresolved",
+    "detector": "lexicon_layer:euphemistic",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.stratification_engine.LAYER_META",
+    "data_roles": [
+      "AUX_METRIC",
+      "EVIDENCE"
+    ],
+    "legacy_priority": 4
+  },
+  {
+    "id": "comparison.leading_style.conversational_reduced",
+    "label": "разговорно-сниженный",
+    "style": "conversational",
+    "detector": "marked_ratio>=0.04 and reduced_count>=2",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.comparison_engine._leading_style",
+    "data_roles": [
+      "LEGACY_COMPARISON_FEATURE"
+    ]
+  },
+  {
+    "id": "comparison.leading_style.book_written",
+    "label": "книжно-письменный",
+    "style": "unresolved",
+    "detector": "average_sentence_length>=18",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.comparison_engine._leading_style",
+    "data_roles": [
+      "LEGACY_COMPARISON_FEATURE"
+    ]
+  },
+  {
+    "id": "comparison.leading_style.neutral_mixed",
+    "label": "нейтральный / смешанный",
+    "style": "unresolved",
+    "detector": "default_fallback",
+    "legacy_weight": null,
+    "method_feature_id": null,
+    "active": true,
+    "source": "analyzer.comparison_engine._leading_style",
+    "data_roles": [
+      "LEGACY_COMPARISON_FEATURE"
+    ]
+  }
+]

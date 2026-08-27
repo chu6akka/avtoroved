@@ -30,8 +30,8 @@ from analyzer import learning_backend as lb_module
 # вызовы несовместимы с воспроизводимостью протокола. Модуль сохранён в
 # analyzer/yandex_speller.py как перспектива.
 # from analyzer import yandex_speller as yaspell_module
-from analyzer import stratification_engine as strat_module
-from analyzer import thematic_engine as thematic_module
+from analyzer.semantic_layers import style_engine as strat_module
+from analyzer.semantic_layers import theme_engine as thematic_module
 from analyzer import freq_engine as freq_module
 from analyzer import senti_engine as senti_module
 from analyzer import diagnostic_engine as diag_module

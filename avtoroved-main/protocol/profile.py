@@ -686,18 +686,18 @@ def run_for_document(
     _status("Лексическая стратификация...")
     strat_result = None
     try:
-        from analyzer import stratification_engine
-        strat_result = stratification_engine.get().analyze(text)
+        from analyzer.semantic_layers import style_engine
+        strat_result = style_engine.get().analyze(text)
     except Exception:
         pass
 
     _status("Тематическая атрибуция...")
     thematic_result = None
     try:
-        from analyzer import thematic_engine
+        from analyzer.semantic_layers import theme_engine
         lemmas = [t.lemma.lower() for t in tokens
                   if _WORD_RE.search(t.text) and t.pos not in ("PUNCT", "NUM")]
-        thematic_result = thematic_engine.get().analyze(lemmas)
+        thematic_result = theme_engine.get().analyze(lemmas)
     except Exception:
         pass
 

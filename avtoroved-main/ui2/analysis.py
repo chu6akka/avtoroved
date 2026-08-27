@@ -33,14 +33,14 @@ class Engines:
     @property
     def strat(self):
         if self._strat is None:
-            from analyzer import stratification_engine as m
+            from analyzer.semantic_layers import style_engine as m
             self._strat = m.get()
         return self._strat
 
     @property
     def thematic(self):
         if self._thematic is None:
-            from analyzer import thematic_engine as m
+            from analyzer.semantic_layers import theme_engine as m
             self._thematic = m.get()
         return self._thematic
 
