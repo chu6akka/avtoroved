@@ -1,6 +1,7 @@
-"""Стабильные интерфейсы тематического и стилевого анализа.
+"""Стабильные интерфейсы semantic layers.
 
-Patch A сохраняет legacy-алгоритмы и только изолирует их за адаптерами.
+Production использует legacy Theme/Style adapters. ThemeEngineV2 доступен
+только через явный shadow API и не подключён к экспертному профилю.
 """
 
 from analyzer.semantic_layers.contracts import (
@@ -13,6 +14,10 @@ from analyzer.semantic_layers.contracts import (
 )
 from analyzer.semantic_layers.style_engine import STYLE_ENGINE_VERSION, StyleEngine
 from analyzer.semantic_layers.theme_engine import THEME_ENGINE_VERSION, ThemeEngine
+from analyzer.semantic_layers.theme_engine_v2 import (
+    THEME_ENGINE_V2_VERSION,
+    ThemeEngineV2,
+)
 
 __all__ = [
     "STYLE_ENGINE_VERSION",
@@ -23,6 +28,8 @@ __all__ = [
     "StyleScore",
     "ThemeAnalysisResult",
     "ThemeEngine",
+    "ThemeEngineV2",
+    "THEME_ENGINE_V2_VERSION",
     "ThemeEvidence",
     "ThemeScore",
 ]

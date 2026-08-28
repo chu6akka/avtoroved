@@ -6,6 +6,10 @@ Patch A только фиксирует legacy-поведение, выноси�
 
 ## Patch B — ThemeEngineV2
 
+Статус: **implemented in shadow mode**. Production остаётся на ThemeEngine V1;
+V2 доступен через `ThemeEngineV2().analyze(text)` или явный
+`ThemeEngine.analyze_shadow(text, lemmas)`.
+
 - сегментный анализ вместо только whole-text;
 - multi-label результат;
 - несколько прототипов на тему;
@@ -14,6 +18,10 @@ Patch A только фиксирует legacy-поведение, выноси�
 - оценка покрытия текста;
 - параллельное сравнение результатов v2 с legacy v1;
 - корпусная валидация до включения результата в методический контур.
+
+Реализованы 200 инженерных прототипов, 40 development fixtures и 10 hard
+cases. Это regression/development material, а не научная валидация. Реальный
+embedding backend optional, lazy и offline-only; его отсутствие не ломает V1.
 
 Patch B не должен автоматически переносить embedding score в экспертную
 идентификационную значимость.

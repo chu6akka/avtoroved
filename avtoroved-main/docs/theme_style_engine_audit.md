@@ -5,6 +5,29 @@
 JSON в `data/` является снимком существующих констант и словарей, но пока не
 заменяет их как источник вычислений.
 
+## ThemeEngineV2 pre-refactor baseline
+
+Baseline зафиксирован на коммите `998cc0c5e2ba23818d3b6293afccf42f4202e879`.
+Legacy producer — `analyzer/thematic_engine.py`, публичный API —
+`ThematicEngine.analyze(lemmas)`. Он возвращает `ThematicResult` со всеми
+`DomainScore`, максимум тремя `top_domains`, общим числом слов и числом
+словарных совпадений. Dominant topic фактически является первым элементом
+`top_domains` после сортировки по cosine.
+
+V1 содержит десять неизменяемых ID: `law`, `medicine`, `it`, `economics`,
+`military`, `science`, `religion`, `politics`, `sports`, `everyday`. Алгоритм
+строит словарные TF-IDF-центроиды и использует порог
+`max(0.05, best_cosine × 0.25)` с лимитом 3. `protocol/profile.py` дополнительно
+не создаёт thematic candidate ниже `0.15`, а интервал `0.15–0.25` помечает как
+слабую атрибуцию. Neural embeddings в V1 отсутствуют.
+
+Consumers до Patch B: `protocol/profile.py`, `ui/main_window.py`,
+`ui2/analysis.py`, thematic UI tabs, legacy export/diagnostic views и инструменты
+словаря. Все production consumers проходят через `ThemeEngine.analyze()` и
+получают исходный V1-формат. Patch B не меняет этот маршрут: V2 вызывается
+только явно и не передаётся в `semantic_candidates`, comparison, SQLite или
+логику заключения.
+
 ## Тематический блок
 
 ### Главный producer

@@ -22,7 +22,40 @@ class ThemeEngine:
         self._legacy = legacy_engine or legacy_theme.get()
 
     def analyze(self, lemmas: list[str]):
+        """Production path: неизменно делегировать ThemeEngine V1."""
         return self._legacy.analyze(lemmas)
+
+    def analyze_shadow(self, text: str, lemmas: list[str], v2_engine=None) -> dict:
+        """Явно выполнить V1 и V2, не передавая V2 в экспертный профиль."""
+        from analyzer.semantic_layers.theme_engine_v2 import (
+            ThemeEngineV2,
+            compare_v1_v2,
+        )
+
+        v1_result = self.analyze(lemmas)
+        try:
+            v2_result = (v2_engine or ThemeEngineV2()).analyze(text)
+        except Exception as exc:  # shadow failure никогда не ломает V1
+            return {
+                "v1": v1_result,
+                "v2": None,
+                "v2_error": str(exc),
+                "comparison": {
+                    "v1_dominant": (
+                        v1_result.top_domains[0].key
+                        if v1_result.top_domains else None),
+                    "v2_dominant": None,
+                    "agreement": False,
+                    "rank_shift": None,
+                    "notes": [f"V2 error: {exc}"],
+                },
+            }
+        return {
+            "v1": v1_result,
+            "v2": v2_result,
+            "v2_error": v2_result.reason if v2_result.status != "ok" else None,
+            "comparison": compare_v1_v2(v1_result, v2_result),
+        }
 
     def analyze_structured(self, lemmas: list[str]) -> ThemeAnalysisResult:
         """Представить тот же результат через будущий контракт, без нового scoring."""

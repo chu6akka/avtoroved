@@ -166,7 +166,9 @@ def test_all_prototypes_refer_to_known_themes():
     config_loader.load_theme_prototypes.cache_clear()
     prototypes = config_loader.load_theme_prototypes()
     assert set(prototypes) <= set(config_loader.load_theme_ontology())
-    assert all(values == [] for values in prototypes.values())
+    assert all(row["provenance"] == "engineered_for_v2"
+               for row in prototypes.values())
+    assert all(len(row["prototypes"]) == 20 for row in prototypes.values())
 
 
 def test_style_features_load_and_ids_are_unique():

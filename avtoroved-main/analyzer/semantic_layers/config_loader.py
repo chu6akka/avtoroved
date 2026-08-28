@@ -83,17 +83,30 @@ def load_theme_ontology() -> dict[str, dict]:
 
 
 @lru_cache(maxsize=1)
-def load_theme_prototypes() -> dict[str, list[str]]:
+def load_theme_prototypes() -> dict[str, dict]:
     payload = _load_json("theme_prototypes.json")
     if not isinstance(payload, dict):
         raise SemanticConfigError("theme_prototypes.json: ожидается JSON-объект")
     known = set(load_theme_ontology())
-    for key, values in payload.items():
+    for key, item in payload.items():
         location = f"theme_prototypes.json[{key!r}]"
         if key not in known:
             raise SemanticConfigError(f"{location}: тема отсутствует в ontology")
-        if not isinstance(values, list) or not all(isinstance(v, str) for v in values):
-            raise SemanticConfigError(f"{location}: ожидается массив строк")
+        if not isinstance(item, dict):
+            raise SemanticConfigError(f"{location}: ожидается объект")
+        missing = {"provenance", "prototypes"} - set(item)
+        if missing:
+            raise SemanticConfigError(
+                f"{location}: отсутствуют поля {', '.join(sorted(missing))}")
+        if item["provenance"] not in {"engineered_for_v2", "method_description"}:
+            raise SemanticConfigError(f"{location}: неизвестный provenance")
+        values = item["prototypes"]
+        if not isinstance(values, list) or not all(
+                isinstance(value, str) and value.strip() for value in values):
+            raise SemanticConfigError(
+                f"{location}.prototypes: ожидается массив непустых строк")
+        if len(values) != len(set(values)):
+            raise SemanticConfigError(f"{location}: prototypes должны быть уникальны")
     return payload
 
 
