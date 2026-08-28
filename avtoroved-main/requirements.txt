@@ -8,8 +8,11 @@ PyQt6>=6.6.0
 matplotlib>=3.8.0
 
 # AI-детектор GigaCheck
-transformers>=4.40.0
+transformers>=4.41.0,<6.0.0
 torch>=2.0.0
+
+# ThemeEngineV2 shadow: optional/lazy, модель используется только из local cache
+sentence-transformers>=5.7.0,<6.0.0
 
 # Экспорт
 python-docx>=1.0.0
