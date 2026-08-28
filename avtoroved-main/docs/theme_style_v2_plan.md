@@ -28,6 +28,13 @@ Patch B не должен автоматически переносить embedd
 
 ## Patch C — StyleEngineV2
 
+Статус: **implemented in shadow mode**. Production остаётся на StyleEngine V1;
+V2 запускается только явно. Реализованы five-family evidence scoring,
+multi-layer output, abstention, AUTO/CANDIDATE_ONLY/EXPERT_ONLY, segment-level
+source offsets, аудит 32 legacy indicators, 35 development fixtures и evaluator.
+Это development baseline, не научная валидация; следующий tuning допускается
+только отдельным Patch C.1.
+
 - отдельные банки правил для официально-делового, научного,
   публицистического, ораторского и разговорного стилей;
 - документированная методическая опора каждого правила;

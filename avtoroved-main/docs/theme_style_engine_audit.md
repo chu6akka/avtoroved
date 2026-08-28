@@ -177,3 +177,56 @@ official_business/scientific/publicistic/oratorical, поэтому он и defa
   является runtime embedding-анализом.
 
 До Patch D ничего из перечисленного не удаляется.
+
+## StyleEngineV2 pre-refactor baseline
+
+Baseline Patch C зафиксирован на `d4f2b2b5c74b3dd7bbd8aca7d92c4b55a145cf52`.
+Production-путь состоит из трёх независимых producers: 18 exact-regex маркеров
+`analyzer.metrics.STYLE_MARKERS`, 11 словарных слоёв
+`StratificationEngine.analyze` и 3 правила `_leading_style`. Ведущий стиль
+считается только последним producer с порогами `marked_ratio >= 0.04`, минимум
+2 сниженные единицы и `average_sentence_length >= 18`; fallback — смешанный.
+Consumers: `protocol/profile.py`, comparison, обе UI orchestration, statistics,
+stratification views и legacy exports. Stanza supplies tokens/POS/morphology/
+dependencies для metrics, но V1-стратификация использует pymorphy3+словарь;
+regex markers и leading-style rule Stanza напрямую не запускают.
+
+Из 32 записей до Patch C 24 имели `style=unresolved`. Registry проекта не
+содержит функционально-стилевых METHOD_FEATURE: в нём есть только три
+тематические записи. Поэтому METHOD mapping не выведен из интуиции; raw count,
+share и categorical proxy остаются AUX/UNRESOLVED, а фрагменты — EVIDENCE.
+
+| feature_id | current_name | producer | current_style | method_support | automation_status | proposed_v2_role | notes |
+|---|---|---|---|---|---|---|---|
+| `metrics.particles.01` | же | `regex:analyzer.metrics.STYLE_MARKERS` | `unresolved` | `UNRESOLVED` | `AUTO` | `AUX_METRIC + EVIDENCE` | Прямая привязка к пяти функциональным стилям не подтверждена. |
+| `metrics.particles.02` | ли | `regex:analyzer.metrics.STYLE_MARKERS` | `unresolved` | `UNRESOLVED` | `AUTO` | `AUX_METRIC + EVIDENCE` | Прямая привязка к пяти функциональным стилям не подтверждена. |
+| `metrics.particles.03` | вот | `regex:analyzer.metrics.STYLE_MARKERS` | `conversational` | `AUXILIARY` | `AUTO` | `AUX_METRIC + EVIDENCE` | Формальный разговорный маркер; самостоятельной методической силы не имеет. |
+| `metrics.particles.04` | ну | `regex:analyzer.metrics.STYLE_MARKERS` | `conversational` | `AUXILIARY` | `AUTO` | `AUX_METRIC + EVIDENCE` | Формальный разговорный маркер; самостоятельной методической силы не имеет. |
+| `metrics.particles.05` | уж | `regex:analyzer.metrics.STYLE_MARKERS` | `conversational` | `AUXILIARY` | `AUTO` | `AUX_METRIC + EVIDENCE` | Формальный разговорный маркер; самостоятельной методической силы не имеет. |
+| `metrics.particles.06` | даже | `regex:analyzer.metrics.STYLE_MARKERS` | `unresolved` | `UNRESOLVED` | `AUTO` | `AUX_METRIC + EVIDENCE` | Прямая привязка к пяти функциональным стилям не подтверждена. |
+| `metrics.particles.07` | лишь | `regex:analyzer.metrics.STYLE_MARKERS` | `unresolved` | `UNRESOLVED` | `AUTO` | `AUX_METRIC + EVIDENCE` | Прямая привязка к пяти функциональным стилям не подтверждена. |
+| `metrics.particles.08` | только | `regex:analyzer.metrics.STYLE_MARKERS` | `unresolved` | `UNRESOLVED` | `AUTO` | `AUX_METRIC + EVIDENCE` | Прямая привязка к пяти функциональным стилям не подтверждена. |
+| `metrics.connectors.01` | в общем | `regex:analyzer.metrics.STYLE_MARKERS` | `conversational` | `AUXILIARY` | `AUTO` | `AUX_METRIC + EVIDENCE` | Формальный разговорный маркер; самостоятельной методической силы не имеет. |
+| `metrics.connectors.02` | короче | `regex:analyzer.metrics.STYLE_MARKERS` | `conversational` | `AUXILIARY` | `AUTO` | `AUX_METRIC + EVIDENCE` | Формальный разговорный маркер; самостоятельной методической силы не имеет. |
+| `metrics.connectors.03` | на самом деле | `regex:analyzer.metrics.STYLE_MARKERS` | `conversational` | `AUXILIARY` | `AUTO` | `AUX_METRIC + EVIDENCE` | Формальный разговорный маркер; самостоятельной методической силы не имеет. |
+| `metrics.connectors.04` | так сказать | `regex:analyzer.metrics.STYLE_MARKERS` | `conversational` | `AUXILIARY` | `AUTO` | `AUX_METRIC + EVIDENCE` | Формальный разговорный маркер; самостоятельной методической силы не имеет. |
+| `metrics.connectors.05` | как бы | `regex:analyzer.metrics.STYLE_MARKERS` | `conversational` | `AUXILIARY` | `AUTO` | `AUX_METRIC + EVIDENCE` | Формальный разговорный маркер; самостоятельной методической силы не имеет. |
+| `metrics.conjunctions.01` | потому что | `regex:analyzer.metrics.STYLE_MARKERS` | `scientific, conversational` | `AUXILIARY` | `AUTO` | `AUX_METRIC + EVIDENCE` | Общий дискурсивный маркер нескольких стилей; алгоритм не дублируется. |
+| `metrics.conjunctions.02` | так как | `regex:analyzer.metrics.STYLE_MARKERS` | `scientific` | `AUXILIARY` | `AUTO` | `AUX_METRIC + EVIDENCE` | Инженерный сигнал логической связи; не METHOD_FEATURE. |
+| `metrics.conjunctions.03` | однако | `regex:analyzer.metrics.STYLE_MARKERS` | `scientific, publicistic` | `AUXILIARY` | `AUTO` | `AUX_METRIC + EVIDENCE` | Общий дискурсивный маркер нескольких стилей; алгоритм не дублируется. |
+| `metrics.conjunctions.04` | поэтому | `regex:analyzer.metrics.STYLE_MARKERS` | `scientific, publicistic` | `AUXILIARY` | `AUTO` | `AUX_METRIC + EVIDENCE` | Общий дискурсивный маркер нескольких стилей; алгоритм не дублируется. |
+| `metrics.conjunctions.05` | следовательно | `regex:analyzer.metrics.STYLE_MARKERS` | `scientific` | `AUXILIARY` | `AUTO` | `AUX_METRIC + EVIDENCE` | Инженерный сигнал логической связи; не METHOD_FEATURE. |
+| `strat.layer.obscene` | Обсценная лексика | `dictionary:analyzer.stratification_engine` | `conversational` | `AUXILIARY` | `AUTO` | `AUX_METRIC + EVIDENCE` | Существующий стратификационный слой используется как вспомогательное evidence. |
+| `strat.layer.criminal_jargon` | Криминальный жаргон | `dictionary:analyzer.stratification_engine` | `conversational` | `AUXILIARY` | `AUTO` | `AUX_METRIC + EVIDENCE` | Существующий стратификационный слой используется как вспомогательное evidence. |
+| `strat.layer.drug_jargon` | Наркотический жаргон | `dictionary:analyzer.stratification_engine` | `conversational` | `AUXILIARY` | `AUTO` | `AUX_METRIC + EVIDENCE` | Существующий стратификационный слой используется как вспомогательное evidence. |
+| `strat.layer.youth_jargon` | Молодёжный жаргон | `dictionary:analyzer.stratification_engine` | `conversational` | `AUXILIARY` | `AUTO` | `AUX_METRIC + EVIDENCE` | Существующий стратификационный слой используется как вспомогательное evidence. |
+| `strat.layer.general_jargon` | Общий жаргон | `dictionary:analyzer.stratification_engine` | `conversational` | `AUXILIARY` | `AUTO` | `AUX_METRIC + EVIDENCE` | Существующий стратификационный слой используется как вспомогательное evidence. |
+| `strat.layer.vernacular` | Просторечие | `dictionary:analyzer.stratification_engine` | `conversational` | `AUXILIARY` | `AUTO` | `AUX_METRIC + EVIDENCE` | Существующий стратификационный слой используется как вспомогательное evidence. |
+| `strat.layer.colloquial_reduced` | Разговорно-сниженная | `dictionary:analyzer.stratification_engine` | `conversational` | `AUXILIARY` | `AUTO` | `AUX_METRIC + EVIDENCE` | Существующий стратификационный слой используется как вспомогательное evidence. |
+| `strat.layer.literary_standard` | Книжная / нейтральная | `dictionary:analyzer.stratification_engine` | `unresolved` | `UNRESOLVED` | `CANDIDATE_ONLY` | `AUX_METRIC + EVIDENCE` | Лексикон поднимает фрагмент, но функционально-стилевую роль подтверждает эксперт. |
+| `strat.layer.archaic` | Архаизмы | `dictionary:analyzer.stratification_engine` | `unresolved` | `UNRESOLVED` | `CANDIDATE_ONLY` | `AUX_METRIC + EVIDENCE` | Лексикон поднимает фрагмент, но функционально-стилевую роль подтверждает эксперт. |
+| `strat.layer.dialectal` | Диалектизмы | `dictionary:analyzer.stratification_engine` | `unresolved` | `UNRESOLVED` | `CANDIDATE_ONLY` | `AUX_METRIC + EVIDENCE` | Лексикон поднимает фрагмент, но функционально-стилевую роль подтверждает эксперт. |
+| `strat.layer.euphemistic` | Эвфемизмы | `dictionary:analyzer.stratification_engine` | `unresolved` | `UNRESOLVED` | `CANDIDATE_ONLY` | `AUX_METRIC + EVIDENCE` | Лексикон поднимает фрагмент, но функционально-стилевую роль подтверждает эксперт. |
+| `comparison.leading_style.conversational_reduced` | разговорно-сниженный | `rule:analyzer.comparison_engine._leading_style` | `conversational` | `AUXILIARY` | `AUTO` | `AUX_METRIC + EVIDENCE` | Legacy comparison rule сохранено только как вспомогательная совместимость. |
+| `comparison.leading_style.book_written` | книжно-письменный | `rule:analyzer.comparison_engine._leading_style` | `unresolved` | `UNRESOLVED` | `EXPERT_ONLY` | `AUX_METRIC + EVIDENCE` | Legacy label нельзя надёжно разложить на пять стилей автоматически. |
+| `comparison.leading_style.neutral_mixed` | нейтральный / смешанный | `rule:analyzer.comparison_engine._leading_style` | `unresolved` | `UNRESOLVED` | `EXPERT_ONLY` | `AUX_METRIC + EVIDENCE` | Legacy label нельзя надёжно разложить на пять стилей автоматически. |

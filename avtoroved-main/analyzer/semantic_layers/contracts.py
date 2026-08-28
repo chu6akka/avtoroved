@@ -124,3 +124,79 @@ class StyleAnalysisResult:
     styles: tuple[StyleScore, ...]
     dominant_style: Optional[StyleScore]
     engine_version: str
+
+
+@dataclass(frozen=True)
+class StyleFeatureEvidenceV2:
+    """Проверяемый фрагмент одного инженерного стилевого сигнала."""
+
+    feature_id: str
+    style_id: str
+    family: str
+    automation_status: str
+    role: str
+    start: int
+    end: int
+    fragment: str
+    raw_value: float
+    normalized_value: float
+    method_status: str = "AUXILIARY"
+    method_feature_id: Optional[str] = None
+    accepted: bool = False
+    reliability: str = "engineering"
+
+
+@dataclass(frozen=True)
+class StyleDetectedFeatureV2:
+    """Агрегат detector-а; не является автоматически принятым признаком."""
+
+    feature_id: str
+    label: str
+    style_id: str
+    family: str
+    automation_status: str
+    role: str
+    raw_count: int
+    normalized_value: float
+    evidence: tuple[StyleFeatureEvidenceV2, ...] = ()
+    method_status: str = "AUXILIARY"
+    method_feature_id: Optional[str] = None
+    accepted: bool = False
+    limitations: tuple[str, ...] = ()
+    expert_identification_value: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class StyleSegmentResultV2:
+    segment_id: str
+    start: int
+    end: int
+    text: str
+    detected_style_features: tuple[str, ...]
+    style_support: dict[str, float]
+
+
+@dataclass(frozen=True)
+class StyleScoreV2:
+    style_id: str
+    label: str
+    support_score: float
+    feature_family_support: dict[str, float]
+    detected_features: tuple[StyleDetectedFeatureV2, ...]
+    segment_coverage: float
+    evidence: tuple[StyleFeatureEvidenceV2, ...]
+    expert_identification_value: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class StyleAnalysisResultV2:
+    styles: tuple[StyleScoreV2, ...]
+    selected_styles: tuple[StyleScoreV2, ...]
+    leading_style: Optional[StyleScoreV2]
+    segments: tuple[StyleSegmentResultV2, ...]
+    segment_count: int
+    engine_version: str
+    parameters: dict[str, Any] = field(default_factory=dict)
+    limitations: tuple[str, ...] = ()
+    status: str = "ok"
+    reason: Optional[str] = None

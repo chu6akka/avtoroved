@@ -1,0 +1,47 @@
+# Resolution of the 32 legacy style features
+
+> DEVELOPMENT configuration for StyleEngineV2 shadow mode. This table does not
+> create or accept forensic METHOD_FEATURE records.
+
+The project registry currently contains no functional-style method mappings.
+Consequently, `method_feature_id` remains `null` for all 32 rows. Of the 24
+previously unresolved style mappings, 13 received conservative AUXILIARY style
+routing and 11 remain UNRESOLVED. This is deliberate.
+
+| feature | old status | new status | style | method mapping | automation status | reason | source/provenance | limitations |
+|---|---|---|---|---|---|---|---|---|
+| `metrics.particles.01` | `UNRESOLVED` | `UNRESOLVED` | `unresolved` | `null` | `AUTO` | Прямая привязка к пяти функциональным стилям не подтверждена. | `analyzer.metrics.STYLE_MARKERS` | Контекст и функция маркера не устанавливаются простым regex. |
+| `metrics.particles.02` | `UNRESOLVED` | `UNRESOLVED` | `unresolved` | `null` | `AUTO` | Прямая привязка к пяти функциональным стилям не подтверждена. | `analyzer.metrics.STYLE_MARKERS` | Контекст и функция маркера не устанавливаются простым regex. |
+| `metrics.particles.03` | `UNRESOLVED` | `AUXILIARY` | `conversational` | `null` | `AUTO` | Формальный разговорный маркер; самостоятельной методической силы не имеет. | `analyzer.metrics.STYLE_MARKERS` | Контекст и функция маркера не устанавливаются простым regex. |
+| `metrics.particles.04` | `UNRESOLVED` | `AUXILIARY` | `conversational` | `null` | `AUTO` | Формальный разговорный маркер; самостоятельной методической силы не имеет. | `analyzer.metrics.STYLE_MARKERS` | Контекст и функция маркера не устанавливаются простым regex. |
+| `metrics.particles.05` | `UNRESOLVED` | `AUXILIARY` | `conversational` | `null` | `AUTO` | Формальный разговорный маркер; самостоятельной методической силы не имеет. | `analyzer.metrics.STYLE_MARKERS` | Контекст и функция маркера не устанавливаются простым regex. |
+| `metrics.particles.06` | `UNRESOLVED` | `UNRESOLVED` | `unresolved` | `null` | `AUTO` | Прямая привязка к пяти функциональным стилям не подтверждена. | `analyzer.metrics.STYLE_MARKERS` | Контекст и функция маркера не устанавливаются простым regex. |
+| `metrics.particles.07` | `UNRESOLVED` | `UNRESOLVED` | `unresolved` | `null` | `AUTO` | Прямая привязка к пяти функциональным стилям не подтверждена. | `analyzer.metrics.STYLE_MARKERS` | Контекст и функция маркера не устанавливаются простым regex. |
+| `metrics.particles.08` | `UNRESOLVED` | `UNRESOLVED` | `unresolved` | `null` | `AUTO` | Прямая привязка к пяти функциональным стилям не подтверждена. | `analyzer.metrics.STYLE_MARKERS` | Контекст и функция маркера не устанавливаются простым regex. |
+| `metrics.connectors.01` | `UNRESOLVED` | `AUXILIARY` | `conversational` | `null` | `AUTO` | Формальный разговорный маркер; самостоятельной методической силы не имеет. | `analyzer.metrics.STYLE_MARKERS` | Контекст и функция маркера не устанавливаются простым regex. |
+| `metrics.connectors.02` | `UNRESOLVED` | `AUXILIARY` | `conversational` | `null` | `AUTO` | Формальный разговорный маркер; самостоятельной методической силы не имеет. | `analyzer.metrics.STYLE_MARKERS` | Контекст и функция маркера не устанавливаются простым regex. |
+| `metrics.connectors.03` | `UNRESOLVED` | `AUXILIARY` | `conversational` | `null` | `AUTO` | Формальный разговорный маркер; самостоятельной методической силы не имеет. | `analyzer.metrics.STYLE_MARKERS` | Контекст и функция маркера не устанавливаются простым regex. |
+| `metrics.connectors.04` | `UNRESOLVED` | `AUXILIARY` | `conversational` | `null` | `AUTO` | Формальный разговорный маркер; самостоятельной методической силы не имеет. | `analyzer.metrics.STYLE_MARKERS` | Контекст и функция маркера не устанавливаются простым regex. |
+| `metrics.connectors.05` | `UNRESOLVED` | `AUXILIARY` | `conversational` | `null` | `AUTO` | Формальный разговорный маркер; самостоятельной методической силы не имеет. | `analyzer.metrics.STYLE_MARKERS` | Контекст и функция маркера не устанавливаются простым regex. |
+| `metrics.conjunctions.01` | `UNRESOLVED` | `AUXILIARY` | `scientific, conversational` | `null` | `AUTO` | Общий дискурсивный маркер нескольких стилей; алгоритм не дублируется. | `analyzer.metrics.STYLE_MARKERS` | Контекст и функция маркера не устанавливаются простым regex. |
+| `metrics.conjunctions.02` | `UNRESOLVED` | `AUXILIARY` | `scientific` | `null` | `AUTO` | Инженерный сигнал логической связи; не METHOD_FEATURE. | `analyzer.metrics.STYLE_MARKERS` | Контекст и функция маркера не устанавливаются простым regex. |
+| `metrics.conjunctions.03` | `UNRESOLVED` | `AUXILIARY` | `scientific, publicistic` | `null` | `AUTO` | Общий дискурсивный маркер нескольких стилей; алгоритм не дублируется. | `analyzer.metrics.STYLE_MARKERS` | Контекст и функция маркера не устанавливаются простым regex. |
+| `metrics.conjunctions.04` | `UNRESOLVED` | `AUXILIARY` | `scientific, publicistic` | `null` | `AUTO` | Общий дискурсивный маркер нескольких стилей; алгоритм не дублируется. | `analyzer.metrics.STYLE_MARKERS` | Контекст и функция маркера не устанавливаются простым regex. |
+| `metrics.conjunctions.05` | `UNRESOLVED` | `AUXILIARY` | `scientific` | `null` | `AUTO` | Инженерный сигнал логической связи; не METHOD_FEATURE. | `analyzer.metrics.STYLE_MARKERS` | Контекст и функция маркера не устанавливаются простым regex. |
+| `strat.layer.obscene` | `AUXILIARY` | `AUXILIARY` | `conversational` | `null` | `AUTO` | Существующий стратификационный слой используется как вспомогательное evidence. | `analyzer.stratification_engine.LAYER_META` | Словарный слой не равен функциональному стилю. |
+| `strat.layer.criminal_jargon` | `AUXILIARY` | `AUXILIARY` | `conversational` | `null` | `AUTO` | Существующий стратификационный слой используется как вспомогательное evidence. | `analyzer.stratification_engine.LAYER_META` | Словарный слой не равен функциональному стилю. |
+| `strat.layer.drug_jargon` | `AUXILIARY` | `AUXILIARY` | `conversational` | `null` | `AUTO` | Существующий стратификационный слой используется как вспомогательное evidence. | `analyzer.stratification_engine.LAYER_META` | Словарный слой не равен функциональному стилю. |
+| `strat.layer.youth_jargon` | `AUXILIARY` | `AUXILIARY` | `conversational` | `null` | `AUTO` | Существующий стратификационный слой используется как вспомогательное evidence. | `analyzer.stratification_engine.LAYER_META` | Словарный слой не равен функциональному стилю. |
+| `strat.layer.general_jargon` | `AUXILIARY` | `AUXILIARY` | `conversational` | `null` | `AUTO` | Существующий стратификационный слой используется как вспомогательное evidence. | `analyzer.stratification_engine.LAYER_META` | Словарный слой не равен функциональному стилю. |
+| `strat.layer.vernacular` | `AUXILIARY` | `AUXILIARY` | `conversational` | `null` | `AUTO` | Существующий стратификационный слой используется как вспомогательное evidence. | `analyzer.stratification_engine.LAYER_META` | Словарный слой не равен функциональному стилю. |
+| `strat.layer.colloquial_reduced` | `AUXILIARY` | `AUXILIARY` | `conversational` | `null` | `AUTO` | Существующий стратификационный слой используется как вспомогательное evidence. | `analyzer.stratification_engine.LAYER_META` | Словарный слой не равен функциональному стилю. |
+| `strat.layer.literary_standard` | `UNRESOLVED` | `UNRESOLVED` | `unresolved` | `null` | `CANDIDATE_ONLY` | Лексикон поднимает фрагмент, но функционально-стилевую роль подтверждает эксперт. | `analyzer.stratification_engine.LAYER_META` | Словарный слой не равен функциональному стилю. |
+| `strat.layer.archaic` | `UNRESOLVED` | `UNRESOLVED` | `unresolved` | `null` | `CANDIDATE_ONLY` | Лексикон поднимает фрагмент, но функционально-стилевую роль подтверждает эксперт. | `analyzer.stratification_engine.LAYER_META` | Словарный слой не равен функциональному стилю. |
+| `strat.layer.dialectal` | `UNRESOLVED` | `UNRESOLVED` | `unresolved` | `null` | `CANDIDATE_ONLY` | Лексикон поднимает фрагмент, но функционально-стилевую роль подтверждает эксперт. | `analyzer.stratification_engine.LAYER_META` | Словарный слой не равен функциональному стилю. |
+| `strat.layer.euphemistic` | `UNRESOLVED` | `UNRESOLVED` | `unresolved` | `null` | `CANDIDATE_ONLY` | Лексикон поднимает фрагмент, но функционально-стилевую роль подтверждает эксперт. | `analyzer.stratification_engine.LAYER_META` | Словарный слой не равен функциональному стилю. |
+| `comparison.leading_style.conversational_reduced` | `AUXILIARY` | `AUXILIARY` | `conversational` | `null` | `AUTO` | Legacy comparison rule сохранено только как вспомогательная совместимость. | `analyzer.comparison_engine._leading_style` | Legacy rule не является классификатором пяти функциональных стилей. |
+| `comparison.leading_style.book_written` | `UNRESOLVED` | `UNRESOLVED` | `unresolved` | `null` | `EXPERT_ONLY` | Legacy label нельзя надёжно разложить на пять стилей автоматически. | `analyzer.comparison_engine._leading_style` | Legacy rule не является классификатором пяти функциональных стилей. |
+| `comparison.leading_style.neutral_mixed` | `UNRESOLVED` | `UNRESOLVED` | `unresolved` | `null` | `EXPERT_ONLY` | Legacy label нельзя надёжно разложить на пять стилей автоматически. | `analyzer.comparison_engine._leading_style` | Legacy rule не является классификатором пяти функциональных стилей. |
+
+Automation totals: AUTO 26; CANDIDATE_ONLY 4; EXPERT_ONLY 2.
+Method totals: METHOD 0; AUXILIARY 21; EXPERIMENTAL 0; UNRESOLVED 11.

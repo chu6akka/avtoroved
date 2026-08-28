@@ -17,10 +17,16 @@ _THEME_REQUIRED = {
     "legacy_threshold", "active",
 }
 _STYLE_REQUIRED = {
-    "id", "label", "style", "detector", "legacy_weight",
-    "method_feature_id", "active",
+    "id", "label", "style", "method_status", "method_feature_id",
+    "automation_status", "producer", "metric_type", "normalization",
+    "active", "description", "limitations", "detector", "legacy_weight",
 }
 _METHOD_STATUSES = {"METHOD", "AUXILIARY", "EXPERIMENTAL", "UNRESOLVED"}
+_AUTOMATION_STATUSES = {"AUTO", "CANDIDATE_ONLY", "EXPERT_ONLY"}
+_FUNCTIONAL_STYLES = {
+    "official_business", "scientific", "publicistic", "oratorical",
+    "conversational", "unresolved",
+}
 
 
 def _data_dir() -> Path:
@@ -127,6 +133,23 @@ def load_style_features() -> list[dict]:
         if feature_id in seen_ids:
             raise SemanticConfigError(f"{location}: повторяющийся id {feature_id!r}")
         seen_ids.add(feature_id)
+        styles = item["style"] if isinstance(item["style"], list) else [item["style"]]
+        if not styles or not all(style in _FUNCTIONAL_STYLES for style in styles):
+            raise SemanticConfigError(f"{location}: неизвестный functional style")
+        if item["method_status"] not in _METHOD_STATUSES:
+            raise SemanticConfigError(
+                f"{location}: неизвестный method_status {item['method_status']!r}")
+        if item["automation_status"] not in _AUTOMATION_STATUSES:
+            raise SemanticConfigError(
+                f"{location}: неизвестный automation_status")
+        if item["method_feature_id"] is not None:
+            raise SemanticConfigError(
+                f"{location}: registry mapping отсутствует; ожидался null")
+        if not isinstance(item["limitations"], list):
+            raise SemanticConfigError(f"{location}: limitations должен быть массивом")
+        for field in ("producer", "metric_type", "normalization", "description"):
+            if not isinstance(item[field], str) or not item[field]:
+                raise SemanticConfigError(f"{location}: {field} должен быть строкой")
         if not isinstance(item["active"], bool):
             raise SemanticConfigError(f"{location}: active должен быть boolean")
     return payload

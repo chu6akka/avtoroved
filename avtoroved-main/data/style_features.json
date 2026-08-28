@@ -3,10 +3,20 @@
     "id": "metrics.particles.01",
     "label": "же",
     "style": "unresolved",
+    "method_status": "UNRESOLVED",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "regex:analyzer.metrics.STYLE_MARKERS",
+    "metric_type": "raw_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Точное вхождение исторического маркера служебных слов.",
+    "limitations": [
+      "Контекст и функция маркера не устанавливаются простым regex."
+    ],
+    "resolution_note": "Прямая привязка к пяти функциональным стилям не подтверждена.",
     "detector": "exact_word_or_phrase:же",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.metrics.STYLE_MARKERS",
     "data_roles": [
       "AUX_METRIC"
@@ -16,10 +26,20 @@
     "id": "metrics.particles.02",
     "label": "ли",
     "style": "unresolved",
+    "method_status": "UNRESOLVED",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "regex:analyzer.metrics.STYLE_MARKERS",
+    "metric_type": "raw_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Точное вхождение исторического маркера служебных слов.",
+    "limitations": [
+      "Контекст и функция маркера не устанавливаются простым regex."
+    ],
+    "resolution_note": "Прямая привязка к пяти функциональным стилям не подтверждена.",
     "detector": "exact_word_or_phrase:ли",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.metrics.STYLE_MARKERS",
     "data_roles": [
       "AUX_METRIC"
@@ -28,11 +48,21 @@
   {
     "id": "metrics.particles.03",
     "label": "вот",
-    "style": "unresolved",
+    "style": "conversational",
+    "method_status": "AUXILIARY",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "regex:analyzer.metrics.STYLE_MARKERS",
+    "metric_type": "raw_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Точное вхождение исторического маркера служебных слов.",
+    "limitations": [
+      "Контекст и функция маркера не устанавливаются простым regex."
+    ],
+    "resolution_note": "Формальный разговорный маркер; самостоятельной методической силы не имеет.",
     "detector": "exact_word_or_phrase:вот",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.metrics.STYLE_MARKERS",
     "data_roles": [
       "AUX_METRIC"
@@ -41,11 +71,21 @@
   {
     "id": "metrics.particles.04",
     "label": "ну",
-    "style": "unresolved",
+    "style": "conversational",
+    "method_status": "AUXILIARY",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "regex:analyzer.metrics.STYLE_MARKERS",
+    "metric_type": "raw_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Точное вхождение исторического маркера служебных слов.",
+    "limitations": [
+      "Контекст и функция маркера не устанавливаются простым regex."
+    ],
+    "resolution_note": "Формальный разговорный маркер; самостоятельной методической силы не имеет.",
     "detector": "exact_word_or_phrase:ну",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.metrics.STYLE_MARKERS",
     "data_roles": [
       "AUX_METRIC"
@@ -54,11 +94,21 @@
   {
     "id": "metrics.particles.05",
     "label": "уж",
-    "style": "unresolved",
+    "style": "conversational",
+    "method_status": "AUXILIARY",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "regex:analyzer.metrics.STYLE_MARKERS",
+    "metric_type": "raw_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Точное вхождение исторического маркера служебных слов.",
+    "limitations": [
+      "Контекст и функция маркера не устанавливаются простым regex."
+    ],
+    "resolution_note": "Формальный разговорный маркер; самостоятельной методической силы не имеет.",
     "detector": "exact_word_or_phrase:уж",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.metrics.STYLE_MARKERS",
     "data_roles": [
       "AUX_METRIC"
@@ -68,10 +118,20 @@
     "id": "metrics.particles.06",
     "label": "даже",
     "style": "unresolved",
+    "method_status": "UNRESOLVED",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "regex:analyzer.metrics.STYLE_MARKERS",
+    "metric_type": "raw_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Точное вхождение исторического маркера служебных слов.",
+    "limitations": [
+      "Контекст и функция маркера не устанавливаются простым regex."
+    ],
+    "resolution_note": "Прямая привязка к пяти функциональным стилям не подтверждена.",
     "detector": "exact_word_or_phrase:даже",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.metrics.STYLE_MARKERS",
     "data_roles": [
       "AUX_METRIC"
@@ -81,10 +141,20 @@
     "id": "metrics.particles.07",
     "label": "лишь",
     "style": "unresolved",
+    "method_status": "UNRESOLVED",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "regex:analyzer.metrics.STYLE_MARKERS",
+    "metric_type": "raw_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Точное вхождение исторического маркера служебных слов.",
+    "limitations": [
+      "Контекст и функция маркера не устанавливаются простым regex."
+    ],
+    "resolution_note": "Прямая привязка к пяти функциональным стилям не подтверждена.",
     "detector": "exact_word_or_phrase:лишь",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.metrics.STYLE_MARKERS",
     "data_roles": [
       "AUX_METRIC"
@@ -94,10 +164,20 @@
     "id": "metrics.particles.08",
     "label": "только",
     "style": "unresolved",
+    "method_status": "UNRESOLVED",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "regex:analyzer.metrics.STYLE_MARKERS",
+    "metric_type": "raw_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Точное вхождение исторического маркера служебных слов.",
+    "limitations": [
+      "Контекст и функция маркера не устанавливаются простым regex."
+    ],
+    "resolution_note": "Прямая привязка к пяти функциональным стилям не подтверждена.",
     "detector": "exact_word_or_phrase:только",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.metrics.STYLE_MARKERS",
     "data_roles": [
       "AUX_METRIC"
@@ -106,11 +186,21 @@
   {
     "id": "metrics.connectors.01",
     "label": "в общем",
-    "style": "unresolved",
+    "style": "conversational",
+    "method_status": "AUXILIARY",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "regex:analyzer.metrics.STYLE_MARKERS",
+    "metric_type": "raw_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Точное вхождение исторического маркера служебных слов.",
+    "limitations": [
+      "Контекст и функция маркера не устанавливаются простым regex."
+    ],
+    "resolution_note": "Формальный разговорный маркер; самостоятельной методической силы не имеет.",
     "detector": "exact_word_or_phrase:в общем",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.metrics.STYLE_MARKERS",
     "data_roles": [
       "AUX_METRIC"
@@ -119,11 +209,21 @@
   {
     "id": "metrics.connectors.02",
     "label": "короче",
-    "style": "unresolved",
+    "style": "conversational",
+    "method_status": "AUXILIARY",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "regex:analyzer.metrics.STYLE_MARKERS",
+    "metric_type": "raw_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Точное вхождение исторического маркера служебных слов.",
+    "limitations": [
+      "Контекст и функция маркера не устанавливаются простым regex."
+    ],
+    "resolution_note": "Формальный разговорный маркер; самостоятельной методической силы не имеет.",
     "detector": "exact_word_or_phrase:короче",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.metrics.STYLE_MARKERS",
     "data_roles": [
       "AUX_METRIC"
@@ -132,11 +232,21 @@
   {
     "id": "metrics.connectors.03",
     "label": "на самом деле",
-    "style": "unresolved",
+    "style": "conversational",
+    "method_status": "AUXILIARY",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "regex:analyzer.metrics.STYLE_MARKERS",
+    "metric_type": "raw_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Точное вхождение исторического маркера служебных слов.",
+    "limitations": [
+      "Контекст и функция маркера не устанавливаются простым regex."
+    ],
+    "resolution_note": "Формальный разговорный маркер; самостоятельной методической силы не имеет.",
     "detector": "exact_word_or_phrase:на самом деле",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.metrics.STYLE_MARKERS",
     "data_roles": [
       "AUX_METRIC"
@@ -145,11 +255,21 @@
   {
     "id": "metrics.connectors.04",
     "label": "так сказать",
-    "style": "unresolved",
+    "style": "conversational",
+    "method_status": "AUXILIARY",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "regex:analyzer.metrics.STYLE_MARKERS",
+    "metric_type": "raw_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Точное вхождение исторического маркера служебных слов.",
+    "limitations": [
+      "Контекст и функция маркера не устанавливаются простым regex."
+    ],
+    "resolution_note": "Формальный разговорный маркер; самостоятельной методической силы не имеет.",
     "detector": "exact_word_or_phrase:так сказать",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.metrics.STYLE_MARKERS",
     "data_roles": [
       "AUX_METRIC"
@@ -158,11 +278,21 @@
   {
     "id": "metrics.connectors.05",
     "label": "как бы",
-    "style": "unresolved",
+    "style": "conversational",
+    "method_status": "AUXILIARY",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "regex:analyzer.metrics.STYLE_MARKERS",
+    "metric_type": "raw_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Точное вхождение исторического маркера служебных слов.",
+    "limitations": [
+      "Контекст и функция маркера не устанавливаются простым regex."
+    ],
+    "resolution_note": "Формальный разговорный маркер; самостоятельной методической силы не имеет.",
     "detector": "exact_word_or_phrase:как бы",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.metrics.STYLE_MARKERS",
     "data_roles": [
       "AUX_METRIC"
@@ -171,11 +301,24 @@
   {
     "id": "metrics.conjunctions.01",
     "label": "потому что",
-    "style": "unresolved",
+    "style": [
+      "scientific",
+      "conversational"
+    ],
+    "method_status": "AUXILIARY",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "regex:analyzer.metrics.STYLE_MARKERS",
+    "metric_type": "raw_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Точное вхождение исторического маркера служебных слов.",
+    "limitations": [
+      "Контекст и функция маркера не устанавливаются простым regex."
+    ],
+    "resolution_note": "Общий дискурсивный маркер нескольких стилей; алгоритм не дублируется.",
     "detector": "exact_word_or_phrase:потому что",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.metrics.STYLE_MARKERS",
     "data_roles": [
       "AUX_METRIC"
@@ -184,11 +327,21 @@
   {
     "id": "metrics.conjunctions.02",
     "label": "так как",
-    "style": "unresolved",
+    "style": "scientific",
+    "method_status": "AUXILIARY",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "regex:analyzer.metrics.STYLE_MARKERS",
+    "metric_type": "raw_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Точное вхождение исторического маркера служебных слов.",
+    "limitations": [
+      "Контекст и функция маркера не устанавливаются простым regex."
+    ],
+    "resolution_note": "Инженерный сигнал логической связи; не METHOD_FEATURE.",
     "detector": "exact_word_or_phrase:так как",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.metrics.STYLE_MARKERS",
     "data_roles": [
       "AUX_METRIC"
@@ -197,11 +350,24 @@
   {
     "id": "metrics.conjunctions.03",
     "label": "однако",
-    "style": "unresolved",
+    "style": [
+      "scientific",
+      "publicistic"
+    ],
+    "method_status": "AUXILIARY",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "regex:analyzer.metrics.STYLE_MARKERS",
+    "metric_type": "raw_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Точное вхождение исторического маркера служебных слов.",
+    "limitations": [
+      "Контекст и функция маркера не устанавливаются простым regex."
+    ],
+    "resolution_note": "Общий дискурсивный маркер нескольких стилей; алгоритм не дублируется.",
     "detector": "exact_word_or_phrase:однако",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.metrics.STYLE_MARKERS",
     "data_roles": [
       "AUX_METRIC"
@@ -210,11 +376,24 @@
   {
     "id": "metrics.conjunctions.04",
     "label": "поэтому",
-    "style": "unresolved",
+    "style": [
+      "scientific",
+      "publicistic"
+    ],
+    "method_status": "AUXILIARY",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "regex:analyzer.metrics.STYLE_MARKERS",
+    "metric_type": "raw_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Точное вхождение исторического маркера служебных слов.",
+    "limitations": [
+      "Контекст и функция маркера не устанавливаются простым regex."
+    ],
+    "resolution_note": "Общий дискурсивный маркер нескольких стилей; алгоритм не дублируется.",
     "detector": "exact_word_or_phrase:поэтому",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.metrics.STYLE_MARKERS",
     "data_roles": [
       "AUX_METRIC"
@@ -223,11 +402,21 @@
   {
     "id": "metrics.conjunctions.05",
     "label": "следовательно",
-    "style": "unresolved",
+    "style": "scientific",
+    "method_status": "AUXILIARY",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "regex:analyzer.metrics.STYLE_MARKERS",
+    "metric_type": "raw_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Точное вхождение исторического маркера служебных слов.",
+    "limitations": [
+      "Контекст и функция маркера не устанавливаются простым regex."
+    ],
+    "resolution_note": "Инженерный сигнал логической связи; не METHOD_FEATURE.",
     "detector": "exact_word_or_phrase:следовательно",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.metrics.STYLE_MARKERS",
     "data_roles": [
       "AUX_METRIC"
@@ -237,10 +426,20 @@
     "id": "strat.layer.obscene",
     "label": "Обсценная лексика",
     "style": "conversational",
+    "method_status": "AUXILIARY",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "dictionary:analyzer.stratification_engine",
+    "metric_type": "lexicon_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Срабатывание существующей лексической стратификации.",
+    "limitations": [
+      "Словарный слой не равен функциональному стилю."
+    ],
+    "resolution_note": "Существующий стратификационный слой используется как вспомогательное evidence.",
     "detector": "lexicon_layer:obscene",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.stratification_engine.LAYER_META",
     "data_roles": [
       "AUX_METRIC",
@@ -252,10 +451,20 @@
     "id": "strat.layer.criminal_jargon",
     "label": "Криминальный жаргон",
     "style": "conversational",
+    "method_status": "AUXILIARY",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "dictionary:analyzer.stratification_engine",
+    "metric_type": "lexicon_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Срабатывание существующей лексической стратификации.",
+    "limitations": [
+      "Словарный слой не равен функциональному стилю."
+    ],
+    "resolution_note": "Существующий стратификационный слой используется как вспомогательное evidence.",
     "detector": "lexicon_layer:criminal_jargon",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.stratification_engine.LAYER_META",
     "data_roles": [
       "AUX_METRIC",
@@ -267,10 +476,20 @@
     "id": "strat.layer.drug_jargon",
     "label": "Наркотический жаргон",
     "style": "conversational",
+    "method_status": "AUXILIARY",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "dictionary:analyzer.stratification_engine",
+    "metric_type": "lexicon_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Срабатывание существующей лексической стратификации.",
+    "limitations": [
+      "Словарный слой не равен функциональному стилю."
+    ],
+    "resolution_note": "Существующий стратификационный слой используется как вспомогательное evidence.",
     "detector": "lexicon_layer:drug_jargon",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.stratification_engine.LAYER_META",
     "data_roles": [
       "AUX_METRIC",
@@ -282,10 +501,20 @@
     "id": "strat.layer.youth_jargon",
     "label": "Молодёжный жаргон",
     "style": "conversational",
+    "method_status": "AUXILIARY",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "dictionary:analyzer.stratification_engine",
+    "metric_type": "lexicon_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Срабатывание существующей лексической стратификации.",
+    "limitations": [
+      "Словарный слой не равен функциональному стилю."
+    ],
+    "resolution_note": "Существующий стратификационный слой используется как вспомогательное evidence.",
     "detector": "lexicon_layer:youth_jargon",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.stratification_engine.LAYER_META",
     "data_roles": [
       "AUX_METRIC",
@@ -297,10 +526,20 @@
     "id": "strat.layer.general_jargon",
     "label": "Общий жаргон",
     "style": "conversational",
+    "method_status": "AUXILIARY",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "dictionary:analyzer.stratification_engine",
+    "metric_type": "lexicon_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Срабатывание существующей лексической стратификации.",
+    "limitations": [
+      "Словарный слой не равен функциональному стилю."
+    ],
+    "resolution_note": "Существующий стратификационный слой используется как вспомогательное evidence.",
     "detector": "lexicon_layer:general_jargon",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.stratification_engine.LAYER_META",
     "data_roles": [
       "AUX_METRIC",
@@ -312,10 +551,20 @@
     "id": "strat.layer.vernacular",
     "label": "Просторечие",
     "style": "conversational",
+    "method_status": "AUXILIARY",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "dictionary:analyzer.stratification_engine",
+    "metric_type": "lexicon_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Срабатывание существующей лексической стратификации.",
+    "limitations": [
+      "Словарный слой не равен функциональному стилю."
+    ],
+    "resolution_note": "Существующий стратификационный слой используется как вспомогательное evidence.",
     "detector": "lexicon_layer:vernacular",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.stratification_engine.LAYER_META",
     "data_roles": [
       "AUX_METRIC",
@@ -327,10 +576,20 @@
     "id": "strat.layer.colloquial_reduced",
     "label": "Разговорно-сниженная",
     "style": "conversational",
+    "method_status": "AUXILIARY",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "dictionary:analyzer.stratification_engine",
+    "metric_type": "lexicon_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Срабатывание существующей лексической стратификации.",
+    "limitations": [
+      "Словарный слой не равен функциональному стилю."
+    ],
+    "resolution_note": "Существующий стратификационный слой используется как вспомогательное evidence.",
     "detector": "lexicon_layer:colloquial_reduced",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.stratification_engine.LAYER_META",
     "data_roles": [
       "AUX_METRIC",
@@ -342,10 +601,20 @@
     "id": "strat.layer.literary_standard",
     "label": "Книжная / нейтральная",
     "style": "unresolved",
+    "method_status": "UNRESOLVED",
+    "method_feature_id": null,
+    "automation_status": "CANDIDATE_ONLY",
+    "producer": "dictionary:analyzer.stratification_engine",
+    "metric_type": "lexicon_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Срабатывание существующей лексической стратификации.",
+    "limitations": [
+      "Словарный слой не равен функциональному стилю."
+    ],
+    "resolution_note": "Лексикон поднимает фрагмент, но функционально-стилевую роль подтверждает эксперт.",
     "detector": "lexicon_layer:literary_standard",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.stratification_engine.LAYER_META",
     "data_roles": [
       "AUX_METRIC",
@@ -357,10 +626,20 @@
     "id": "strat.layer.archaic",
     "label": "Архаизмы",
     "style": "unresolved",
+    "method_status": "UNRESOLVED",
+    "method_feature_id": null,
+    "automation_status": "CANDIDATE_ONLY",
+    "producer": "dictionary:analyzer.stratification_engine",
+    "metric_type": "lexicon_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Срабатывание существующей лексической стратификации.",
+    "limitations": [
+      "Словарный слой не равен функциональному стилю."
+    ],
+    "resolution_note": "Лексикон поднимает фрагмент, но функционально-стилевую роль подтверждает эксперт.",
     "detector": "lexicon_layer:archaic",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.stratification_engine.LAYER_META",
     "data_roles": [
       "AUX_METRIC",
@@ -372,10 +651,20 @@
     "id": "strat.layer.dialectal",
     "label": "Диалектизмы",
     "style": "unresolved",
+    "method_status": "UNRESOLVED",
+    "method_feature_id": null,
+    "automation_status": "CANDIDATE_ONLY",
+    "producer": "dictionary:analyzer.stratification_engine",
+    "metric_type": "lexicon_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Срабатывание существующей лексической стратификации.",
+    "limitations": [
+      "Словарный слой не равен функциональному стилю."
+    ],
+    "resolution_note": "Лексикон поднимает фрагмент, но функционально-стилевую роль подтверждает эксперт.",
     "detector": "lexicon_layer:dialectal",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.stratification_engine.LAYER_META",
     "data_roles": [
       "AUX_METRIC",
@@ -387,10 +676,20 @@
     "id": "strat.layer.euphemistic",
     "label": "Эвфемизмы",
     "style": "unresolved",
+    "method_status": "UNRESOLVED",
+    "method_feature_id": null,
+    "automation_status": "CANDIDATE_ONLY",
+    "producer": "dictionary:analyzer.stratification_engine",
+    "metric_type": "lexicon_count",
+    "normalization": "per_1000_words",
+    "active": true,
+    "description": "Срабатывание существующей лексической стратификации.",
+    "limitations": [
+      "Словарный слой не равен функциональному стилю."
+    ],
+    "resolution_note": "Лексикон поднимает фрагмент, но функционально-стилевую роль подтверждает эксперт.",
     "detector": "lexicon_layer:euphemistic",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.stratification_engine.LAYER_META",
     "data_roles": [
       "AUX_METRIC",
@@ -402,10 +701,20 @@
     "id": "comparison.leading_style.conversational_reduced",
     "label": "разговорно-сниженный",
     "style": "conversational",
+    "method_status": "AUXILIARY",
+    "method_feature_id": null,
+    "automation_status": "AUTO",
+    "producer": "rule:analyzer.comparison_engine._leading_style",
+    "metric_type": "categorical_rule",
+    "normalization": "none",
+    "active": true,
+    "description": "Существующая эвристика ведущего регистрового стиля.",
+    "limitations": [
+      "Legacy rule не является классификатором пяти функциональных стилей."
+    ],
+    "resolution_note": "Legacy comparison rule сохранено только как вспомогательная совместимость.",
     "detector": "marked_ratio>=0.04 and reduced_count>=2",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.comparison_engine._leading_style",
     "data_roles": [
       "LEGACY_COMPARISON_FEATURE"
@@ -415,10 +724,20 @@
     "id": "comparison.leading_style.book_written",
     "label": "книжно-письменный",
     "style": "unresolved",
+    "method_status": "UNRESOLVED",
+    "method_feature_id": null,
+    "automation_status": "EXPERT_ONLY",
+    "producer": "rule:analyzer.comparison_engine._leading_style",
+    "metric_type": "categorical_rule",
+    "normalization": "none",
+    "active": true,
+    "description": "Существующая эвристика ведущего регистрового стиля.",
+    "limitations": [
+      "Legacy rule не является классификатором пяти функциональных стилей."
+    ],
+    "resolution_note": "Legacy label нельзя надёжно разложить на пять стилей автоматически.",
     "detector": "average_sentence_length>=18",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.comparison_engine._leading_style",
     "data_roles": [
       "LEGACY_COMPARISON_FEATURE"
@@ -428,10 +747,20 @@
     "id": "comparison.leading_style.neutral_mixed",
     "label": "нейтральный / смешанный",
     "style": "unresolved",
+    "method_status": "UNRESOLVED",
+    "method_feature_id": null,
+    "automation_status": "EXPERT_ONLY",
+    "producer": "rule:analyzer.comparison_engine._leading_style",
+    "metric_type": "categorical_rule",
+    "normalization": "none",
+    "active": true,
+    "description": "Существующая эвристика ведущего регистрового стиля.",
+    "limitations": [
+      "Legacy rule не является классификатором пяти функциональных стилей."
+    ],
+    "resolution_note": "Legacy label нельзя надёжно разложить на пять стилей автоматически.",
     "detector": "default_fallback",
     "legacy_weight": null,
-    "method_feature_id": null,
-    "active": true,
     "source": "analyzer.comparison_engine._leading_style",
     "data_roles": [
       "LEGACY_COMPARISON_FEATURE"

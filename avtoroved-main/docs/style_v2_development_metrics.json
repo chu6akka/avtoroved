@@ -1,0 +1,151 @@
+{
+  "label": "DEVELOPMENT METRICS — NOT SCIENTIFIC VALIDATION",
+  "fixture_count": 35,
+  "clear_count": 25,
+  "hard_count": 10,
+  "v1": {
+    "top1_accuracy": 0.2
+  },
+  "v2": {
+    "top1_accuracy": 0.8,
+    "micro_precision": 0.882353,
+    "micro_recall": 0.882353,
+    "micro_f1": 0.882353,
+    "macro_f1": 0.87,
+    "average_selected_styles": 0.971429,
+    "abstention_count": 6,
+    "mixed_case_recall": 0.75
+  },
+  "v2_per_style": {
+    "official_business": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 7
+    },
+    "scientific": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 7
+    },
+    "publicistic": {
+      "precision": 1.0,
+      "recall": 0.428571,
+      "f1": 0.6,
+      "support": 7
+    },
+    "oratorical": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 7
+    },
+    "conversational": {
+      "precision": 0.6,
+      "recall": 1.0,
+      "f1": 0.75,
+      "support": 6
+    }
+  },
+  "runtime": {
+    "v1_total_seconds": 0.0254,
+    "v2_total_seconds": 0.020127,
+    "v2_mean_ms_per_document": 0.575,
+    "parsed_document_reused": false,
+    "stanza_started_by_v2": false,
+    "note": "Evaluator supplies existing V1 stratification; no parsed tokens were available."
+  },
+  "hard_cases": [
+    {
+      "id": "hard_scientific_question",
+      "expected": [
+        "scientific"
+      ],
+      "selected": [
+        "scientific"
+      ],
+      "leading": "scientific"
+    },
+    {
+      "id": "hard_official_terminology",
+      "expected": [
+        "official_business"
+      ],
+      "selected": [
+        "official_business"
+      ],
+      "leading": "official_business"
+    },
+    {
+      "id": "hard_publicistic_official_lexicon",
+      "expected": [
+        "publicistic"
+      ],
+      "selected": [],
+      "leading": "official_business"
+    },
+    {
+      "id": "hard_conversational_without_slang",
+      "expected": [
+        "conversational"
+      ],
+      "selected": [
+        "conversational"
+      ],
+      "leading": "conversational"
+    },
+    {
+      "id": "hard_oratorical_no_questions",
+      "expected": [
+        "oratorical"
+      ],
+      "selected": [
+        "oratorical"
+      ],
+      "leading": "oratorical"
+    },
+    {
+      "id": "hard_mixed_official_scientific",
+      "expected": [
+        "official_business",
+        "scientific"
+      ],
+      "selected": [
+        "official_business",
+        "scientific"
+      ],
+      "leading": "scientific"
+    },
+    {
+      "id": "hard_mixed_publicistic_oratorical",
+      "expected": [
+        "publicistic",
+        "oratorical"
+      ],
+      "selected": [
+        "conversational",
+        "oratorical"
+      ],
+      "leading": "conversational"
+    },
+    {
+      "id": "hard_short_ambiguous",
+      "expected": [],
+      "selected": [],
+      "leading": "conversational"
+    },
+    {
+      "id": "hard_list",
+      "expected": [],
+      "selected": [],
+      "leading": "conversational"
+    },
+    {
+      "id": "hard_neutral_information",
+      "expected": [],
+      "selected": [],
+      "leading": "conversational"
+    }
+  ]
+}
