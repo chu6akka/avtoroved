@@ -35,6 +35,11 @@ from analyzer.semantic_layers.theme_segmenter import (
     SegmentationParameters,
     segment_text,
 )
+from analyzer.semantic_layers.theme_selection import (
+    DEFAULT_THEME_SELECTION_PARAMETERS,
+    ThemeSelectionParameters,
+    select_themes,
+)
 
 
 THEME_ENGINE_V2_VERSION = "v2-shadow"
@@ -78,6 +83,7 @@ class ThemeEngineV2:
         ontology: dict[str, dict] | None = None,
         prototype_config: dict[str, dict] | None = None,
         segmentation_parameters: SegmentationParameters | None = None,
+        selection_parameters: ThemeSelectionParameters | None = None,
         lemmatizer=None,
     ):
         self.embedding_backend = (
@@ -87,6 +93,8 @@ class ThemeEngineV2:
             prototype_config or config_loader.load_theme_prototypes())
         self.segmentation_parameters = (
             segmentation_parameters or SegmentationParameters())
+        self.selection_parameters = (
+            selection_parameters or DEFAULT_THEME_SELECTION_PARAMETERS)
         self.lexical_extractor = LexicalThemeEvidenceExtractor(
             self.ontology, lemmatizer=lemmatizer)
         self._validate_configuration()
@@ -119,6 +127,7 @@ class ThemeEngineV2:
                 "threshold_kind": "ENGINEERING",
             },
             "prototype_cache": "theme_id+prototype_hash+model_revision",
+            "selection": self.selection_parameters.as_dict(),
         }
 
     def _controlled_result(self, *, status: str, reason: str | None,
@@ -126,6 +135,7 @@ class ThemeEngineV2:
         return ThemeAnalysisResultV2(
             themes=(),
             dominant_theme=None,
+            selected_themes=(),
             segment_count=segment_count,
             engine_version=self.version,
             model_info=dict(self.embedding_backend.model_info),
@@ -246,6 +256,7 @@ class ThemeEngineV2:
         return ThemeAnalysisResultV2(
             themes=tuple(theme_scores),
             dominant_theme=dominant,
+            selected_themes=select_themes(theme_scores, self.selection_parameters),
             segment_count=segment_count,
             engine_version=self.version,
             model_info=dict(self.embedding_backend.model_info),
@@ -277,6 +288,7 @@ def compare_v1_v2(v1_result, v2_result: ThemeAnalysisResultV2) -> dict[str, Any]
     ]
     v2_dominant = (
         v2_result.dominant_theme.theme_id if v2_result.dominant_theme else None)
+    v2_selected = [row.theme_id for row in v2_result.selected_themes]
     v2_ids = [row["theme_id"] for row in v2_ranked]
     rank_shift = (
         v2_ids.index(v1_dominant) if v1_dominant in v2_ids else None)
@@ -290,6 +302,7 @@ def compare_v1_v2(v1_result, v2_result: ThemeAnalysisResultV2) -> dict[str, Any]
         "v1_dominant": v1_dominant,
         "v1_scores": v1_scores,
         "v2_dominant": v2_dominant,
+        "v2_selected_themes": v2_selected,
         "v2_ranked_themes": v2_ranked,
         "agreement": (
             v1_dominant == v2_dominant

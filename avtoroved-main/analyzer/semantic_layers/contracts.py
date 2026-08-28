@@ -92,6 +92,7 @@ class ThemeAnalysisResultV2:
 
     themes: tuple[ThemeV2Score, ...]
     dominant_theme: Optional[ThemeV2Score]
+    selected_themes: tuple[ThemeV2Score, ...]
     segment_count: int
     engine_version: str
     model_info: dict[str, Any] = field(default_factory=dict)

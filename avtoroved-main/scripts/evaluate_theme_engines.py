@@ -79,6 +79,9 @@ def calculate_metrics(fixtures: list[dict], predictions: list[set[str]],
         "micro_f1": round(micro_f1, 6),
         "macro_f1": round(
             sum(row["f1"] for row in per_theme.values()) / len(per_theme), 6),
+        "average_labels_per_document": round(
+            sum(len(predicted) for predicted in predictions) / len(fixtures), 6
+        ) if fixtures else 0.0,
     }
 
 
@@ -136,10 +139,7 @@ def _run_v2(fixtures: list[dict], engine: ThemeEngineV2
             status = result.status
             reason = result.reason
             break
-        predictions.append({
-            row.theme_id for row in result.themes
-            if row.segment_support_count > 0
-        })
+        predictions.append({row.theme_id for row in result.selected_themes})
         dominant.append(
             result.dominant_theme.theme_id if result.dominant_theme else None)
     return (results, predictions, dominant, status, reason,
@@ -230,9 +230,10 @@ def _v1_label(result) -> str:
 
 def _v2_label(result, limit: int = 3) -> str:
     dominant = result.dominant_theme.theme_id if result.dominant_theme else "none"
+    selected = ",".join(row.theme_id for row in result.selected_themes) or "none"
     ranked = ", ".join(
         f"{row.theme_id}:{row.combined_score:.4f}" for row in result.themes[:limit])
-    return f"dominant={dominant}; ranked=[{ranked}]"
+    return f"dominant={dominant}; selected=[{selected}]; ranked=[{ranked}]"
 
 
 def _md(value: object) -> str:
@@ -282,10 +283,7 @@ def build_error_analysis(fixtures: list[dict], report: dict,
     for fixture, v1_result, v2_result in zip(fixtures, v1_results, v2_results):
         expected = set(fixture["expected_themes"])
         v1_predicted = {row.key for row in v1_result.top_domains}
-        v2_predicted = {
-            row.theme_id for row in v2_result.themes
-            if row.segment_support_count > 0
-        }
+        v2_predicted = {row.theme_id for row in v2_result.selected_themes}
         if expected != v1_predicted or expected != v2_predicted:
             errors.append((fixture, v1_result, v2_result, expected,
                            v1_predicted, v2_predicted))
@@ -383,10 +381,9 @@ def build_error_analysis(fixtures: list[dict], report: dict,
     lines.extend([
         "## Interpretation",
         "",
-        "REAL V2 has high dominant-theme accuracy and full recall on this small",
-        "development corpus, but very low multi-label precision because many themes",
-        "cross the unchanged support thresholds. This report records the baseline;",
-        "no threshold, weight, prototype or fixture was changed.",
+        "V2 dominant-theme ranking and calibrated multi-label selection are reported",
+        "separately. Scores remain engineering similarity/ranking values rather than",
+        "probabilities; this small development corpus is not scientific validation.",
         "",
     ])
     return "\n".join(lines)
