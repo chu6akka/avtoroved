@@ -1,0 +1,4 @@
+{"case_id":"C001","duration_seconds":900,"end":"2026-08-29T09:15:00Z","expert_id_pseudonymous":"E001","mode":"MANUAL","notes":"synthetic demo","session_order":1,"stage":"SEPARATE_RESEARCH","start":"2026-08-29T09:00:00Z"}
+{"case_id":"C001","duration_seconds":540,"end":"2026-08-29T10:09:00Z","expert_id_pseudonymous":"E001","mode":"ASSISTED","notes":"synthetic demo","session_order":2,"stage":"SEPARATE_RESEARCH","start":"2026-08-29T10:00:00Z"}
+{"case_id":"C002","duration_seconds":480,"end":"2026-08-29T11:08:00Z","expert_id_pseudonymous":"E002","mode":"ASSISTED","notes":"counterbalanced synthetic demo","session_order":1,"stage":"SEPARATE_RESEARCH","start":"2026-08-29T11:00:00Z"}
+{"case_id":"C002","duration_seconds":840,"end":"2026-08-29T12:14:00Z","expert_id_pseudonymous":"E002","mode":"MANUAL","notes":"counterbalanced synthetic demo","session_order":2,"stage":"SEPARATE_RESEARCH","start":"2026-08-29T12:00:00Z"}

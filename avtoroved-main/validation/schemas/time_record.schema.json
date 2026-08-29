@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["case_id", "expert_id_pseudonymous", "mode", "stage", "start", "end", "duration_seconds", "notes", "session_order"],
+  "properties": {
+    "case_id": {"type": "string"}, "expert_id_pseudonymous": {"type": "string"},
+    "mode": {"enum": ["MANUAL", "ASSISTED"]},
+    "stage": {"enum": ["SUITABILITY", "SEPARATE_RESEARCH", "FEATURE_MAP", "COMPARISON", "CONCLUSION"]},
+    "start": {"type": "string", "format": "date-time"}, "end": {"type": "string", "format": "date-time"},
+    "duration_seconds": {"type": "number", "minimum": 0}, "notes": {"type": "string"},
+    "session_order": {"type": "integer", "minimum": 1}
+  },
+  "additionalProperties": false
+}

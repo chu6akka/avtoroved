@@ -1,0 +1,5 @@
+[
+  {"case_id":"C001","disputed_document_ids":["D001"],"reference_document_ids":["D003"],"expected_relation":"SAME_AUTHOR"},
+  {"case_id":"C002","disputed_document_ids":["D002"],"reference_document_ids":["D005"],"expected_relation":"DIFFERENT_AUTHOR"},
+  {"case_id":"C003","disputed_document_ids":["D005"],"reference_document_ids":["D006"],"expected_relation":"SAME_AUTHOR"}
+]

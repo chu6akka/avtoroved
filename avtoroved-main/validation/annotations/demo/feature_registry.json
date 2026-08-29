@@ -1,0 +1,6 @@
+{
+  "demo.discourse.sequence":{"group":"textological","automation_level":"CANDIDATE_ONLY"},
+  "demo.style.conversational":{"group":"stylistic","automation_level":"CANDIDATE_ONLY"},
+  "demo.syntax.logical_link":{"group":"syntactic","automation_level":"AUTO"},
+  "demo.expert.intent":{"group":"psycholinguistic","automation_level":"EXPERT_ONLY"}
+}

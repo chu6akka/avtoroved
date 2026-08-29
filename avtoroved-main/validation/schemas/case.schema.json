@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["case_id", "disputed_document_ids", "reference_document_ids", "expected_relation"],
+  "properties": {
+    "case_id": {"type": "string"},
+    "disputed_document_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "reference_document_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "expected_relation": {"enum": ["SAME_AUTHOR", "DIFFERENT_AUTHOR", "UNKNOWN"]}
+  },
+  "additionalProperties": false
+}

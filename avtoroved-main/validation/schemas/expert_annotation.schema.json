@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["annotation_id", "document_id", "method_feature_id", "present", "accepted", "offsets", "expert_id_pseudonymous", "comment", "timestamp"],
+  "properties": {
+    "annotation_id": {"type": "string"}, "document_id": {"type": "string"},
+    "method_feature_id": {"type": "string"},
+    "present": {"enum": [true, false, "uncertain"]}, "accepted": {"type": "boolean"},
+    "offsets": {"type": "array", "items": {"type": "array", "prefixItems": [{"type": "integer"}, {"type": "integer"}], "minItems": 2, "maxItems": 2}},
+    "fragment": {"type": "string"},
+    "expert_id_pseudonymous": {"type": "string", "pattern": "^E[0-9]{3,}$"},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "comment": {"type": "string"}, "timestamp": {"type": "string", "format": "date-time"},
+    "gold_source": {"enum": ["CONSENSUS", "ADJUDICATED", "SINGLE_EXPERT"]},
+    "adjudicated_present": {"enum": [true, false, "uncertain"]},
+    "adjudicator_id_pseudonymous": {"type": "string"},
+    "adjudication_comment": {"type": "string"}
+  },
+  "additionalProperties": false
+}
