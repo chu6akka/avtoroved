@@ -16,6 +16,9 @@ STYLE_METHOD_REGISTRY_PATH = _DATA_DIR / "style_method_features.json"
 STYLE_LEGACY_MAPPING_PATH = _DATA_DIR / "style_legacy_method_mappings.json"
 
 AUTOMATION_STATUSES = {"AUTO", "CANDIDATE_ONLY", "EXPERT_ONLY"}
+IMPLEMENTATION_STATUSES = {
+    "IMPLEMENTED", "PARTIAL", "NOT_IMPLEMENTED", "NOT_APPLICABLE",
+}
 FUNCTIONAL_STYLES = {
     "official_business", "scientific", "publicistic", "oratorical",
     "conversational",
@@ -24,6 +27,7 @@ _REQUIRED_FIELDS = {
     "method_feature_id", "label", "method_group", "method_subgroup",
     "functional_style", "source_kind", "method_reference", "source_registry",
     "source_wording", "automation_status", "detectors", "limitations", "active",
+    "implementation_status", "producer", "evidence_type",
 }
 
 
@@ -69,11 +73,26 @@ def load_style_method_registry() -> list[dict]:
             raise ValueError(f"{location}: source traceability is incomplete")
         if row["automation_status"] not in AUTOMATION_STATUSES:
             raise ValueError(f"{location}: unknown automation_status")
+        implementation = row["implementation_status"]
+        if implementation not in IMPLEMENTATION_STATUSES:
+            raise ValueError(f"{location}: unknown implementation_status")
         if not isinstance(row["detectors"], list) or not all(
                 isinstance(value, str) and value for value in row["detectors"]):
             raise ValueError(f"{location}: detectors must be a string list")
         if not isinstance(row["limitations"], list):
             raise ValueError(f"{location}: limitations must be a list")
+        if implementation in {"IMPLEMENTED", "PARTIAL"}:
+            if not row["detectors"] or not row["producer"] or not row["evidence_type"]:
+                raise ValueError(
+                    f"{location}: implemented/partial feature requires detector, "
+                    "producer and evidence_type")
+        elif row["producer"] is not None or row["evidence_type"] is not None:
+            raise ValueError(
+                f"{location}: unavailable feature cannot claim a runtime producer")
+        if implementation in {"NOT_IMPLEMENTED", "NOT_APPLICABLE"} and row["detectors"]:
+            raise ValueError(f"{location}: unavailable feature cannot list detectors")
+        if row["automation_status"] == "EXPERT_ONLY" and implementation != "NOT_APPLICABLE":
+            raise ValueError(f"{location}: EXPERT_ONLY must be NOT_APPLICABLE")
         if not isinstance(row["active"], bool):
             raise ValueError(f"{location}: active must be boolean")
         forbidden = {"expert_identification_value", "method_reference_informativeness"}
@@ -124,6 +143,9 @@ def method_features_for_detector(detector_id: str, functional_style: str
     """Return compatible canonical targets without promoting the detector itself."""
     return tuple(
         row for row in load_style_method_registry()
-        if row["active"] and detector_id in row["detectors"]
+        if row["active"]
+        and row["implementation_status"] in {"IMPLEMENTED", "PARTIAL"}
+        and row["producer"] and row["evidence_type"]
+        and detector_id in row["detectors"]
         and row["functional_style"] == functional_style
     )

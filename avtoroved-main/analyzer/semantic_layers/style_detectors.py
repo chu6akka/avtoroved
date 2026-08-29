@@ -205,13 +205,17 @@ def _token_spans(tokens: Sequence[object], segment_start: int,
 
 def detect_style_features(text: str, *, base_offset: int = 0,
                           parsed_tokens: Sequence[object] = (),
-                          stratification_result=None, sentiment_result=None
+                          stratification_result=None, sentiment_result=None,
+                          runtime_audit: set[str] | None = None,
                           ) -> tuple[StyleDetectedFeatureV2, ...]:
     """Detect formal signals once, then map shared signals to style rows."""
     found: list[StyleDetectedFeatureV2] = []
 
     def add(key: str, matches: Sequence[object], raw_count: int | None = None):
-        found.extend(_make_features(SPECS[key], matches, text, base_offset, raw_count))
+        spec = SPECS[key]
+        if runtime_audit is not None:
+            runtime_audit.add(spec.feature_id)
+        found.extend(_make_features(spec, matches, text, base_offset, raw_count))
 
     add("abbreviation", _matches(r"(?<![А-ЯЁA-Z])[А-ЯЁA-Z]{2,6}(?![А-ЯЁA-Z])", text, 0))
     add("official_cliche", _literal_matches((

@@ -50,6 +50,15 @@ The layers are deliberately distinct:
 
 `AUTO` describes formal detection only. `CANDIDATE_ONLY` requires context
 review. `EXPERT_ONLY` entries are never emitted as detected candidates.
+Independently, `implementation_status` records whether the current program has
+an `IMPLEMENTED`, `PARTIAL`, `NOT_IMPLEMENTED` or `NOT_APPLICABLE` route.
+`AUTO` therefore does not imply `IMPLEMENTED`.
+
+Runtime projection accepts only `IMPLEMENTED`/`PARTIAL` definitions with a real
+producer and evidence type. Every `IMPLEMENTED` detector is checked by executing
+the actual `detect_style_features` route; aggregate detector IDs are generated
+by the same function used in candidate projection. Merely writing a detector
+name in JSON cannot make it runtime-reachable.
 
 ## Scoring
 
@@ -80,6 +89,11 @@ all five styles. Document output contains ranked `styles`, multi-layer
 features, exact evidence fragments and an independent tuple of unaccepted
 `method_feature_candidates`. `selected_styles=[]` is valid for short, neutral,
 list-like or otherwise insufficient material.
+
+The five aggregate style results project only to the corresponding general
+`nn.lang.style_*` candidate. Selection of `scientific`, for example, does not
+assert terminology, genitive chains, deverbal nouns or any other private
+feature without that feature's own detector evidence.
 
 `parsed_tokens` can be supplied from the existing document analysis. V2 never
 starts Stanza itself. In `analyze_shadow`, the already calculated V1 lexical
@@ -119,4 +133,5 @@ unambiguously to one of the five V2 classes.
 
 Full metrics: `docs/style_v2_development_metrics.json`. Resolution of the 32
 legacy indicators: `docs/style_feature_resolution.md`. Canonical definitions
-and complete traceability: `docs/style_method_feature_registry.md`.
+and complete traceability: `docs/style_method_feature_registry.md`. Runtime
+coverage: `docs/style_method_runtime_coverage.md`.

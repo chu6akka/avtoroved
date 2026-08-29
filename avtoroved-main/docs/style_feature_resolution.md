@@ -63,3 +63,17 @@ limited to signals that can support review without proving the target feature:
 Raw particle/question counts remain AUX_METRIC. In particular, a question mark
 does not map to a rhetorical-question METHOD feature, and a vernacular token
 does not by itself establish conversational style.
+
+## Runtime status
+
+Legacy evidence availability is not equivalent to a complete canonical
+detector. Only two canonical features currently have `PARTIAL` status through
+verified legacy mappings:
+
+- `nsv.style.orat.causal_words` ← `metrics.conjunctions.02/.04`;
+- `nsv.style.orat.style_assessment_words` ← `metrics.connectors.02`.
+
+Their producer is the existing `analyzer.metrics.STYLE_MARKERS`; they are marked
+as `legacy_evidence_only` and do not masquerade as complete StyleEngineV2
+detectors. Full coverage is documented in
+[`style_method_runtime_coverage.md`](style_method_runtime_coverage.md).

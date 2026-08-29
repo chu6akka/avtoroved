@@ -9,10 +9,36 @@ from analyzer.semantic_layers.contracts import (
     StyleMethodFeatureCandidateV2,
     StyleScoreV2,
 )
+from analyzer.semantic_layers.style_detectors import detect_style_features
 from expert_core.style_method_registry import method_features_for_detector
 
 
 _STATUS_RANK = {"AUTO": 0, "CANDIDATE_ONLY": 1, "EXPERT_ONLY": 2}
+_FUNCTIONAL_STYLES = (
+    "official_business", "scientific", "publicistic", "oratorical",
+    "conversational",
+)
+
+
+def aggregate_detector_id(style_id: str) -> str:
+    return f"v2.aggregate.functional_style.{style_id}"
+
+
+AGGREGATE_DETECTOR_IDS = frozenset(
+    aggregate_detector_id(style_id) for style_id in _FUNCTIONAL_STYLES)
+
+
+def runtime_reachable_detector_ids() -> frozenset[str]:
+    """Execute the actual detector route and report rules reached by it.
+
+    This is intentionally stronger than checking that a string occurs in the
+    registry: ``detect_style_features`` records rules only when its runtime
+    ``add`` path is invoked. Aggregate IDs come from the same helper used by
+    candidate projection below.
+    """
+    reached: set[str] = set()
+    detect_style_features("runtime reachability audit", runtime_audit=reached)
+    return frozenset(reached) | AGGREGATE_DETECTOR_IDS
 
 
 def _effective_status(method_status: str, detector_status: str) -> str:
@@ -58,7 +84,7 @@ def project_method_feature_candidates(
                 feature.automation_status)
 
     for style in selected_styles:
-        detector_id = f"v2.aggregate.functional_style.{style.style_id}"
+        detector_id = aggregate_detector_id(style.style_id)
         for target in method_features_for_detector(detector_id, style.style_id):
             add(target, style.evidence, style.support_score, "CANDIDATE_ONLY")
 

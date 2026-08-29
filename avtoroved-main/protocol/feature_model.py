@@ -115,6 +115,10 @@ def registry_by_id() -> dict[str, dict]:
             "detector_key": None,
             "functional_style": style_row["functional_style"],
             "canonical_style_method_feature": True,
+            "implementation_status": style_row["implementation_status"],
+            "detectors": tuple(style_row["detectors"]),
+            "producer": style_row["producer"],
+            "evidence_type": style_row["evidence_type"],
         }
     return rows
 

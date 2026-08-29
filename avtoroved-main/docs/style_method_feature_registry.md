@@ -16,6 +16,14 @@
 детектируется. Пустой detector означает, что методический признак зарегистрирован,
 но в текущем StyleEngineV2 активной реализации нет.
 
+`automation_status` описывает допустимый способ исследования признака, а не
+готовность текущего кода. Фактическая готовность хранится отдельно в
+`implementation_status`: `IMPLEMENTED`, `PARTIAL`, `NOT_IMPLEMENTED` или
+`NOT_APPLICABLE`. Поэтому сочетание `AUTO + NOT_IMPLEMENTED` корректно означает
+«явление формализуемо, но detector в текущей версии отсутствует». Полный
+машинно проверенный аудит producer-ов и runtime reachability приведён в
+[`style_method_runtime_coverage.md`](style_method_runtime_coverage.md).
+
 Всего: 62; AUTO: 26; CANDIDATE_ONLY: 18; EXPERT_ONLY: 18.
 
 | method_feature_id | style | source | source_wording | automation_status | detector | limitations |
@@ -92,3 +100,7 @@ Legacy evidence links are stored separately in
 legacy row to METHOD_FEATURE. The strict methodological count remains guarded by
 `role == METHOD_FEATURE`, an explicit expert `accepted` decision, METHOD source,
 qualification, comparability, stability and linked evidence.
+
+Implementation totals: IMPLEMENTED 12; PARTIAL 2; NOT_IMPLEMENTED 30;
+NOT_APPLICABLE 18. An aggregate `nn.lang.style_*` candidate never activates the
+private method features of the same functional style.
