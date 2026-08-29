@@ -32,8 +32,10 @@ Patch B не должен автоматически переносить embedd
 V2 запускается только явно. Реализованы five-family evidence scoring,
 multi-layer output, abstention, AUTO/CANDIDATE_ONLY/EXPERT_ONLY, segment-level
 source offsets, аудит 32 legacy indicators, 35 development fixtures и evaluator.
-Это development baseline, не научная валидация; следующий tuning допускается
-только отдельным Patch C.1.
+Patch C.1 добавил отдельный канонический методический реестр, source
+traceability, legacy→method evidence mappings и безопасную проекцию в
+`accepted=false` candidates. Это development baseline, не научная валидация;
+настройка publicistic/conversational допускается только отдельным Patch C.2.
 
 - отдельные банки правил для официально-делового, научного,
   публицистического, ораторского и разговорного стилей;
@@ -46,6 +48,15 @@ source offsets, аудит 32 legacy indicators, 35 development fixtures и eval
 
 Регистровая стратификация, ошибки навыков и функциональный стиль не должны
 сливаться в один показатель.
+
+Архитектурная граница Patch C.1:
+
+`LEGACY FEATURE → DETECTOR SIGNAL → EVIDENCE → CANONICAL METHOD FEATURE →`
+`EXPERT ACCEPTED FEATURE`.
+
+Первые четыре уровня не дают автоматического экспертного принятия. Только
+последний уровень после квалификации экспертом может участвовать в строгих
+методических количествах.
 
 ## Patch D — cleanup
 

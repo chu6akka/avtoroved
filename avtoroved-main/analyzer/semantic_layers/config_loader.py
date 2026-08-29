@@ -7,6 +7,11 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from expert_core.style_method_registry import (
+    load_legacy_style_method_mappings as _load_legacy_style_method_mappings,
+    load_style_method_registry as _load_style_method_registry,
+)
+
 
 class SemanticConfigError(ValueError):
     """Конфигурация отсутствует, повреждена или имеет неверную структуру."""
@@ -153,3 +158,23 @@ def load_style_features() -> list[dict]:
         if not isinstance(item["active"], bool):
             raise SemanticConfigError(f"{location}: active должен быть boolean")
     return payload
+
+
+@lru_cache(maxsize=1)
+def load_style_method_features() -> list[dict]:
+    """Canonical METHOD_FEATURE definitions; separate from 32 legacy signals."""
+    return _load_style_method_registry()
+
+
+@lru_cache(maxsize=1)
+def load_style_legacy_method_mappings() -> list[dict]:
+    """Evidence-only links from every legacy style signal to 0..N methods."""
+    mappings = _load_legacy_style_method_mappings()
+    legacy_ids = {row["id"] for row in load_style_features()}
+    mapping_ids = {row["legacy_feature_id"] for row in mappings}
+    if mapping_ids != legacy_ids:
+        missing = sorted(legacy_ids - mapping_ids)
+        extra = sorted(mapping_ids - legacy_ids)
+        raise SemanticConfigError(
+            f"legacy style mapping mismatch; missing={missing}, extra={extra}")
+    return mappings

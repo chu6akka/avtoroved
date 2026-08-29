@@ -1,0 +1,1080 @@
+[
+  {
+    "method_feature_id": "nn.lang.style_colloquial",
+    "label": "Преимущественное использование разговорного стиля речи",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "conversational",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 87",
+    "source_registry": "avtoroved2/data/features/registry_nn.yaml",
+    "source_wording": "Преимущественное использование разговорного стиля речи",
+    "automation_status": "CANDIDATE_ONLY",
+    "detectors": [
+      "v2.aggregate.functional_style.conversational"
+    ],
+    "limitations": [
+      "Инженерная классификация функционального стиля является только кандидатом и требует экспертного подтверждения."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nn.lang.style_official_business",
+    "label": "Преимущественное использование официально-делового стиля речи",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 87",
+    "source_registry": "avtoroved2/data/features/registry_nn.yaml",
+    "source_wording": "Преимущественное использование официально-делового стиля речи",
+    "automation_status": "CANDIDATE_ONLY",
+    "detectors": [
+      "v2.aggregate.functional_style.official_business"
+    ],
+    "limitations": [
+      "Инженерная классификация функционального стиля является только кандидатом и требует экспертного подтверждения."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nn.lang.style_oratorical",
+    "label": "Преимущественное использование ораторского стиля речи",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "oratorical",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 87",
+    "source_registry": "avtoroved2/data/features/registry_nn.yaml",
+    "source_wording": "Преимущественное использование ораторского стиля речи",
+    "automation_status": "CANDIDATE_ONLY",
+    "detectors": [
+      "v2.aggregate.functional_style.oratorical"
+    ],
+    "limitations": [
+      "Инженерная классификация функционального стиля является только кандидатом и требует экспертного подтверждения."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nn.lang.style_publicistic",
+    "label": "Преимущественное использование публицистического стиля речи",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "publicistic",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 87",
+    "source_registry": "avtoroved2/data/features/registry_nn.yaml",
+    "source_wording": "Преимущественное использование публицистического стиля речи",
+    "automation_status": "CANDIDATE_ONLY",
+    "detectors": [
+      "v2.aggregate.functional_style.publicistic"
+    ],
+    "limitations": [
+      "Инженерная классификация функционального стиля является только кандидатом и требует экспертного подтверждения."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nn.lang.style_scientific",
+    "label": "Преимущественное использование научного стиля речи",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "scientific",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 87",
+    "source_registry": "avtoroved2/data/features/registry_nn.yaml",
+    "source_wording": "Преимущественное использование научного стиля речи",
+    "automation_status": "CANDIDATE_ONLY",
+    "detectors": [
+      "v2.aggregate.functional_style.scientific"
+    ],
+    "limitations": [
+      "Инженерная классификация функционального стиля является только кандидатом и требует экспертного подтверждения."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "ns.style.coll.clarifications",
+    "label": "Использование уточнений",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "conversational",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 92",
+    "source_registry": "avtoroved2/data/features/registry_ns.yaml",
+    "source_wording": "Использование уточнений",
+    "automation_status": "CANDIDATE_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "ns.style.coll.conj_omission_inversion",
+    "label": "Пропуск союзов, инверсия союзов",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "conversational",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 92",
+    "source_registry": "avtoroved2/data/features/registry_ns.yaml",
+    "source_wording": "Пропуск союзов, инверсия союзов",
+    "automation_status": "EXPERT_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Высокоуровневое явление не устанавливается StyleEngineV2 автоматически."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "ns.style.coll.ellipsis_action",
+    "label": "Использование эллипсиса действия",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "conversational",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 92",
+    "source_registry": "avtoroved2/data/features/registry_ns.yaml",
+    "source_wording": "Использование эллипсиса действия",
+    "automation_status": "EXPERT_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Высокоуровневое явление не устанавливается StyleEngineV2 автоматически."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "ns.style.coll.ellipsis_addressee",
+    "label": "Использование эллипсиса адресата",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "conversational",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 92",
+    "source_registry": "avtoroved2/data/features/registry_ns.yaml",
+    "source_wording": "Использование эллипсиса адресата",
+    "automation_status": "EXPERT_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Высокоуровневое явление не устанавливается StyleEngineV2 автоматически."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "ns.style.coll.ellipsis_noun",
+    "label": "Эллипсис существительного в словосочетании «прилагательное + существительное»",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "conversational",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 92",
+    "source_registry": "avtoroved2/data/features/registry_ns.yaml",
+    "source_wording": "Эллипсис существительного в словосочетании «прилагательное + существительное»",
+    "automation_status": "EXPERT_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Высокоуровневое явление не устанавливается StyleEngineV2 автоматически."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "ns.style.coll.ellipsis_object",
+    "label": "Использование эллипсиса объекта",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "conversational",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 92",
+    "source_registry": "avtoroved2/data/features/registry_ns.yaml",
+    "source_wording": "Использование эллипсиса объекта",
+    "automation_status": "EXPERT_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Высокоуровневое явление не устанавливается StyleEngineV2 автоматически."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "ns.style.coll.inversion_adv_adj",
+    "label": "Инверсия наречия относительно глагола, прилагательного относительно существительного",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "conversational",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 92",
+    "source_registry": "avtoroved2/data/features/registry_ns.yaml",
+    "source_wording": "Инверсия наречия относительно глагола, прилагательного относительно существительного",
+    "automation_status": "AUTO",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "ns.style.coll.inversion_genitive",
+    "label": "Инверсия существительного в родительном падеже",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "conversational",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 92",
+    "source_registry": "avtoroved2/data/features/registry_ns.yaml",
+    "source_wording": "Инверсия существительного в родительном падеже",
+    "automation_status": "AUTO",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "ns.style.coll.inversion_question",
+    "label": "Инверсия вопросительных слов",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "conversational",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 92",
+    "source_registry": "avtoroved2/data/features/registry_ns.yaml",
+    "source_wording": "Инверсия вопросительных слов",
+    "automation_status": "CANDIDATE_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "ns.style.coll.main_clause_omission",
+    "label": "Пропуск/инверсия главной части сложного предложения",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "conversational",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 92",
+    "source_registry": "avtoroved2/data/features/registry_ns.yaml",
+    "source_wording": "Пропуск/инверсия главной части сложного предложения",
+    "automation_status": "EXPERT_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Высокоуровневое явление не устанавливается StyleEngineV2 автоматически."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "ns.style.coll.prefixed_occasionalisms",
+    "label": "Использование окказионализмов с приставками",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "conversational",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 92",
+    "source_registry": "avtoroved2/data/features/registry_ns.yaml",
+    "source_wording": "Использование окказионализмов с приставками",
+    "automation_status": "EXPERT_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Высокоуровневое явление не устанавливается StyleEngineV2 автоматически."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "ns.style.coll.thematic_adjacency",
+    "label": "Использование связи по тематической смежности",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "conversational",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 92",
+    "source_registry": "avtoroved2/data/features/registry_ns.yaml",
+    "source_wording": "Использование связи по тематической смежности",
+    "automation_status": "EXPERT_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Высокоуровневое явление не устанавливается StyleEngineV2 автоматически."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "ns.style.ob.close_meaning_chains",
+    "label": "Использование цепочек из близких по смыслу слов",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 92",
+    "source_registry": "avtoroved2/data/features/registry_ns.yaml",
+    "source_wording": "Использование цепочек из близких по смыслу слов",
+    "automation_status": "EXPERT_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Высокоуровневое явление не устанавливается StyleEngineV2 автоматически."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "ns.style.ob.person_by_activity",
+    "label": "Обозначение человека по роду его деятельности",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 90",
+    "source_registry": "avtoroved2/data/features/registry_ns.yaml",
+    "source_wording": "Обозначение человека по роду его деятельности",
+    "automation_status": "CANDIDATE_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "ns.style.ob.subordinate_chains",
+    "label": "Использование цепочек из однородных подчинительных конструкций",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 92",
+    "source_registry": "avtoroved2/data/features/registry_ns.yaml",
+    "source_wording": "Использование цепочек из однородных подчинительных конструкций",
+    "automation_status": "AUTO",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "ns.style.ob.substitutes_stamps",
+    "label": "Использование субститутов и штампов официально-делового стиля",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 90",
+    "source_registry": "avtoroved2/data/features/registry_ns.yaml",
+    "source_wording": "Использование субститутов и штампов официально-делового стиля",
+    "automation_status": "AUTO",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "ns.style.ob.synonym_repeat_adv_adj",
+    "label": "Использование синонимического повтора наречий и прилагательных",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 92",
+    "source_registry": "avtoroved2/data/features/registry_ns.yaml",
+    "source_wording": "Использование синонимического повтора наречий и прилагательных",
+    "automation_status": "EXPERT_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Высокоуровневое явление не устанавливается StyleEngineV2 автоматически."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "ns.style.ob.three_part_model",
+    "label": "Построение текста по трёхчастной модели",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 90",
+    "source_registry": "avtoroved2/data/features/registry_ns.yaml",
+    "source_wording": "Построение текста по трёхчастной модели",
+    "automation_status": "EXPERT_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Высокоуровневое явление не устанавливается StyleEngineV2 автоматически."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.coll.broad_meaning_words",
+    "label": "Слова с широким и расплывчатым значением («хороший», «плохой», «большой», «много»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "conversational",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 100",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Слова с широким и расплывчатым значением («хороший», «плохой», «большой», «много»)",
+    "automation_status": "AUTO",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.coll.contextual_metaphors",
+    "label": "Контекстуальные метафоры",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "conversational",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 100",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Контекстуальные метафоры",
+    "automation_status": "EXPERT_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Высокоуровневое явление не устанавливается StyleEngineV2 автоматически."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.coll.expressive_adj_noun",
+    "label": "Экспрессивные слова, соответствующие словосочетанию «прилагательное + существительное»",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "conversational",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 100",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Экспрессивные слова, соответствующие словосочетанию «прилагательное + существительное»",
+    "automation_status": "EXPERT_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Высокоуровневое явление не устанавливается StyleEngineV2 автоматически."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.coll.expressive_adv_adj",
+    "label": "Экспрессивные слова, соответствующие словосочетанию «наречие + прилагательное»",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "conversational",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 100",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Экспрессивные слова, соответствующие словосочетанию «наречие + прилагательное»",
+    "automation_status": "EXPERT_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Высокоуровневое явление не устанавливается StyleEngineV2 автоматически."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.coll.lowering_metaphors",
+    "label": "Метафоры со снижающим значением («это такая конфетка» — о кинофильме)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "conversational",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 100",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Метафоры со снижающим значением («это такая конфетка» — о кинофильме)",
+    "automation_status": "EXPERT_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Высокоуровневое явление не устанавливается StyleEngineV2 автоматически."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.coll.pronoun_metaphors",
+    "label": "Метафоры, по значению близкие к местоимению («втравил в эту историю»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "conversational",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 100",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Метафоры, по значению близкие к местоимению («втравил в эту историю»)",
+    "automation_status": "EXPERT_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Высокоуровневое явление не устанавливается StyleEngineV2 автоматически."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.coll.u_genitive_possession",
+    "label": "Конструкции «у + родительный падеж» со значением принадлежности",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "conversational",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 100",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Конструкции «у + родительный падеж» со значением принадлежности",
+    "automation_status": "AUTO",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.ob.compound_words",
+    "label": "Сложносокращённые слова («взяткодатель», «грузополучатель», «спецодежда»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 98",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Сложносокращённые слова («взяткодатель», «грузополучатель», «спецодежда»)",
+    "automation_status": "CANDIDATE_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.ob.conjunction_abbr",
+    "label": "Сокращённые союзы («т. е.», «т. о.», «т. н.»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 98",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Сокращённые союзы («т. е.», «т. о.», «т. н.»)",
+    "automation_status": "AUTO",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.ob.date_abbr",
+    "label": "Сокращения дат и календарных сроков («м-ц», «г.г.»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 98",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Сокращения дат и календарных сроков («м-ц», «г.г.»)",
+    "automation_status": "AUTO",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.ob.document_abbr",
+    "label": "Сокращения, называющие документы («тов. накл.», «расч. счёт»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 98",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Сокращения, называющие документы («тов. накл.», «расч. счёт»)",
+    "automation_status": "AUTO",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.ob.fronted_adverbials",
+    "label": "Обстоятельства места/времени/образа действия в начале предложения («В порядке оказания помощи»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 98",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Обстоятельства места/времени/образа действия в начале предложения («В порядке оказания помощи»)",
+    "automation_status": "CANDIDATE_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.ob.initial_abbr",
+    "label": "Инициальные аббревиатуры («МИД», «ЗАГС», «ГОСТ»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 99",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Инициальные аббревиатуры («МИД», «ЗАГС», «ГОСТ»)",
+    "automation_status": "AUTO",
+    "detectors": [
+      "v2.official.abbreviation"
+    ],
+    "limitations": [
+      "Формальное срабатывание detector-а создаёт только неподтверждённого кандидата; экспертное принятие обязательно."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.ob.mixed_abbr",
+    "label": "Смешанные аббревиатуры («НИИАсбест», «Госкомиздат»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 99",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Смешанные аббревиатуры («НИИАсбест», «Госкомиздат»)",
+    "automation_status": "CANDIDATE_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.ob.neg_verbal_nouns",
+    "label": "Существительные от глагола с «не-» («невыполнение», «непоставка»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 98",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Существительные от глагола с «не-» («невыполнение», «непоставка»)",
+    "automation_status": "AUTO",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.ob.rank_abbr",
+    "label": "Сокращения должностей и званий («акад.», «проф.», «зав.», «зам.»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 98",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Сокращения должностей и званий («акад.», «проф.», «зав.», «зам.»)",
+    "automation_status": "AUTO",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.ob.specific_adjectives",
+    "label": "Прилагательные для передачи видовых значений («торговая точка», «головные уборы»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 98",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Прилагательные для передачи видовых значений («торговая точка», «головные уборы»)",
+    "automation_status": "CANDIDATE_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.ob.stamps",
+    "label": "Штампы официально-делового стиля («принять меры», «в соответствии с», «в целях»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 98",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Штампы официально-делового стиля («принять меры», «в соответствии с», «в целях»)",
+    "automation_status": "AUTO",
+    "detectors": [
+      "v2.official.cliche"
+    ],
+    "limitations": [
+      "Формальное срабатывание detector-а создаёт только неподтверждённого кандидата; экспертное принятие обязательно."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.ob.substitutes",
+    "label": "Субституты официально-делового стиля («вышеизложенный», «данный», «настоящий»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 98",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Субституты официально-делового стиля («вышеизложенный», «данный», «настоящий»)",
+    "automation_status": "AUTO",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.ob.sya_verbs",
+    "label": "Глаголы с частицей «-ся» («осуществляется», «производится»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 98",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Глаголы с частицей «-ся» («осуществляется», «производится»)",
+    "automation_status": "AUTO",
+    "detectors": [
+      "v2.official.reflexive_verbs"
+    ],
+    "limitations": [
+      "Формальное срабатывание detector-а создаёт только неподтверждённого кандидата; экспертное принятие обязательно."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.ob.syllabic_abbr",
+    "label": "Слоговые аббревиатуры («замнач», «военрук», «профорг»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 98",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Слоговые аббревиатуры («замнач», «военрук», «профорг»)",
+    "automation_status": "CANDIDATE_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.ob.territorial_abbr",
+    "label": "Сокращения территориальных/производственных единиц («гор.», «обл.», «р-н», «ул.»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 98",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Сокращения территориальных/производственных единиц («гор.», «обл.», «р-н», «ул.»)",
+    "automation_status": "AUTO",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.ob.verbal_nouns",
+    "label": "Отглагольные существительные («вовлечение», «постановление»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "official_business",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 98",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Отглагольные существительные («вовлечение», «постановление»)",
+    "automation_status": "AUTO",
+    "detectors": [
+      "v2.shared.deverbal_nouns"
+    ],
+    "limitations": [
+      "Формальное срабатывание detector-а создаёт только неподтверждённого кандидата; экспертное принятие обязательно."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.orat.causal_words",
+    "label": "Слова причинно-следственных отношений («в частности», «следовательно», «поэтому», «итак»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "oratorical",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 100",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Слова причинно-следственных отношений («в частности», «следовательно», «поэтому», «итак»)",
+    "automation_status": "AUTO",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.orat.generic_synonym_repeat",
+    "label": "Синонимический повтор с родовым значением («вопрос», «проблема», «точка зрения»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "oratorical",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 100",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Синонимический повтор с родовым значением («вопрос», «проблема», «точка зрения»)",
+    "automation_status": "AUTO",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.orat.logic_emphasis",
+    "label": "Слова, подчёркивающие логику построения («для начала поговорим», «далее», «в заключение скажу»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "oratorical",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 100",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Слова, подчёркивающие логику построения («для начала поговорим», «далее», «в заключение скажу»)",
+    "automation_status": "CANDIDATE_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.orat.pressure_words",
+    "label": "Вводные слова психического давления («действительно», «несомненно», «безусловно», «очевидно»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "oratorical",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 100",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Вводные слова психического давления («действительно», «несомненно», «безусловно», «очевидно»)",
+    "automation_status": "AUTO",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.orat.style_assessment_words",
+    "label": "Вводные слова оценки стиля от лица адресата («короче», «точнее», «иначе говоря»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "oratorical",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 100",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Вводные слова оценки стиля от лица адресата («короче», «точнее», «иначе говоря»)",
+    "automation_status": "AUTO",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.pub.linking_verbs",
+    "label": "Частое использование связочных глаголов («называться», «считаться», «являться»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "publicistic",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 99",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Частое использование связочных глаголов («называться», «считаться», «являться»)",
+    "automation_status": "AUTO",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.pub.metaphor_stamps",
+    "label": "Метафоры-штампы публицистического стиля («флагман музыки», «лоцманы книжных морей»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "publicistic",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 99",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Метафоры-штампы публицистического стиля («флагман музыки», «лоцманы книжных морей»)",
+    "automation_status": "CANDIDATE_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.pub.metaphor_synrows",
+    "label": "Синонимические ряды метафор («новатор — маяк, зачинатель, запевала»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "publicistic",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 99",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Синонимические ряды метафор («новатор — маяк, зачинатель, запевала»)",
+    "automation_status": "EXPERT_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Высокоуровневое явление не устанавливается StyleEngineV2 автоматически."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.pub.simile_metaphors",
+    "label": "Метафоры со значением уподобления («зелёная тоска», «жаркий бой»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "publicistic",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 99",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Метафоры со значением уподобления («зелёная тоска», «жаркий бой»)",
+    "automation_status": "EXPERT_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Высокоуровневое явление не устанавливается StyleEngineV2 автоматически."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.sci.deadjective_genitive",
+    "label": "Сочетания «отадъективное существительное + существительное в родительном падеже» («прочность металла»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "scientific",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 99",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Сочетания «отадъективное существительное + существительное в родительном падеже» («прочность металла»)",
+    "automation_status": "AUTO",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.sci.deverbal_genitive",
+    "label": "Сочетания «отглагольное существительное + существительное в родительном падеже» («борьба классов»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "scientific",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 99",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Сочетания «отглагольное существительное + существительное в родительном падеже» («борьба классов»)",
+    "automation_status": "AUTO",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.sci.deverbal_nouns",
+    "label": "Существительные, образованные от глаголов («анализ», «влияние», «распад»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "scientific",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 99",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Существительные, образованные от глаголов («анализ», «влияние», «распад»)",
+    "automation_status": "AUTO",
+    "detectors": [
+      "v2.shared.deverbal_nouns"
+    ],
+    "limitations": [
+      "Общий detector отглагольных существительных не связывает признак с одним стилем без контекста; экспертное принятие обязательно."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.sci.genitive_chains",
+    "label": "Цепочки из существительных в родительном падеже («оценка изменения концентрации вещества»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "scientific",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 99",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Цепочки из существительных в родительном падеже («оценка изменения концентрации вещества»)",
+    "automation_status": "CANDIDATE_ONLY",
+    "detectors": [
+      "v2.scientific.genitive_chain"
+    ],
+    "limitations": [
+      "Формальное срабатывание detector-а создаёт только неподтверждённого кандидата; экспертное принятие обязательно."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.sci.identity_constructs",
+    "label": "Указательное местоимение «это», глагол-связка «есть» в предложениях тождества",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "scientific",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 99",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Указательное местоимение «это», глагол-связка «есть» в предложениях тождества",
+    "automation_status": "AUTO",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.sci.specific_adjectives",
+    "label": "Прилагательные с видовым значением («неживая природа», «непрямое движение»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "scientific",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 99",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Прилагательные с видовым значением («неживая природа», «непрямое движение»)",
+    "automation_status": "CANDIDATE_ONLY",
+    "detectors": [],
+    "limitations": [
+      "Подтверждённый методический признак пока не имеет активного detector-а в StyleEngineV2."
+    ],
+    "active": true
+  },
+  {
+    "method_feature_id": "nsv.style.sci.terms",
+    "label": "Специальные научные термины («лингвистика», «идентификация», «языкознание»)",
+    "method_group": "linguistic",
+    "method_subgroup": "stylistic",
+    "functional_style": "scientific",
+    "source_kind": "METHOD",
+    "method_reference": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007, с. 99",
+    "source_registry": "avtoroved2/data/features/registry_nsv.yaml",
+    "source_wording": "Специальные научные термины («лингвистика», «идентификация», «языкознание»)",
+    "automation_status": "CANDIDATE_ONLY",
+    "detectors": [
+      "v2.scientific.terminology_candidate"
+    ],
+    "limitations": [
+      "Формальное срабатывание detector-а создаёт только неподтверждённого кандидата; экспертное принятие обязательно."
+    ],
+    "active": true
+  }
+]

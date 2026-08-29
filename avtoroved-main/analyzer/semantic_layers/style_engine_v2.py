@@ -19,6 +19,9 @@ from analyzer.semantic_layers.style_scoring import (
     engineering_style_parameters,
     score_style_features,
 )
+from analyzer.semantic_layers.style_method_projection import (
+    project_method_feature_candidates,
+)
 from analyzer.semantic_layers.theme_segmenter import (
     SegmentationParameters,
     segment_text,
@@ -112,6 +115,7 @@ class StyleEngineV2:
         selected = tuple(
             row for row in style_rows if scored_document[row.style_id]["selected"])
         leading = style_rows[0] if style_rows and style_rows[0].support_score > 0 else None
+        method_candidates = project_method_feature_candidates(all_features, selected)
 
         limitations = [
             "DEVELOPMENT shadow result; support_score is not probability.",
@@ -128,7 +132,8 @@ class StyleEngineV2:
             leading_style=leading, segments=tuple(segment_rows),
             segment_count=len(segments), engine_version=self.version,
             parameters=self._parameters(), limitations=tuple(limitations),
-            status="ok", reason=None)
+            status="ok", reason=None,
+            method_feature_candidates=method_candidates)
 
 
 def compare_style_v1_v2(v1_result, v2_result: StyleAnalysisResultV2) -> dict:

@@ -189,6 +189,31 @@ class StyleScoreV2:
 
 
 @dataclass(frozen=True)
+class StyleMethodFeatureCandidateV2:
+    """Source-traceable METHOD_FEATURE candidate projected from V2 evidence.
+
+    Detection never means expert acceptance and never carries identification
+    value.  The candidate is a shadow/debug artifact until an expert explicitly
+    creates and qualifies a case feature through the protocol workflow.
+    """
+
+    method_feature_id: str
+    label: str
+    functional_style: str
+    automation_status: str
+    evidence: tuple[StyleFeatureEvidenceV2, ...]
+    detection_reliability: float
+    method_group: str = "linguistic"
+    method_subgroup: str = "stylistic"
+    role: str = "METHOD_FEATURE"
+    source_kind: str = "METHOD"
+    accepted: bool = False
+    status: str = "detected_candidate"
+    limitations: tuple[str, ...] = ()
+    expert_identification_value: Optional[str] = None
+
+
+@dataclass(frozen=True)
 class StyleAnalysisResultV2:
     styles: tuple[StyleScoreV2, ...]
     selected_styles: tuple[StyleScoreV2, ...]
@@ -200,3 +225,4 @@ class StyleAnalysisResultV2:
     limitations: tuple[str, ...] = ()
     status: str = "ok"
     reason: Optional[str] = None
+    method_feature_candidates: tuple[StyleMethodFeatureCandidateV2, ...] = ()

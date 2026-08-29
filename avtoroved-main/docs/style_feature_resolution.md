@@ -3,10 +3,12 @@
 > DEVELOPMENT configuration for StyleEngineV2 shadow mode. This table does not
 > create or accept forensic METHOD_FEATURE records.
 
-The project registry currently contains no functional-style method mappings.
-Consequently, `method_feature_id` remains `null` for all 32 rows. Of the 24
+The 32 rows remain a legacy engineering registry: `method_feature_id` stays
+`null` for every row and none is promoted directly to METHOD. Of the 24
 previously unresolved style mappings, 13 received conservative AUXILIARY style
-routing and 11 remain UNRESOLVED. This is deliberate.
+routing and 11 remain UNRESOLVED. Patch C.1 adds only evidence links from a
+legacy signal to 0..N canonical method features in the separate file
+`data/style_legacy_method_mappings.json`. A link is not expert acceptance.
 
 | feature | old status | new status | style | method mapping | automation status | reason | source/provenance | limitations |
 |---|---|---|---|---|---|---|---|---|
@@ -45,3 +47,19 @@ routing and 11 remain UNRESOLVED. This is deliberate.
 
 Automation totals: AUTO 26; CANDIDATE_ONLY 4; EXPERT_ONLY 2.
 Method totals: METHOD 0; AUXILIARY 21; EXPERIMENTAL 0; UNRESOLVED 11.
+
+## Non-empty legacy → canonical evidence links
+
+The complete 32-row mapping, including empty lists, is machine-readable in
+`data/style_legacy_method_mappings.json`. Non-empty links are intentionally
+limited to signals that can support review without proving the target feature:
+
+- conversational particles/connectors and reduced lexical layers may support
+  `nn.lang.style_colloquial`;
+- `короче` may additionally support
+  `nsv.style.orat.style_assessment_words`;
+- `так как` and `поэтому` may support `nsv.style.orat.causal_words`.
+
+Raw particle/question counts remain AUX_METRIC. In particular, a question mark
+does not map to a rhetorical-question METHOD feature, and a vernacular token
+does not by itself establish conversational style.

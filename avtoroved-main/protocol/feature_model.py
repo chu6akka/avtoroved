@@ -6,6 +6,8 @@ import os
 from functools import lru_cache
 from typing import Any
 
+from expert_core.style_method_registry import load_style_method_registry
+
 METHOD_FEATURE = "METHOD_FEATURE"
 AUX_METRIC = "AUX_METRIC"
 EVIDENCE = "EVIDENCE"
@@ -88,7 +90,33 @@ def registry_by_detector_key() -> dict[str, dict]:
 @lru_cache(maxsize=1)
 def registry_by_id() -> dict[str, dict]:
     """Реестр методических признаков по стабильному method_feature_id."""
-    return {row["id"]: row for row in load_method_registry()}
+    rows = {row["id"]: row for row in load_method_registry()}
+    automation = {
+        "AUTO": "AUTO_DETECTABLE",
+        "CANDIDATE_ONLY": "CANDIDATE_ONLY",
+        "EXPERT_ONLY": "EXPERT_ONLY",
+    }
+    for style_row in load_style_method_registry():
+        feature_id = style_row["method_feature_id"]
+        if feature_id in rows:
+            raise ValueError(f"Дублирующий method feature id: {feature_id}")
+        reference = style_row["method_reference"]
+        source_section = reference.rsplit(", ", 1)[-1] if ", " in reference else ""
+        rows[feature_id] = {
+            "id": feature_id,
+            "label": style_row["label"],
+            "group": "языковые",
+            "subgroup": "стилистические",
+            "source": reference,
+            "source_section": source_section,
+            # Информативность источника намеренно не переносится автоматически.
+            "reference_informativeness": None,
+            "automation_level": automation[style_row["automation_status"]],
+            "detector_key": None,
+            "functional_style": style_row["functional_style"],
+            "canonical_style_method_feature": True,
+        }
+    return rows
 
 
 def registered_method_feature(method_feature_id: str | None) -> dict | None:

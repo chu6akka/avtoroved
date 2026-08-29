@@ -32,10 +32,24 @@ parceling, inversion/ellipsis proxies, terminology and contextual evaluative
 lexicon are candidates. A question mark is only a question; it is not a
 rhetorical question. No result populates `expert_identification_value`.
 
-Aggregate counts are `AUX_METRIC`; source spans are `EVIDENCE`. The current
-method registry contains no functional-style METHOD mappings, so Patch C does
-not create an accepted METHOD_FEATURE. Any future mapping must still begin as
-an unaccepted candidate and be confirmed by an expert.
+Aggregate counts are `AUX_METRIC`; source spans are `EVIDENCE`. Patch C.1 adds
+a separate canonical registry of 62 source-traceable style METHOD_FEATURE
+definitions. Detector signals are projected to `method_feature_candidates`
+only after scoring and every projected row has `accepted=false` and
+`expert_identification_value=None`. This projection cannot affect style score,
+selection or methodological counts.
+
+The layers are deliberately distinct:
+
+1. **LEGACY FEATURE** — one of the preserved 32 historical metrics;
+2. **DETECTOR SIGNAL** — a reproducible V2 engineering hit;
+3. **EVIDENCE** — a source span supporting review;
+4. **CANONICAL METHOD FEATURE** — a source-traceable registry definition;
+5. **EXPERT ACCEPTED FEATURE** — a separately qualified case feature after
+   rationale, evidence linking, stability and comparability assessment.
+
+`AUTO` describes formal detection only. `CANDIDATE_ONLY` requires context
+review. `EXPERT_ONLY` entries are never emitted as detected candidates.
 
 ## Scoring
 
@@ -63,8 +77,9 @@ V2 reuses `theme_segmenter.segment_text`; it does not copy a second segmenter.
 Each segment records source offsets, text, detected feature IDs and support for
 all five styles. Document output contains ranked `styles`, multi-layer
 `selected_styles`, debug-only `leading_style`, segment coverage, detected
-features and exact evidence fragments. `selected_styles=[]` is valid for short,
-neutral, list-like or otherwise insufficient material.
+features, exact evidence fragments and an independent tuple of unaccepted
+`method_feature_candidates`. `selected_styles=[]` is valid for short, neutral,
+list-like or otherwise insufficient material.
 
 `parsed_tokens` can be supplied from the existing document analysis. V2 never
 starts Stanza itself. In `analyze_shadow`, the already calculated V1 lexical
@@ -103,4 +118,5 @@ unambiguously to one of the five V2 classes.
 - V2 must stay shadow-only until broader genre/topic-controlled validation.
 
 Full metrics: `docs/style_v2_development_metrics.json`. Resolution of the 32
-legacy indicators: `docs/style_feature_resolution.md`.
+legacy indicators: `docs/style_feature_resolution.md`. Canonical definitions
+and complete traceability: `docs/style_method_feature_registry.md`.
