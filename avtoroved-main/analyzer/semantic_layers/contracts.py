@@ -186,6 +186,7 @@ class StyleScoreV2:
     segment_coverage: float
     evidence: tuple[StyleFeatureEvidenceV2, ...]
     expert_identification_value: Optional[str] = None
+    selection_reason: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

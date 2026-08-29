@@ -75,10 +75,15 @@ normalized support of its features. Evidence with the same source coordinates
 cannot be counted as independent support in multiple families. The document
 `style_support_score` is the equal mean of the five family supports.
 
-Selection requires `style_support_score >= 0.12` and at least two independent
-families. Consequently, one abbreviation, term, question, imperative or
-punctuation mark cannot select a style. The score is an engineering support
-value, not probability, confidence or methodological informativeness.
+Patch C.2 separates ranking from selection. Selection requires
+`style_support_score >= 0.12`, distance from the leading score no greater than
+`0.08`, and at least two independent families. A style supported exclusively
+by weak `CANDIDATE_ONLY` evidence additionally requires score `>= 0.14`.
+Consequently, one abbreviation, term, question, imperative or punctuation mark
+cannot select a style. The score is an engineering support value, not
+probability, confidence or methodological informativeness. Every style row has
+a debug-only `selection_reason` with the gates, strongest evidence and failure
+reasons; it is explicitly not an expert justification.
 
 ## Segments and output
 
@@ -118,6 +123,14 @@ scientific validation.
 | abstentions | — | 6 |
 | mixed-case recall | — | 0.750000 |
 
+The frozen Patch C baseline above remains reproducible through
+`LEGACY_STYLE_SELECTION_PARAMETERS`. After DEVELOPMENT CALIBRATION on 24
+fixtures, the four global parameters were frozen and evaluated once on an
+11-fixture INTERNAL HOLDOUT. Holdout micro F1 changed from `0.818182` to
+`0.857143`; full-corpus shadow micro F1 is `0.923077` (precision `0.967742`,
+recall `0.882353`). These are internal engineering figures, not scientific
+validation. Details: `docs/style_v2_calibration.md`.
+
 V1 top-1 is intentionally not given invented multi-label metrics: V1 performs
 lexical register stratification and only its conversational-reduced label maps
 unambiguously to one of the five V2 classes.
@@ -125,7 +138,7 @@ unambiguously to one of the five V2 classes.
 ## Limitations
 
 - The corpus is small and authored for development tests.
-- Publicistic recall and conversational precision require separate calibration.
+- Publicistic recall remains limited by independent detector coverage.
 - Regex morphology is limited without supplied Stanza tokens.
 - RuSentiLex raises contextual candidates; it does not prove publicistic style.
 - Lexical register, writing skill, theme and functional style remain separate.

@@ -16,8 +16,13 @@ from analyzer.semantic_layers.style_detectors import (
     detect_style_features,
 )
 from analyzer.semantic_layers.style_scoring import (
-    engineering_style_parameters,
     score_style_features,
+)
+from analyzer.semantic_layers.style_selection import (
+    CALIBRATED_STYLE_SELECTION_PARAMETERS,
+    StyleSelectionParameters,
+    engineering_style_parameters,
+    select_style_scores,
 )
 from analyzer.semantic_layers.style_method_projection import (
     project_method_feature_candidates,
@@ -36,12 +41,17 @@ class StyleEngineV2:
 
     version = STYLE_ENGINE_V2_VERSION
 
-    def __init__(self, segmentation_parameters: SegmentationParameters | None = None):
+    def __init__(self, segmentation_parameters: SegmentationParameters | None = None,
+                 selection_parameters: StyleSelectionParameters | None = None):
         self.segmentation_parameters = segmentation_parameters or SegmentationParameters()
+        self.selection_parameters = (
+            selection_parameters or CALIBRATED_STYLE_SELECTION_PARAMETERS)
 
     def _parameters(self) -> dict:
         return {
-            **engineering_style_parameters(),
+            **engineering_style_parameters(self.selection_parameters),
+            "family_aggregation": "maximum_per_family_then_equal_mean",
+            "families": list(STYLE_FAMILIES),
             "segmentation": {
                 "min_tokens": self.segmentation_parameters.min_tokens,
                 "target_tokens": self.segmentation_parameters.target_tokens,
@@ -81,11 +91,18 @@ class StyleEngineV2:
                 sentiment_result=sentiment_result)
             all_features.extend(features)
             scored = score_style_features(features)
+            features_by_style = {
+                style_id: tuple(feature for feature in features
+                                if feature.style_id == style_id)
+                for style_id in STYLE_LABELS
+            }
+            decisions = select_style_scores(
+                scored, features_by_style, self.selection_parameters)
             support = {
                 style_id: row["support_score"] for style_id, row in scored.items()
             }
-            for style_id, row in scored.items():
-                if row["selected"]:
+            for style_id, decision in decisions.items():
+                if decision["selected"]:
                     segment_style_hits[style_id] += 1
             segment_rows.append(StyleSegmentResultV2(
                 segment_id=segment.segment_id, start=segment.start, end=segment.end,
@@ -95,10 +112,16 @@ class StyleEngineV2:
                 style_support=support))
 
         scored_document = score_style_features(all_features)
+        features_by_style = {
+            style_id: tuple(feature for feature in all_features
+                            if feature.style_id == style_id)
+            for style_id in STYLE_LABELS
+        }
+        decisions = select_style_scores(
+            scored_document, features_by_style, self.selection_parameters)
         style_rows: list[StyleScoreV2] = []
         for style_id, label in STYLE_LABELS.items():
-            features = tuple(feature for feature in all_features
-                             if feature.style_id == style_id)
+            features = features_by_style[style_id]
             evidence = tuple(evidence for feature in features
                              for evidence in feature.evidence)
             row = scored_document[style_id]
@@ -110,10 +133,11 @@ class StyleEngineV2:
                 segment_coverage=round(
                     segment_style_hits[style_id] / len(segments), 6),
                 evidence=evidence,
-                expert_identification_value=None))
+                expert_identification_value=None,
+                selection_reason=decisions[style_id]))
         style_rows.sort(key=lambda row: (-row.support_score, row.style_id))
         selected = tuple(
-            row for row in style_rows if scored_document[row.style_id]["selected"])
+            row for row in style_rows if decisions[row.style_id]["selected"])
         leading = style_rows[0] if style_rows and style_rows[0].support_score > 0 else None
         method_candidates = project_method_feature_candidates(all_features, selected)
 

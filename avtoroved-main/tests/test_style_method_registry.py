@@ -10,6 +10,10 @@ from analyzer.semantic_layers.style_engine_v2 import (
     STYLE_ENGINE_V2_VERSION,
     StyleEngineV2,
 )
+from analyzer.semantic_layers.style_selection import (
+    CALIBRATED_STYLE_SELECTION_PARAMETERS,
+    LEGACY_STYLE_SELECTION_PARAMETERS,
+)
 from analyzer.semantic_layers.style_scoring import (
     STYLE_MIN_FAMILIES,
     STYLE_SELECTION_FLOOR,
@@ -157,9 +161,16 @@ def test_17_v2_stays_shadow_only():
 
 
 def test_18_development_metrics_are_unchanged():
-    metrics = evaluate()["v2"]
+    metrics = evaluate(
+        selection_parameters=LEGACY_STYLE_SELECTION_PARAMETERS)["v2"]
     assert metrics["top1_accuracy"] == 0.8
     assert metrics["micro_precision"] == 0.882353
     assert metrics["micro_recall"] == 0.882353
     assert metrics["micro_f1"] == 0.882353
     assert metrics["macro_f1"] == 0.87
+
+
+def test_19_calibrated_shadow_metrics_are_explicit():
+    metrics = evaluate(
+        selection_parameters=CALIBRATED_STYLE_SELECTION_PARAMETERS)["v2"]
+    assert metrics["micro_f1"] == 0.923077

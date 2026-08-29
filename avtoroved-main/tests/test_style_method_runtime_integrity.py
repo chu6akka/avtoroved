@@ -17,6 +17,7 @@ from analyzer.semantic_layers.style_scoring import (
     STYLE_MIN_FAMILIES,
     STYLE_SELECTION_FLOOR,
 )
+from analyzer.semantic_layers.style_selection import LEGACY_STYLE_SELECTION_PARAMETERS
 from expert_core.style_method_registry import (
     IMPLEMENTATION_STATUSES,
     load_style_method_registry,
@@ -188,7 +189,8 @@ def test_15_candidate_does_not_enter_methodological_count():
 
 def test_16_scoring_and_development_metrics_are_frozen():
     assert (STYLE_SELECTION_FLOOR, STYLE_MIN_FAMILIES) == (0.12, 2)
-    metrics = evaluate()["v2"]
+    metrics = evaluate(
+        selection_parameters=LEGACY_STYLE_SELECTION_PARAMETERS)["v2"]
     assert metrics == {
         "top1_accuracy": 0.8,
         "micro_precision": 0.882353,
@@ -198,6 +200,9 @@ def test_16_scoring_and_development_metrics_are_frozen():
         "average_selected_styles": 0.971429,
         "abstention_count": 6,
         "mixed_case_recall": 0.75,
+        "mixed_exact_set_accuracy": 0.5,
+        "false_positives": 4,
+        "false_negatives": 4,
     }
 
 

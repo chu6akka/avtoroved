@@ -18,6 +18,9 @@ from analyzer import senti_engine  # noqa: E402
 from analyzer.semantic_layers.style_detectors import STYLE_LABELS  # noqa: E402
 from analyzer.semantic_layers.style_engine import StyleEngine  # noqa: E402
 from analyzer.semantic_layers.style_engine_v2 import StyleEngineV2  # noqa: E402
+from analyzer.semantic_layers.style_selection import (  # noqa: E402
+    StyleSelectionParameters,
+)
 
 
 _FIXTURE_DIR = _ROOT / "tests" / "fixtures" / "style_v2"
@@ -53,6 +56,9 @@ def calculate_metrics(fixtures: list[dict], predictions: list[set[str]],
     mixed_expected = sum(len(fixtures[index]["expected_styles"]) for index in mixed)
     mixed_hits = sum(len(set(fixtures[index]["expected_styles"])
                          & predictions[index]) for index in mixed)
+    mixed_exact = sum(
+        set(fixtures[index]["expected_styles"]) == predictions[index]
+        for index in mixed)
     return {
         "top1_accuracy": round(_ratio(top1, len(fixtures)), 6),
         "micro_precision": round(precision, 6),
@@ -64,6 +70,9 @@ def calculate_metrics(fixtures: list[dict], predictions: list[set[str]],
             sum(len(row) for row in predictions) / len(fixtures), 6),
         "abstention_count": sum(not row for row in predictions),
         "mixed_case_recall": round(_ratio(mixed_hits, mixed_expected), 6),
+        "mixed_exact_set_accuracy": round(_ratio(mixed_exact, len(mixed)), 6),
+        "false_positives": fp,
+        "false_negatives": fn,
     }
 
 
@@ -95,10 +104,11 @@ def _legacy_metrics(text: str) -> dict:
         sum(lengths) / len(lengths) if lengths else 0.0)}}
 
 
-def evaluate(fixtures: list[dict] | None = None) -> dict:
-    fixtures = fixtures or load_fixtures()
+def analyze_fixtures(fixtures: list[dict],
+                     selection_parameters: StyleSelectionParameters | None = None
+                     ) -> dict:
     v1_engine = StyleEngine()
-    v2_engine = StyleEngineV2()
+    v2_engine = StyleEngineV2(selection_parameters=selection_parameters)
     sentiment = senti_engine.get()
     sentiment.load()
 
@@ -128,6 +138,24 @@ def evaluate(fixtures: list[dict] | None = None) -> dict:
             result.leading_style.style_id if result.leading_style else None)
     v2_seconds = time.perf_counter() - started
 
+    return {
+        "v1_results": v1_results,
+        "v1_dominant": v1_dominant,
+        "v2_results": v2_results,
+        "v2_predictions": v2_predictions,
+        "v2_dominant": v2_dominant,
+        "v1_seconds": v1_seconds,
+        "v2_seconds": v2_seconds,
+    }
+
+
+def evaluate(fixtures: list[dict] | None = None,
+             selection_parameters: StyleSelectionParameters | None = None) -> dict:
+    fixtures = load_fixtures() if fixtures is None else fixtures
+    analysis = analyze_fixtures(fixtures, selection_parameters)
+    v1_dominant = analysis["v1_dominant"]
+    v2_predictions = analysis["v2_predictions"]
+    v2_dominant = analysis["v2_dominant"]
     v1_correct = sum(
         dominant in fixture["expected_styles"]
         or (dominant is None and not fixture["expected_styles"])
@@ -143,9 +171,10 @@ def evaluate(fixtures: list[dict] | None = None) -> dict:
         "v2": calculate_metrics(fixtures, v2_predictions, v2_dominant),
         "v2_per_style": calculate_per_style(fixtures, v2_predictions),
         "runtime": {
-            "v1_total_seconds": round(v1_seconds, 6),
-            "v2_total_seconds": round(v2_seconds, 6),
-            "v2_mean_ms_per_document": round(v2_seconds * 1000 / len(fixtures), 3),
+            "v1_total_seconds": round(analysis["v1_seconds"], 6),
+            "v2_total_seconds": round(analysis["v2_seconds"], 6),
+            "v2_mean_ms_per_document": round(
+                analysis["v2_seconds"] * 1000 / len(fixtures), 3),
             "parsed_document_reused": False,
             "stanza_started_by_v2": False,
             "note": "Evaluator supplies existing V1 stratification; no parsed tokens were available.",

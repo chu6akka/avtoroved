@@ -1,0 +1,28 @@
+﻿feature_id,style_ids,family,automation_status,method_status,firing_documents,expected_style_documents,outside_expected_style_documents,rough_signal_precision,evidence_count,expected_styles_distribution
+v2.conversational.ellipsis_candidate,conversational,punctuation,CANDIDATE_ONLY,AUXILIARY,6,6,0,1.0,6,"{""conversational"": 6}"
+v2.conversational.incomplete_sentence,conversational,syntactic,CANDIDATE_ONLY,AUXILIARY,12,5,7,0.416667,20,"{""<none>"": 1, ""conversational"": 5, ""oratorical"": 2, ""publicistic"": 5}"
+v2.conversational.particles,conversational,lexical,AUTO,AUXILIARY,6,6,0,1.0,14,"{""conversational"": 6}"
+v2.conversational.stratified_lexicon,conversational,lexical,CANDIDATE_ONLY,AUXILIARY,16,6,10,0.375,22,"{""<none>"": 2, ""conversational"": 6, ""official_business"": 1, ""oratorical"": 4, ""publicistic"": 3, ""scientific"": 1}"
+v2.experimental.internet_marker,conversational,punctuation,AUTO,EXPERIMENTAL,0,0,0,0.0,0,{}
+v2.official.abbreviation,official_business,lexical,AUTO,AUXILIARY,3,3,0,1.0,4,"{""official_business"": 3}"
+v2.official.adverbial_participial,official_business,syntactic,CANDIDATE_ONLY,AUXILIARY,0,0,0,0.0,0,{}
+v2.official.cliche,official_business,discourse,AUTO,AUXILIARY,5,5,0,1.0,8,"{""official_business"": 5, ""scientific"": 1}"
+v2.official.enumeration,official_business,punctuation,AUTO,AUXILIARY,2,2,0,1.0,2,"{""official_business"": 2}"
+v2.official.participial,official_business,syntactic,CANDIDATE_ONLY,AUXILIARY,0,0,0,0.0,0,{}
+v2.official.reflexive_verbs,official_business,morphological,AUTO,AUXILIARY,16,6,10,0.375,24,"{""conversational"": 1, ""official_business"": 6, ""oratorical"": 2, ""publicistic"": 4, ""scientific"": 5}"
+v2.oratorical.audience_address,oratorical,lexical,AUTO,AUXILIARY,6,6,0,1.0,7,"{""oratorical"": 6}"
+v2.oratorical.direct_address,oratorical,discourse,AUTO,AUXILIARY,6,6,0,1.0,6,"{""oratorical"": 6, ""publicistic"": 1}"
+v2.oratorical.imperative,oratorical,morphological,AUTO,AUXILIARY,7,7,0,1.0,7,"{""oratorical"": 7, ""publicistic"": 1}"
+v2.oratorical.question_answer,oratorical,discourse,AUTO,AUXILIARY,3,3,0,1.0,3,"{""oratorical"": 3, ""publicistic"": 1}"
+v2.oratorical.rhetorical_question_candidate,oratorical,discourse,CANDIDATE_ONLY,AUXILIARY,4,3,1,0.75,4,"{""oratorical"": 3, ""publicistic"": 2}"
+v2.publicistic.evaluative_lexicon,publicistic,lexical,CANDIDATE_ONLY,AUXILIARY,6,3,3,0.5,9,"{""oratorical"": 2, ""publicistic"": 3, ""scientific"": 1}"
+v2.publicistic.exclamation,publicistic,punctuation,AUTO,AUXILIARY,5,5,0,1.0,5,"{""oratorical"": 1, ""publicistic"": 5}"
+v2.publicistic.parceling_candidate,publicistic,syntactic,CANDIDATE_ONLY,AUXILIARY,7,3,4,0.428571,19,"{""conversational"": 4, ""publicistic"": 3}"
+v2.publicistic.quotation,publicistic,punctuation,AUTO,AUXILIARY,6,4,2,0.666667,6,"{""official_business"": 1, ""publicistic"": 4, ""scientific"": 1}"
+v2.scientific.citation,scientific,punctuation,AUTO,AUXILIARY,4,4,0,1.0,4,"{""scientific"": 4}"
+v2.scientific.definition,scientific,syntactic,AUTO,AUXILIARY,3,3,0,1.0,4,"{""official_business"": 1, ""scientific"": 3}"
+v2.scientific.genitive_chain,scientific,syntactic,CANDIDATE_ONLY,AUXILIARY,0,0,0,0.0,0,{}
+v2.scientific.logical_connectors,scientific,discourse,AUTO,AUXILIARY,7,7,0,1.0,8,"{""official_business"": 1, ""scientific"": 7}"
+v2.scientific.terminology_candidate,scientific,lexical,CANDIDATE_ONLY,AUXILIARY,7,7,0,1.0,11,"{""official_business"": 1, ""scientific"": 7}"
+v2.shared.deverbal_nouns,official_business;scientific,morphological,AUTO,AUXILIARY,18,11,7,0.611111,62,"{""<none>"": 2, ""official_business"": 6, ""oratorical"": 1, ""publicistic"": 4, ""scientific"": 6}"
+v2.shared.lexical_repetition,scientific;publicistic;oratorical,discourse,CANDIDATE_ONLY,AUXILIARY,1,1,0,1.0,9,"{""publicistic"": 1}"

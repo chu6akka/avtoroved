@@ -8,6 +8,9 @@ from analyzer.semantic_layers.contracts import StyleDetectedFeatureV2
 from analyzer.semantic_layers.style_detectors import STYLE_FAMILIES, STYLE_LABELS
 
 
+# Patch C methodological/engineering score anchors remain frozen.  C.2 changes
+# only the separate selection layer and preserves these public constants for
+# regression consumers.
 STYLE_SELECTION_FLOOR = 0.12
 STYLE_MIN_FAMILIES = 2
 
@@ -43,20 +46,5 @@ def score_style_features(features: Sequence[StyleDetectedFeatureV2]) -> dict[str
             "family_support": families,
             "support_score": support,
             "active_families": active_families,
-            "selected": (
-                support >= STYLE_SELECTION_FLOOR
-                and active_families >= STYLE_MIN_FAMILIES
-            ),
         }
     return output
-
-
-def engineering_style_parameters() -> dict:
-    return {
-        "selection_floor": STYLE_SELECTION_FLOOR,
-        "minimum_independent_families": STYLE_MIN_FAMILIES,
-        "family_aggregation": "maximum_per_family_then_equal_mean",
-        "families": list(STYLE_FAMILIES),
-        "score_semantics": "engineering_style_support_not_probability",
-        "threshold_kind": "ENGINEERING",
-    }

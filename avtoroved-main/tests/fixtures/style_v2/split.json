@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "seed": 20260829,
+  "algorithm": "deterministic_greedy_multilabel_stratification_v1",
+  "fixture_count": 35,
+  "calibration_count": 24,
+  "holdout_count": 11,
+  "calibration_ids": [
+    "official_notice",
+    "official_procedure",
+    "official_application",
+    "scientific_definition",
+    "scientific_article",
+    "scientific_results",
+    "scientific_model",
+    "publicistic_city",
+    "publicistic_environment",
+    "publicistic_culture",
+    "oratorical_friends",
+    "oratorical_citizens",
+    "oratorical_question_answer",
+    "oratorical_memory",
+    "conversational_trip",
+    "conversational_meeting",
+    "conversational_family",
+    "hard_official_terminology",
+    "hard_publicistic_official_lexicon",
+    "hard_conversational_without_slang",
+    "hard_oratorical_no_questions",
+    "hard_mixed_official_scientific",
+    "hard_list",
+    "hard_neutral_information"
+  ],
+  "holdout_ids": [
+    "hard_mixed_publicistic_oratorical",
+    "hard_short_ambiguous",
+    "hard_scientific_question",
+    "official_order",
+    "conversational_weekend",
+    "oratorical_colleagues",
+    "scientific_experiment",
+    "publicistic_comment",
+    "official_protocol",
+    "conversational_purchase",
+    "publicistic_education"
+  ],
+  "terminology": {
+    "calibration": "DEVELOPMENT CALIBRATION",
+    "holdout": "INTERNAL HOLDOUT"
+  }
+}
