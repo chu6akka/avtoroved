@@ -1,0 +1,2 @@
+# Validation corpus hashes cover exact input bytes; keep text bytes stable on all OSes.
+avtoroved-main/validation/corpus/**/texts/*.txt text eol=lf

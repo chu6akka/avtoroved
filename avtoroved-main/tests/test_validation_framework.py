@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -12,7 +13,8 @@ from validation.constants import FROZEN_ENGINE_CONFIG
 from validation.evaluate_features import evaluate_features, resolve_detection_gold
 from validation.evaluate_labels import evaluate_multilabel
 from validation.evaluate_time import evaluate_time
-from validation.io import canonical_json, sha256_bytes
+from validation.io import (canonical_json, load_jsonl, sha256_bytes,
+                           sha256_file, write_jsonl)
 from validation.models import make_blind_document
 from validation.run import run_validation
 from validation.schema import (SchemaError, validate_annotation, validate_case,
@@ -43,6 +45,39 @@ def test_sha256_known_value():
 
 def test_demo_corpus_passes_quality_control():
     assert check_corpus(DEMO_CORPUS)["valid"]
+
+
+def test_demo_hashes_cover_exact_canonical_input_bytes():
+    for row in load_jsonl(DEMO_CORPUS / "manifest.jsonl"):
+        path = DEMO_CORPUS / row["text_path"]
+        assert row["input_sha256"] == sha256_file(path)
+        assert sha256_file(path) == sha256_bytes(path.read_bytes())
+
+
+def test_modified_demo_text_produces_hash_mismatch(tmp_path):
+    corpus = tmp_path / "corpus"
+    shutil.copytree(DEMO_CORPUS, corpus)
+    path = corpus / "texts" / "D001.txt"
+    path.write_bytes(path.read_bytes() + b"tamper")
+    result = check_corpus(corpus)
+    assert {issue["document_id"] for issue in result["issues"]
+            if issue["code"] == "hash_mismatch"} == {"D001"}
+
+
+def test_modified_stored_hash_produces_hash_mismatch(tmp_path):
+    corpus = tmp_path / "corpus"
+    shutil.copytree(DEMO_CORPUS, corpus)
+    rows = load_jsonl(corpus / "manifest.jsonl")
+    rows[0]["input_sha256"] = "0" * 64
+    write_jsonl(corpus / "manifest.jsonl", rows)
+    result = check_corpus(corpus)
+    assert {issue["document_id"] for issue in result["issues"]
+            if issue["code"] == "hash_mismatch"} == {"D001"}
+
+
+def test_file_hashing_is_deterministic():
+    path = DEMO_CORPUS / "texts" / "D006.txt"
+    assert sha256_file(path) == sha256_file(path)
 
 
 def test_demo_is_development_only():
