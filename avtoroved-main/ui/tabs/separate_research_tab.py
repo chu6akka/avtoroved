@@ -26,6 +26,8 @@ from protocol import feature_map as feature_map_mod
 from protocol.expert_features import EvidenceLinkService, ExpertFeatureService
 from protocol import profile as profile_mod
 from protocol import PROGRAM_VERSION
+from protocol import comparison_view as comparison_view_mod
+from ui.tabs.comparative_research_tab import EvidenceTextPane
 
 # Порядок групп в дереве — по методике.
 _GROUP_ORDER = [
@@ -186,19 +188,24 @@ class SeparateResearchTab(QWidget):
         hh.setSectionResizeMode(7, QHeaderView.ResizeMode.ResizeToContents)
         self.tree.itemSelectionChanged.connect(self._on_selection)
 
-        # Панель деталей: полный текст значения/фрагмента выбранной строки —
-        # решает проблему обрезанных колонок.
+        # Панель деталей и исходный текст связаны с выбранным evidence.
         self.detail = QTextEdit()
         self.detail.setReadOnly(True)
         self.detail.setPlaceholderText(
             "Выберите строку профиля — здесь появится полное значение и фрагмент.")
         self.detail.setMaximumHeight(160)
 
-        split = QSplitter(Qt.Orientation.Vertical)
+        right = QSplitter(Qt.Orientation.Vertical)
+        right.setChildrenCollapsible(False)
+        right.addWidget(self.tree)
+        right.addWidget(self.detail)
+        right.setSizes([560, 150])
+        self.text_pane = EvidenceTextPane("ИСХОДНЫЙ ТЕКСТ")
+        split = QSplitter(Qt.Orientation.Horizontal)
         split.setChildrenCollapsible(False)
-        split.addWidget(self.tree)
-        split.addWidget(self.detail)
-        split.setSizes([560, 130])
+        split.addWidget(self.text_pane)
+        split.addWidget(right)
+        split.setSizes([650, 950])
         layout.addWidget(split, stretch=1)
 
         actions = QHBoxLayout()
@@ -302,7 +309,13 @@ class SeparateResearchTab(QWidget):
         self.tree.clear()
         self.detail.clear()
         if self._document_id is None:
+            self.text_pane.set_document("ИСХОДНЫЙ ТЕКСТ", "")
             return
+        document = self._pdb.get_document(self._document_id)
+        text = self._pdb.get_layer(
+            self._document_id, protocol_db.LAYER_ORIGINAL) or ""
+        self.text_pane.set_document(
+            f"ИСХОДНЫЙ ТЕКСТ · {document['filename'] if document else ''}", text)
         all_rows = self._pdb.fetch_feature_candidates(self._document_id)
         if not all_rows:
             self.status_label.setText("Профиль не построен. Нажмите «Построить профиль».")
@@ -376,7 +389,7 @@ class SeparateResearchTab(QWidget):
         value = r["value"] or ""
         role = model.normalized_role(r)
         role_badge = model.ROLE_LABELS.get(role, role)
-        if r["source_kind"] == model.EXPERIMENTAL:
+        if r["source_kind"] == model.SOURCE_EXPERIMENTAL:
             role_badge += " · [ЭКСПЕРИМЕНТАЛЬНО]"
         reliability = r["detection_reliability"] or r["reliability"] or ""
         source = r["source"] or ""
@@ -446,6 +459,13 @@ class SeparateResearchTab(QWidget):
             if qualification.get("expert_rationale"):
                 parts.append(
                     f"<b>Мотивировка:</b> {qualification['expert_rationale']}")
+            fragments = [row["fragment"] for row in links if row["fragment"]]
+        else:
+            fragments = [r.get("fragment") or ""]
+        text = self._pdb.get_layer(
+            self._document_id, protocol_db.LAYER_ORIGINAL) or ""
+        self.text_pane.set_spans(comparison_view_mod.locate_evidence_spans(
+            self._document_id, text, fragments))
         self.detail.setHtml("<br>".join(parts))
 
     def _create_method_feature(self):

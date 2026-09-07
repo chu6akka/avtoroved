@@ -107,6 +107,7 @@ MIN_FEATURES_FOR_CONCLUSION = 20
 
 STATUS_AUTO = "авто"
 STATUS_CONFIRMED = "подтверждено"
+STATUS_REJECTED = "отклонено"
 STATUS_RESET = "сброшено"
 
 DIFFERENCE_QUALIFICATIONS = (
@@ -295,6 +296,7 @@ def decide(
     opportunity_status: str = "NOT_ASSESSED",
     expert_note: str = "",
     program_version: Optional[str] = None,
+    expert_id: Optional[str] = None,
 ) -> None:
     """Подтвердить позицию; различия требуют квалификации и мотивировки."""
     if match_type is not None and match_type not in MATCH_TYPES:
@@ -324,7 +326,8 @@ def decide(
         identification_value=identification_value,
         difference_qualification=difference_qualification,
         opportunity_status=opportunity_status, expert_note=expert_note,
-        program_version=program_version)
+        program_version=program_version, expert_id=expert_id,
+        method_registry_version=model.method_registry_version())
     pdb.log_action(
         "сравнение: позиция подтверждена", project_id=project_id,
         details={"pair_doc_a": doc_a, "pair_doc_b": doc_b,
@@ -344,14 +347,47 @@ def reset(
     doc_b: int,
     pos_key: str,
     program_version: Optional[str] = None,
+    expert_id: Optional[str] = None,
 ) -> None:
     """Снять подтверждение позиции (история решений сохраняется)."""
     pdb.record_comparison_decision(
         project_id, doc_a, doc_b, pos_key, STATUS_RESET,
-        program_version=program_version)
+        program_version=program_version, expert_id=expert_id,
+        method_registry_version=model.method_registry_version())
     pdb.log_action(
         "сравнение: позиция сброшена", project_id=project_id,
         details={"pair_doc_a": doc_a, "pair_doc_b": doc_b, "position_key": pos_key},
+        program_version=program_version)
+
+
+def reject(
+    pdb: "protocol_db.ProtocolDB",
+    project_id: int,
+    doc_a: int,
+    doc_b: int,
+    pos_key: str,
+    identification_value: str = "",
+    expert_note: str = "",
+    program_version: Optional[str] = None,
+    expert_id: Optional[str] = None,
+) -> None:
+    """Отклонить позицию без удаления черновика и истории её проверки."""
+    if identification_value not in IDENTIFICATION_VALUES:
+        raise ValueError(
+            f"Недопустимая идентификационная значимость: {identification_value}")
+    pdb.record_comparison_decision(
+        project_id, doc_a, doc_b, pos_key, STATUS_REJECTED,
+        identification_value=identification_value, expert_note=expert_note,
+        program_version=program_version, expert_id=expert_id,
+        method_registry_version=model.method_registry_version())
+    pdb.log_action(
+        "сравнение: позиция отклонена", project_id=project_id,
+        details={"pair_doc_a": doc_a, "pair_doc_b": doc_b,
+                 "position_key": pos_key,
+                 "идентификационная_значимость": identification_value or None,
+                 "примечание": expert_note or None,
+                 "expert_id": expert_id or None,
+                 "method_registry_version": model.method_registry_version()},
         program_version=program_version)
 
 

@@ -16,6 +16,8 @@ from typing import Optional
 
 from protocol import db as protocol_db
 from protocol import comparison as cmp
+from protocol.comparison_export import HEADERS as COMPARISON_HEADERS
+from protocol.comparison_export import comparison_export_rows
 from protocol import conclusion as concl
 from protocol import detector_filter
 from protocol import feature_map as fm
@@ -130,31 +132,35 @@ def export_conclusion_docx(
                 f"{feature['expert_identification_value'] or feature['expert_id_value'] or 'без оценки'}; "
                 f"мотивировка: {qualification['expert_rationale']}.")
 
-    # Стадия 3: сравнительное исследование — таблица подтверждённых позиций.
+    # Стадия 3: METHOD и AUX разведены по разным доказательственным ролям.
     doc.add_heading("3. Сравнительное исследование", level=2)
-    confirmed = [r for r in pdb.fetch_comparisons(doc_a, doc_b)
-                 if r["status"] == cmp.STATUS_CONFIRMED
-                 and cmp.position_is_countable(pdb, r)]
+    comparison_payload = comparison_export_rows(pdb, project_id, doc_a, doc_b)
+    confirmed = comparison_payload["method"]
     if confirmed:
-        table = doc.add_table(rows=1, cols=7)
+        table = doc.add_table(rows=1, cols=len(COMPARISON_HEADERS))
         table.style = "Table Grid"
-        hdr = table.rows[0].cells
-        for i, t in enumerate(("Признак", "Тип", "Уровень",
-                               "Идентификационная значимость",
-                               "Квалификация различия", "Возможность проявления",
-                               "Примечание")):
-            hdr[i].text = t
-        for r in confirmed:
+        for i, title in enumerate(COMPARISON_HEADERS):
+            table.rows[0].cells[i].text = title
+        for values in confirmed:
             row = table.add_row().cells
-            row[0].text = r["label"] or ""
-            row[1].text = r["match_type"]
-            row[2].text = r["level"] or "—"
-            row[3].text = r["identification_value"] or "без оценки"
-            row[4].text = r["difference_qualification"] or ""
-            row[5].text = r["opportunity_status"] or ""
-            row[6].text = r["expert_note"] or ""
+            for i, value in enumerate(values):
+                row[i].text = str(value or "—")
     else:
         doc.add_paragraph("Подтверждённых позиций сравнения нет.")
+
+    doc.add_heading("Вспомогательные объективизирующие показатели", level=3)
+    auxiliary = comparison_payload["aux"]
+    if auxiliary:
+        table = doc.add_table(rows=1, cols=len(COMPARISON_HEADERS))
+        table.style = "Table Grid"
+        for i, title in enumerate(COMPARISON_HEADERS):
+            table.rows[0].cells[i].text = title
+        for values in auxiliary:
+            row = table.add_row().cells
+            for i, value in enumerate(values):
+                row[i].text = str(value or "—")
+    else:
+        doc.add_paragraph("Вспомогательные показатели отсутствуют.")
 
     # Сопоставление частот служебной лексики (Огорелков).
     og_cmp = cmp.ogorelkov_for_pair(pdb, doc_a, doc_b)

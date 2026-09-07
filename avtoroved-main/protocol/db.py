@@ -206,6 +206,7 @@ CREATE TABLE IF NOT EXISTS comparisons (
   difference_qualification TEXT DEFAULT '',
   opportunity_status TEXT DEFAULT '',
   status TEXT NOT NULL DEFAULT 'авто',   -- 'авто' (черновик) | 'подтверждено' (эксперт)
+  legacy_high_information INTEGER,
   expert_note TEXT,
   created_at TEXT NOT NULL,
   decided_at TEXT,
@@ -224,7 +225,14 @@ CREATE TABLE IF NOT EXISTS comparison_decisions (
   expert_note TEXT,
   status TEXT NOT NULL,           -- 'подтверждено' | 'сброшено'
   decided_at TEXT NOT NULL,
-  program_version TEXT
+  program_version TEXT,
+  expert_id TEXT,
+  old_status TEXT,
+  new_status TEXT,
+  old_identification_value TEXT,
+  new_identification_value TEXT,
+  comment TEXT,
+  method_registry_version TEXT
 );
 
 CREATE TABLE IF NOT EXISTS conclusions (
@@ -410,11 +418,19 @@ class ProtocolDB:
                     "identification_value TEXT DEFAULT ''",
                     "difference_qualification TEXT DEFAULT ''",
                     "opportunity_status TEXT DEFAULT ''",
+                    "legacy_high_information INTEGER",
                 ),
                 "comparison_decisions": (
                     "identification_value TEXT DEFAULT ''",
                     "difference_qualification TEXT DEFAULT ''",
                     "opportunity_status TEXT DEFAULT ''",
+                    "expert_id TEXT",
+                    "old_status TEXT",
+                    "new_status TEXT",
+                    "old_identification_value TEXT",
+                    "new_identification_value TEXT",
+                    "comment TEXT",
+                    "method_registry_version TEXT",
                 ),
             }.items():
                 existing = {r["name"] for r in conn.execute(
@@ -423,6 +439,14 @@ class ProtocolDB:
                     name = definition.split()[0]
                     if name not in existing:
                         conn.execute(f"ALTER TABLE {table} ADD COLUMN {definition}")
+            # Старый бинарный флаг сохраняется исключительно как legacy-данные.
+            # Он никогда не повышается до методической информативности HIGH.
+            comparison_cols = {r["name"] for r in conn.execute(
+                "PRAGMA table_info(comparisons)").fetchall()}
+            if "high_information" in comparison_cols:
+                conn.execute(
+                    "UPDATE comparisons SET legacy_high_information = high_information "
+                    "WHERE legacy_high_information IS NULL")
 
     # ── проекты ─────────────────────────────────────────────────────────────
     def create_project(
@@ -922,19 +946,33 @@ class ProtocolDB:
         opportunity_status: str = "",
         expert_note: str = "",
         program_version: Optional[str] = None,
+        expert_id: Optional[str] = None,
+        method_registry_version: Optional[str] = None,
     ) -> int:
         """Append-only запись решения + обновление текущего состояния позиции."""
         ts = _now()
         with self._connect() as conn:
+            previous = conn.execute(
+                "SELECT status, identification_value FROM comparisons "
+                "WHERE pair_doc_a = ? AND pair_doc_b = ? AND position_key = ?",
+                (pair_doc_a, pair_doc_b, position_key)).fetchone()
+            old_status = previous["status"] if previous else None
+            old_value = previous["identification_value"] if previous else None
+            new_status = ("авто" if status == "сброшено" else status)
+            new_value = "" if status == "сброшено" else identification_value
             cur = conn.execute(
                 "INSERT INTO comparison_decisions "
                 "(project_id, pair_doc_a, pair_doc_b, position_key, match_type, "
                 " level, identification_value, difference_qualification, opportunity_status, "
-                " expert_note, status, decided_at, program_version) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " expert_note, status, decided_at, program_version, expert_id, old_status, "
+                " new_status, old_identification_value, new_identification_value, "
+                " comment, method_registry_version) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (project_id, pair_doc_a, pair_doc_b, position_key, match_type,
                  level, identification_value, difference_qualification, opportunity_status,
-                 expert_note, status, ts, program_version))
+                 expert_note, status, ts, program_version, expert_id, old_status,
+                 new_status, old_value, new_value, expert_note,
+                 method_registry_version))
             if status == "подтверждено":
                 conn.execute(
                     "UPDATE comparisons SET match_type = COALESCE(?, match_type), "
@@ -944,6 +982,13 @@ class ProtocolDB:
                     "WHERE pair_doc_a = ? AND pair_doc_b = ? AND position_key = ?",
                     (match_type, level, identification_value, difference_qualification,
                      opportunity_status, expert_note, ts,
+                     pair_doc_a, pair_doc_b, position_key))
+            elif status == "отклонено":
+                conn.execute(
+                    "UPDATE comparisons SET identification_value = ?, expert_note = ?, "
+                    "status = 'отклонено', decided_at = ? "
+                    "WHERE pair_doc_a = ? AND pair_doc_b = ? AND position_key = ?",
+                    (identification_value, expert_note, ts,
                      pair_doc_a, pair_doc_b, position_key))
             else:  # 'сброшено' — вернуть позицию в авто-состояние
                 conn.execute(

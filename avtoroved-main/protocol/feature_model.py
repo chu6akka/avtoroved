@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import hashlib
 from functools import lru_cache
 from typing import Any
 
@@ -18,6 +19,12 @@ SOURCE_METHOD = "METHOD"
 SOURCE_EXPERIMENTAL = "EXPERIMENTAL"
 SOURCE_ENGINEERING = "ENGINEERING"
 SOURCE_KINDS = (SOURCE_METHOD, SOURCE_EXPERIMENTAL, SOURCE_ENGINEERING)
+
+SOURCE_KIND_LABELS = {
+    SOURCE_METHOD: "METHOD",
+    SOURCE_EXPERIMENTAL: "EXPERIMENTAL",
+    SOURCE_ENGINEERING: "ENGINEERING",
+}
 
 CANDIDATE_ORIGIN_AUTO = "AUTO"
 CANDIDATE_ORIGIN_EXPERT = "EXPERT"
@@ -119,6 +126,9 @@ def registry_by_id() -> dict[str, dict]:
             "detectors": tuple(style_row["detectors"]),
             "producer": style_row["producer"],
             "evidence_type": style_row["evidence_type"],
+            "source_registry": style_row["source_registry"],
+            "source_wording": style_row["source_wording"],
+            "limitations": tuple(style_row["limitations"]),
         }
     return rows
 
@@ -126,3 +136,14 @@ def registry_by_id() -> dict[str, dict]:
 def registered_method_feature(method_feature_id: str | None) -> dict | None:
     """Вернуть запись registry; неизвестный ID никогда не считается методическим."""
     return registry_by_id().get(method_feature_id or "")
+
+
+@lru_cache(maxsize=1)
+def method_registry_version() -> str:
+    """Стабильная версия объединённого реестра для записей аудита."""
+    payload = json.dumps(
+        sorted(registry_by_id().values(), key=lambda row: row["id"]),
+        ensure_ascii=False, sort_keys=True, default=list,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return "sha256:" + hashlib.sha256(payload).hexdigest()

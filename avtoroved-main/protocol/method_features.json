@@ -6,6 +6,7 @@
     "subgroup": "тематические",
     "source": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007",
     "source_section": "с. 86",
+    "source_wording": "Политическая направленность текста",
     "reference_informativeness": "низкая",
     "automation_level": "AUTO_DETECTABLE",
     "detector_key": "politics"
@@ -17,6 +18,7 @@
     "subgroup": "тематические",
     "source": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007",
     "source_section": "с. 86",
+    "source_wording": "Военная направленность текста",
     "reference_informativeness": "низкая",
     "automation_level": "AUTO_DETECTABLE",
     "detector_key": "military"
@@ -28,6 +30,7 @@
     "subgroup": "тематические",
     "source": "Рубцова и др., Комплексная методика ЭКЦ МВД, 2007",
     "source_section": "с. 86",
+    "source_wording": "Бытовая тематика текста",
     "reference_informativeness": "низкая",
     "automation_level": "AUTO_DETECTABLE",
     "detector_key": "everyday"
