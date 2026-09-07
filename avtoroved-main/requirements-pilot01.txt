@@ -1,0 +1,4 @@
+# Optional dependencies for the isolated Pilot 01 corpus preparation tools.
+# They are not imported by the Authoroved production application.
+datasets>=4.0,<5.0
+zstandard>=0.23,<1.0

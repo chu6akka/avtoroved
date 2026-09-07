@@ -55,3 +55,7 @@ desktop.ini
 
 # Бэкапы словарных баз (создаются при обновлении)
 *.bak-*
+
+# Pilot 01 corpus is generated locally and may contain private source mappings
+avtoroved-main/artifacts/pilot01_corpus/
+avtoroved-main/artifacts/controlled_own/
