@@ -1,0 +1,4 @@
+.local/
+.pytest_cache/
+artifacts/
+.tmp*/
