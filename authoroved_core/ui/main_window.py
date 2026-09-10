@@ -1,6 +1,8 @@
+import logging
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QComboBox, QDialog, QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit,
     QListWidget, QListWidgetItem, QMainWindow, QMessageBox, QProgressBar, QLayout,
@@ -9,9 +11,14 @@ from PyQt6.QtWidgets import (
 )
 
 from authoroved_core.core.analysis import AnalysisService
+from authoroved_core.core.case_repository import (
+    CaseError, CaseIntegrityError, CasePasswordError, CaseRepository,
+)
 from authoroved_core.core.comparison import compare_results
 from authoroved_core.core.document import EncodingChoiceRequired, load_document
+from authoroved_core.core.lt_grouping import candidate_group_key, group_candidates
 from authoroved_core.core.models import ReviewStatus, STATUS_LABELS
+from authoroved_core.core.report_service import ReportError, ReportService
 from authoroved_core.metrics.basic import GLOBAL_NOTE, WORD_PATTERN
 from authoroved_core.nlp.settings import LocalSettings
 from authoroved_core.ui.text_view import SourceTextView
@@ -92,6 +99,56 @@ class ResourceDialog(QDialog):
         return LocalSettings(*(field.text().strip() for field in self.fields))
 
 
+class PasswordDialog(QDialog):
+    def __init__(self, parent, *, confirmation):
+        super().__init__(parent)
+        self.confirmation = confirmation
+        self.setWindowTitle("Пароль файла дела")
+        self.setMinimumWidth(430)
+        layout = QVBoxLayout(self)
+        layout.addWidget(label(
+            "Файл дела зашифрован. Пароль не сохраняется и не может быть восстановлен.",
+            "metricHelp",
+        ))
+        layout.addWidget(label("Пароль"))
+        self.password_field = QLineEdit()
+        self.password_field.setEchoMode(QLineEdit.EchoMode.Password)
+        layout.addWidget(self.password_field)
+        self.confirm_field = None
+        if confirmation:
+            layout.addWidget(label("Повторите пароль"))
+            self.confirm_field = QLineEdit()
+            self.confirm_field.setEchoMode(QLineEdit.EchoMode.Password)
+            layout.addWidget(self.confirm_field)
+        self.error = label("", "error")
+        self.error.hide()
+        layout.addWidget(self.error)
+        actions = QHBoxLayout()
+        actions.addStretch()
+        actions.addWidget(button("Отмена", self.reject))
+        actions.addWidget(button("Продолжить", self.accept, True))
+        layout.addLayout(actions)
+
+    def accept(self):
+        password = self.password_field.text()
+        if not password:
+            self.error.setText("Введите пароль.")
+            self.error.show()
+            return
+        if self.confirmation and len(password) < 8:
+            self.error.setText("Используйте не менее 8 символов.")
+            self.error.show()
+            return
+        if self.confirmation and password != self.confirm_field.text():
+            self.error.setText("Пароли не совпадают.")
+            self.error.show()
+            return
+        super().accept()
+
+    def password(self):
+        return self.password_field.text()
+
+
 class MainWindow(QMainWindow):
     @property
     def material(self):
@@ -109,7 +166,7 @@ class MainWindow(QMainWindow):
     def result(self, value):
         self.results[self.current_slot] = value
 
-    def __init__(self, settings=None, service=None):
+    def __init__(self, settings=None, service=None, case_repository=None):
         super().__init__()
         self.setWindowTitle("Авторовед Core — новый анализ")
         self.resize(1280, 900)
@@ -117,9 +174,16 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(STYLE)
         self.settings = settings or LocalSettings.load()
         self.service = service or AnalysisService(self.settings)
-        self.materials = [None, None]
-        self.results = [None, None]
-        self.current_slot = 0
+        self.case_repository = case_repository or CaseRepository()
+        self.report_service = ReportService(self.case_repository)
+        self.case = self.case_repository.create()
+        self.materials = self.case.materials
+        self.results = self.case.results
+        self.current_slot = self.case.current_slot
+        self.case_path = None
+        self.dirty = False
+        self.busy = False
+        self.audited_comments = {}
         self.worker = None
         self.worker_slot = None
         self.current_candidate = None
@@ -144,10 +208,29 @@ class MainWindow(QMainWindow):
         header.addLayout(branding)
         header.addStretch()
         self.settings_button = button("Локальные анализаторы", self.configure)
+        self.open_case_button = button("Открыть дело", self.open_case_dialog)
+        self.save_button = button("Сохранить", self.save_case)
+        self.save_button.setEnabled(False)
+        self.audit_button = button("Журнал", self.show_audit)
         self.open_button = button("Новый анализ", self.open_file, True)
+        self.open_button.setToolTip("Начать новое исследование (Ctrl+N)")
+        self.open_case_button.setToolTip("Открыть сохранённое дело (Ctrl+O)")
+        self.save_button.setToolTip("Сохранить зашифрованное дело (Ctrl+S)")
         header.addWidget(self.settings_button)
+        header.addWidget(self.open_case_button)
+        header.addWidget(self.save_button)
+        header.addWidget(self.audit_button)
         header.addWidget(self.open_button)
         layout.addLayout(header)
+        self.shortcuts = []
+        for sequence, callback in (
+            ("Ctrl+N", self.open_file),
+            ("Ctrl+O", self.open_case_dialog),
+            ("Ctrl+S", self.save_case),
+        ):
+            shortcut = QShortcut(QKeySequence(sequence), self)
+            shortcut.activated.connect(callback)
+            self.shortcuts.append(shortcut)
         self.stage_buttons = []
         navigation = QFrame()
         navigation.setObjectName("navigation")
@@ -165,7 +248,8 @@ class MainWindow(QMainWindow):
             stages.addWidget(item)
         stages.addStretch()
         layout.addWidget(navigation)
-        layout.addWidget(label("Предварительная версия · до двух документов · решения сохраняются только до закрытия окна", "notice"))
+        self.case_notice = label("Предварительная версия · до двух документов · файл дела защищается паролем", "notice")
+        layout.addWidget(self.case_notice)
         self.error_label = label("", "error")
         self.error_label.hide()
         layout.addWidget(self.error_label)
@@ -241,18 +325,30 @@ class MainWindow(QMainWindow):
         review_layout.setSizeConstraints(QLayout.SizeConstraint.SetNoConstraint,
                                          QLayout.SizeConstraint.SetMinimumSize)
         review_layout.setContentsMargins(0, 4, 0, 0)
+        self.candidate_group_filter = QComboBox()
+        self.candidate_group_filter.addItem("Все группы", None)
+        self.candidate_group_filter.currentIndexChanged.connect(self.candidate_group_changed)
+        filters = QHBoxLayout()
+        filters.addWidget(self.candidate_group_filter, 2)
         self.filter = QComboBox()
         self.filter.addItems(["Все кандидаты", "Не рассмотрены", "Приняты", "Отклонены"])
         self.filter.currentIndexChanged.connect(self.populate_candidates)
-        review_layout.addWidget(self.filter)
+        filters.addWidget(self.filter, 1)
+        review_layout.addLayout(filters)
+        self.candidate_group_help = label(
+            "Кандидаты разделены по типу автоматической рекомендации.", "muted",
+        )
+        self.candidate_group_help.setMinimumHeight(34)
+        self.candidate_group_help.setMaximumHeight(42)
+        review_layout.addWidget(self.candidate_group_help)
         self.candidate_list = QListWidget()
         self.candidate_list.setWordWrap(True)
-        self.candidate_list.setFixedHeight(124)
+        self.candidate_list.setFixedHeight(100)
         self.candidate_list.currentItemChanged.connect(self.select_candidate)
         review_layout.addWidget(self.candidate_list, 1)
         review_card = QFrame()
         review_card.setObjectName("reviewCard")
-        review_card.setMinimumHeight(145)
+        review_card.setMinimumHeight(132)
         detail_layout = QVBoxLayout(review_card)
         detail_layout.setContentsMargins(12, 8, 12, 8)
         detail_layout.setSpacing(5)
@@ -261,13 +357,13 @@ class MainWindow(QMainWindow):
         self.explanation = QTextEdit()
         self.explanation.setObjectName("explanation")
         self.explanation.setReadOnly(True)
-        self.explanation.setFixedHeight(82)
+        self.explanation.setFixedHeight(72)
         detail_layout.addWidget(self.explanation)
         review_layout.addWidget(review_card)
         self.comment = QTextEdit()
         self.comment.setObjectName("comment")
         self.comment.setPlaceholderText("Комментарий эксперта (необязательно)")
-        self.comment.setFixedHeight(62)
+        self.comment.setFixedHeight(54)
         self.comment.textChanged.connect(self.comment_changed)
         review_layout.addWidget(self.comment)
         actions = QHBoxLayout()
@@ -297,6 +393,8 @@ class MainWindow(QMainWindow):
         self.workspace.addWidget(self.splitter)
         self.comparison_page = self.build_comparison_page()
         self.workspace.addWidget(self.comparison_page)
+        self.final_page = self.build_final_page()
+        self.workspace.addWidget(self.final_page)
         layout.addWidget(self.workspace, 1)
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 0)
@@ -306,6 +404,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.status)
         self.show_stage(0)
         self.set_candidate_enabled(False)
+        self.update_case_controls()
 
     def build_comparison_page(self):
         page = QWidget()
@@ -324,6 +423,10 @@ class MainWindow(QMainWindow):
         heading.addLayout(title_box, 1)
         heading.addWidget(button("Вернуться к проверке", lambda: self.show_stage(2)))
         page_layout.addLayout(heading)
+        self.comparison_limitations = label("", "notice")
+        self.comparison_limitations.setMinimumHeight(42)
+        self.comparison_limitations.setMaximumHeight(88)
+        page_layout.addWidget(self.comparison_limitations)
 
         texts = QSplitter(Qt.Orientation.Horizontal)
         texts.setHandleWidth(14)
@@ -383,22 +486,301 @@ class MainWindow(QMainWindow):
             "Выберите строку слева или справа, чтобы подсветить связанные места в обоих текстах.",
             "metricHelp",
         )
+        self.comparison_help.setMinimumHeight(78)
+        self.comparison_help.setMaximumHeight(96)
         accepted_layout.addWidget(self.comparison_help)
         lower.addWidget(accepted_panel)
         lower.setSizes([660, 540])
         page_layout.addWidget(lower, 2)
+        page_layout.addWidget(button("Перейти к экспорту →", lambda: self.show_stage(4), True))
         return page
 
+    def build_final_page(self):
+        page = QWidget()
+        page.setObjectName("finalPage")
+        page_layout = QVBoxLayout(page)
+        page_layout.setContentsMargins(0, 0, 0, 0)
+        page_layout.setSpacing(12)
+
+        heading = QHBoxLayout()
+        title_box = QVBoxLayout()
+        title_box.addWidget(label("Экспорт материалов", "sectionTitle"))
+        title_box.addWidget(label(
+            "Сохраните читаемый проект исследования и отдельный пакет для проверки расчётов.",
+            "muted",
+        ))
+        heading.addLayout(title_box, 1)
+        heading.addWidget(button("Вернуться к сравнению", lambda: self.show_stage(3)))
+        page_layout.addLayout(heading)
+
+        notice = label(
+            "Экспорт не формулирует вывод об авторстве. В проект попадают измерения и только "
+            "сохранённые экспертом наблюдения. Отклонённые и нерассмотренные кандидаты не "
+            "переносятся как подтверждённые признаки.",
+            "notice",
+        )
+        page_layout.addWidget(notice)
+
+        cards = QHBoxLayout()
+        cards.setSpacing(14)
+        report_card = QFrame()
+        report_card.setObjectName("panel")
+        report_layout = QVBoxLayout(report_card)
+        report_layout.setContentsMargins(24, 22, 24, 22)
+        report_layout.addWidget(label("ПРОЕКТ ИССЛЕДОВАНИЯ", "eyebrow"))
+        report_layout.addWidget(label("Документ Word", "sectionTitle"))
+        report_layout.addWidget(label(
+            "Объекты, контрольные суммы, версии анализаторов, результаты проверки, "
+            "сопоставление показателей, ограничения и сведения о целостности.",
+        ))
+        report_layout.addStretch()
+        self.export_docx_button = button("Сохранить проект DOCX", self.export_docx_dialog, True)
+        report_layout.addWidget(self.export_docx_button)
+        cards.addWidget(report_card)
+
+        package_card = QFrame()
+        package_card.setObjectName("panel")
+        package_layout = QVBoxLayout(package_card)
+        package_layout.setContentsMargins(24, 22, 24, 22)
+        package_layout.addWidget(label("ПАКЕТ ПРОВЕРКИ", "eyebrow"))
+        package_layout.addWidget(label("Архив ZIP", "sectionTitle"))
+        package_layout.addWidget(label(
+            "Манифест, контрольные суммы, журнал, версии компонентов и таблицы сравнения. "
+            "Исходные тексты не добавляются без отдельного согласия.",
+        ))
+        package_layout.addStretch()
+        self.export_package_button = button(
+            "Создать проверочный пакет", self.export_verification_dialog, True,
+        )
+        package_layout.addWidget(self.export_package_button)
+        cards.addWidget(package_card)
+        page_layout.addLayout(cards, 1)
+
+        self.export_summary = label("", "metricHelp")
+        page_layout.addWidget(self.export_summary)
+        return page
+
+    def record_event(self, event, details):
+        self.case.current_slot = self.current_slot
+        self.case_repository.record(self.case, event, details)
+        self.mark_dirty()
+
+    def mark_dirty(self):
+        self.dirty = True
+        self.update_case_controls()
+
+    def update_case_controls(self):
+        has_material = any(self.materials)
+        self.save_button.setEnabled(has_material and not self.busy)
+        name = self.case_path.name if self.case_path else "новое дело"
+        self.setWindowTitle(f"Авторовед Core — {name}{' *' if self.dirty else ''}")
+        if self.case_path:
+            self.case_notice.setText(
+                f"Дело: {self.case_path.name} · {'есть несохранённые изменения' if self.dirty else 'сохранено'}"
+            )
+        else:
+            self.case_notice.setText(
+                "Новое дело · до двух документов · при сохранении файл будет защищён паролем"
+            )
+
+    def reset_case(self):
+        self.case = self.case_repository.create()
+        self.materials = self.case.materials
+        self.results = self.case.results
+        self.current_slot = 0
+        self.case_path = None
+        self.current_candidate = None
+        self.audited_comments = {}
+        self.dirty = False
+        self.stage_buttons[3].setEnabled(False)
+        self.stage_buttons[4].setEnabled(False)
+        self.update_material_selector()
+        self.update_case_controls()
+
+    def password_from_user(self, confirmation):
+        dialog = PasswordDialog(self, confirmation=confirmation)
+        return dialog.password() if dialog.exec() else None
+
+    def save_case(self):
+        if not any(self.materials):
+            return False
+        self.record_comment_if_changed()
+        path = self.case_path
+        if path is None:
+            selected, _ = QFileDialog.getSaveFileName(
+                self, "Сохранить дело", "Новое дело.avedcase", "Дело Автороведа (*.avedcase)",
+            )
+            if not selected:
+                return False
+            path = Path(selected)
+            if path.suffix.lower() != ".avedcase":
+                path = path.with_suffix(".avedcase")
+        password = self.password_from_user(confirmation=self.case_path is None)
+        if password is None:
+            return False
+        return self.save_case_to(path, password)
+
+    def save_case_to(self, path, password):
+        path = Path(path)
+        try:
+            if self.case_path and path.resolve() == self.case_path.resolve() and path.exists():
+                self.case_repository.open(path, password)
+            self.case.current_slot = self.current_slot
+            self.case.materials = self.materials
+            self.case.results = self.results
+            self.case_repository.save(path, self.case, password)
+        except CasePasswordError:
+            self.error_label.setText("Пароль не подходит к существующему файлу дела. Файл не изменён.")
+            self.error_label.show()
+            return False
+        except (CaseError, OSError, TypeError, ValueError):
+            logging.exception("Case save failed")
+            self.error_label.setText("Не удалось сохранить дело. Файл не изменён; подробности находятся в техническом журнале.")
+            self.error_label.show()
+            return False
+        self.case_path = path
+        self.dirty = False
+        self.error_label.hide()
+        self.update_case_controls()
+        self.status.setText("Дело сохранено и проверено · пароль и ключ не записаны")
+        return True
+
+    def open_case_dialog(self):
+        if not self.confirm_discard():
+            return
+        selected, _ = QFileDialog.getOpenFileName(
+            self, "Открыть дело", "", "Дело Автороведа (*.avedcase)",
+        )
+        if not selected:
+            return
+        password = self.password_from_user(confirmation=False)
+        if password is not None:
+            self.restore_case_from(selected, password)
+
+    def restore_case_from(self, path, password):
+        try:
+            restored = self.case_repository.open(path, password)
+        except CasePasswordError:
+            self.error_label.setText("Неверный пароль либо файл дела повреждён.")
+            self.error_label.show()
+            return False
+        except (CaseIntegrityError, CaseError, OSError):
+            logging.exception("Case open failed")
+            self.error_label.setText("Дело не открыто: нарушена целостность или формат файла.")
+            self.error_label.show()
+            return False
+        self.case = restored
+        self.materials = restored.materials
+        self.results = restored.results
+        self.current_slot = restored.current_slot
+        if self.materials[self.current_slot] is None:
+            self.current_slot = next((i for i, item in enumerate(self.materials) if item), 0)
+        self.case_path = Path(path)
+        self.current_candidate = None
+        self.audited_comments = {
+            (candidate.document_id, candidate.id): candidate.comment
+            for result in self.results if result for candidate in result.candidates
+        }
+        self.case_repository.record(self.case, "case_opened", {"file_name": self.case_path.name})
+        self.dirty = True
+        self.update_material_selector()
+        self.render_current_material()
+        self.stage_buttons[3].setEnabled(all(self.results))
+        self.stage_buttons[4].setEnabled(all(self.results))
+        self.update_case_controls()
+        self.error_label.hide()
+        self.show_stage(1 if self.result else 0)
+        self.status.setText("Дело открыто · целостность подтверждена · открытие добавлено в журнал")
+        return True
+
+    def show_audit(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Журнал дела")
+        dialog.resize(720, 560)
+        layout = QVBoxLayout(dialog)
+        try:
+            self.case.current_slot = self.current_slot
+            self.case_repository.verify_integrity(self.case)
+            layout.addWidget(label("Целостность журнала и материалов подтверждена.", "metricHelp"))
+        except CaseIntegrityError as exc:
+            warning = label("Нарушена целостность дела: " + str(exc), "error")
+            layout.addWidget(warning)
+        names = {
+            "case_created": "Создано новое дело",
+            "case_opened": "Открыт файл дела",
+            "case_saved": "Сохранён файл дела",
+            "document_imported": "Загружен исходный документ",
+            "analysis_started": "Запущен анализ",
+            "analysis_completed": "Анализ завершён",
+            "analysis_failed": "Анализ завершился с ошибкой",
+            "candidate_reviewed": "Изменено решение по кандидату",
+            "candidate_comment": "Изменён комментарий эксперта",
+            "report_exported": "Сохранён проект исследования",
+            "verification_package_exported": "Создан проверочный пакет",
+        }
+        journal = QTextEdit()
+        journal.setReadOnly(True)
+        journal.setPlainText("\n\n".join(
+            f"{entry.sequence}. {entry.timestamp.replace('T', ' ')[:19]} UTC\n"
+            f"{names.get(entry.event, entry.event)}{self.audit_details(entry)}\n"
+            f"Контроль: {entry.entry_hash[:16]}…"
+            for entry in self.case.audit
+        ))
+        layout.addWidget(journal, 1)
+        layout.addWidget(button("Закрыть", dialog.accept, True))
+        dialog.exec()
+
+    @staticmethod
+    def audit_details(entry):
+        details = entry.details
+        if entry.event in {"case_opened", "case_saved"}:
+            return f" · {details.get('file_name', '')}"
+        if entry.event == "document_imported":
+            return f" · текст {details.get('slot')} · {details.get('name', '')}"
+        if entry.event in {"analysis_started", "analysis_failed"}:
+            return f" · текст {details.get('slot')}"
+        if entry.event == "analysis_completed":
+            return (f" · текст {details.get('slot')} · показателей: {details.get('metrics')} · "
+                    f"кандидатов: {details.get('candidates')}")
+        if entry.event == "candidate_reviewed":
+            status = {"new": "на рассмотрении", "accepted": "принят", "rejected": "отклонён"}
+            return f" · {details.get('category', '')} · {status.get(details.get('to'), '')}"
+        if entry.event == "candidate_comment":
+            return f" · длина комментария: {details.get('characters', 0)}"
+        if entry.event == "report_exported":
+            return f" · {details.get('file_name', '')}"
+        if entry.event == "verification_package_exported":
+            source_note = ("с исходными текстами" if details.get("source_documents_included")
+                           else "без исходных текстов")
+            return f" · {details.get('file_name', '')} · {source_note}"
+        return ""
+
+    def record_comment_if_changed(self):
+        if not self.current_candidate:
+            return
+        key = (self.current_candidate.document_id, self.current_candidate.id)
+        current = self.current_candidate.comment
+        if self.audited_comments.get(key, "") != current:
+            self.record_event("candidate_comment", {
+                "document_id": self.current_candidate.document_id,
+                "candidate_id": self.current_candidate.id,
+                "characters": len(current),
+            })
+            self.audited_comments[key] = current
+
     def confirm_discard(self):
-        if not any(self.results):
+        if not self.dirty:
             return True
         dialog = QMessageBox(self)
-        dialog.setWindowTitle("Начать заново?")
-        dialog.setText("Результаты, комментарии и решения текущего сеанса будут потеряны. Сохранение на диск появится на этапе D.")
-        continue_button = dialog.addButton("Начать заново", QMessageBox.ButtonRole.AcceptRole)
+        dialog.setWindowTitle("Есть несохранённые изменения")
+        dialog.setText("Сохранить изменения файла дела перед продолжением?")
+        save_button = dialog.addButton("Сохранить", QMessageBox.ButtonRole.AcceptRole)
+        discard_button = dialog.addButton("Продолжить без сохранения", QMessageBox.ButtonRole.DestructiveRole)
         dialog.addButton("Остаться", QMessageBox.ButtonRole.RejectRole)
         dialog.exec()
-        return dialog.clickedButton() is continue_button
+        if dialog.clickedButton() is save_button:
+            return self.save_case()
+        return dialog.clickedButton() is discard_button
 
     def confirm_reanalysis(self):
         if not self.result:
@@ -414,19 +796,17 @@ class MainWindow(QMainWindow):
     def open_file(self):
         path, _ = QFileDialog.getOpenFileName(self, "Выберите материал", "", "Текстовые документы (*.txt *.docx)")
         if path and self.confirm_discard():
-            self.materials = [None, None]
-            self.results = [None, None]
-            self.current_slot = 0
+            self.reset_case()
             self.load_path(path, slot=0)
 
     def open_second_file(self):
         path, _ = QFileDialog.getOpenFileName(self, "Выберите второй текст", "", "Текстовые документы (*.txt *.docx)")
         if not path:
             return
-        if self.results[1]:
+        if self.materials[1]:
             dialog = QMessageBox(self)
             dialog.setWindowTitle("Заменить второй текст?")
-            dialog.setText("Результаты и решения по тексту 2 будут потеряны.")
+            dialog.setText("Материал, результаты и решения по тексту 2 будут потеряны.")
             replace_button = dialog.addButton("Заменить", QMessageBox.ButtonRole.AcceptRole)
             dialog.addButton("Отмена", QMessageBox.ButtonRole.RejectRole)
             dialog.exec()
@@ -455,6 +835,7 @@ class MainWindow(QMainWindow):
             self.error_label.setText("Не удалось открыть документ. Проверьте формат, доступ к файлу и наличие текста.")
             self.error_label.show()
             return
+        replaced = self.materials[target_slot] is not None
         self.materials[target_slot] = material
         self.results[target_slot] = None
         self.current_slot = target_slot
@@ -463,6 +844,11 @@ class MainWindow(QMainWindow):
         self.material_selector.setCurrentIndex(target_slot)
         self.render_current_material()
         self.error_label.hide()
+        self.record_event("document_imported", {
+            "slot": target_slot + 1, "name": material.name,
+            "file_sha256": material.file_sha256, "text_sha256": material.text_sha256,
+            "size_bytes": len(material.original_bytes), "replaced": replaced,
+        })
         self.status.setText(f"Текст {target_slot + 1} загружен. Проверьте его и нажмите «Анализировать».")
         self.show_stage(0)
 
@@ -474,12 +860,17 @@ class MainWindow(QMainWindow):
         self.material_selector.setCurrentIndex(self.current_slot)
         self.material_selector.blockSignals(False)
         self.second_text_button.setVisible(self.materials[0] is not None and self.materials[1] is None)
+        if hasattr(self, "stage_buttons") and len(self.stage_buttons) > 3:
+            self.stage_buttons[3].setEnabled(all(self.results) and not self.busy)
+            self.stage_buttons[4].setEnabled(all(self.results) and not self.busy)
         self.update_workflow_button()
 
     def switch_material(self, index):
         if index == self.current_slot:
             return
+        self.record_comment_if_changed()
         self.current_slot = index
+        self.case.current_slot = index
         self.current_candidate = None
         self.render_current_material()
         self.show_stage(1 if self.result else 0)
@@ -510,6 +901,7 @@ class MainWindow(QMainWindow):
                 if name in values
             ))
             self.populate_metrics()
+            self.populate_candidate_groups()
             self.populate_candidates()
 
     def continue_workflow(self):
@@ -540,6 +932,10 @@ class MainWindow(QMainWindow):
             return
         if self.result and not self.confirm_reanalysis():
             return
+        self.record_event("analysis_started", {
+            "slot": self.current_slot + 1, "document_id": self.material.id,
+            "file_sha256": self.material.file_sha256,
+        })
         self.result = None
         self.current_candidate = None
         self.error_label.hide()
@@ -555,16 +951,28 @@ class MainWindow(QMainWindow):
         self.worker.start()
 
     def set_busy(self, busy):
+        self.busy = busy
         self.progress_bar.setVisible(busy)
         self.open_button.setEnabled(not busy)
         self.settings_button.setEnabled(not busy)
+        self.open_case_button.setEnabled(not busy)
+        self.audit_button.setEnabled(not busy)
         self.material_selector.setEnabled(not busy)
         self.analyze_button.setEnabled(not busy and self.material is not None)
         for i in range(3):
             self.stage_buttons[i].setEnabled(not busy)
         self.stage_buttons[3].setEnabled(not busy and all(self.results))
+        self.stage_buttons[4].setEnabled(not busy and all(self.results))
+        if hasattr(self, "export_docx_button"):
+            self.export_docx_button.setEnabled(not busy and all(self.results))
+            self.export_package_button.setEnabled(not busy and all(self.results))
+        self.update_case_controls()
 
     def analysis_failed(self):
+        if self.material:
+            self.record_event("analysis_failed", {
+                "slot": self.current_slot + 1, "document_id": self.material.id,
+            })
         self.error_label.setText("Анализ прерван из-за ошибки. Подробности находятся в техническом журнале.")
         self.error_label.show()
         self.status.setText("Анализ не завершён")
@@ -582,14 +990,35 @@ class MainWindow(QMainWindow):
         values = {metric.name: metric.value for metric in result.metrics}
         self.summary.setText(" · ".join(f"{values[name]} {unit}" for name, unit in [("Слова", "слов"), ("Предложения", "предложений"), ("Абзацы", "абзацев")] if name in values))
         self.populate_metrics()
+        self.populate_candidate_groups()
         self.populate_candidates()
         self.stage_buttons[3].setEnabled(all(self.results))
+        self.stage_buttons[4].setEnabled(all(self.results))
         self.update_workflow_button()
+        self.record_event("analysis_completed", {
+            "slot": slot + 1, "document_id": result.document_id,
+            "errors": len(result.errors), "metrics": len(result.metrics),
+            "candidates": len(result.candidates),
+            "stanza_version": result.metadata.get("stanza", {}).get("version"),
+            "languagetool_version": result.metadata.get("languagetool", {}).get("version"),
+        })
         self.show_stage(1)
         self.status.setText(("Анализ выполнен частично" if result.errors else f"Анализ текста {slot + 1} завершён") + " · результаты требуют вашей проверки")
 
     def show_stage(self, index):
-        if index > 3:
+        if index != 2:
+            self.record_comment_if_changed()
+        if index > 4:
+            return
+        if index == 4:
+            if not all(self.results):
+                self.status.setText("Для экспорта сначала загрузите и проанализируйте оба текста.")
+                return
+            self.populate_final_summary()
+            self.workspace.setCurrentIndex(2)
+            for i, item in enumerate(self.stage_buttons):
+                item.setChecked(i == 4)
+            self.status.setText("Материалы готовы к экспорту · вывод об авторстве не формируется")
             return
         if index == 3:
             if not all(self.results):
@@ -619,6 +1048,9 @@ class MainWindow(QMainWindow):
 
     def populate_comparison(self):
         self.comparison = compare_results(self.results[0], self.results[1])
+        limitations = " ".join(self.comparison.limitations)
+        self.comparison_limitations.setText("Перед интерпретацией: " + limitations)
+        self.comparison_limitations.setToolTip(limitations)
         for index, (material, result) in enumerate(zip(self.materials, self.results)):
             self.comparison_names[index].setText(material.name)
             self.comparison_texts[index].set_source(material.text)
@@ -640,7 +1072,7 @@ class MainWindow(QMainWindow):
         self.comparison_candidate_list.clear()
         for group in self.comparison.accepted_groups:
             item = QListWidgetItem(
-                f"{group.category}\n{group.relation} · текст 1: {group.count_first} · текст 2: {group.count_second}"
+                f"{group.label}\n{group.relation} · текст 1: {group.count_first} · текст 2: {group.count_second}"
             )
             item.setData(Qt.ItemDataRole.UserRole, group)
             self.comparison_candidate_list.addItem(item)
@@ -652,7 +1084,8 @@ class MainWindow(QMainWindow):
             "Отклонённые кандидаты не сопоставляются."
         )
         self.comparison_help.setText(
-            "Группировка наблюдений выполнена по категории. Она не означает совпадение одного языкового признака."
+            "Сопоставление идёт по виду рекомендации и точному фрагменту без учёта регистра. "
+            "Это не вывод о совпадении авторского признака."
         )
 
     def populate_comparison_metrics(self, *_):
@@ -664,7 +1097,8 @@ class MainWindow(QMainWindow):
             if selected_group != "Все разделы" and metric.group != selected_group:
                 continue
             item = QListWidgetItem(
-                f"{metric.name}\nТекст 1: {metric.value_first} · Текст 2: {metric.value_second} · разница: {metric.difference}"
+                f"{metric.name}\nТекст 1: {metric.value_first} · Текст 2: {metric.value_second}\n"
+                f"Разница: {metric.difference} · {metric.direction}"
             )
             item.setData(Qt.ItemDataRole.UserRole, metric)
             self.comparison_metric_list.addItem(item)
@@ -679,7 +1113,10 @@ class MainWindow(QMainWindow):
                          f"{len(metric.spans_second)} в тексте 2.")
         if not metric.spans_first and not metric.spans_second:
             fragment_note = GLOBAL_NOTE
-        self.comparison_help.setText(metric.explanation + "\n\n" + fragment_note)
+        self.comparison_help.setText(
+            f"Основа сравнения: {metric.basis}. {metric.explanation}\n"
+            f"Ограничение: {metric.caution}\n{fragment_note}"
+        )
 
     def select_comparison_candidate_group(self, item, previous=None):
         if item is None or item.data(Qt.ItemDataRole.UserRole) is None:
@@ -689,15 +1126,115 @@ class MainWindow(QMainWindow):
         self.comparison_texts[1].highlight(group.spans_second)
         self.comparison_help.setText(
             f"{group.relation}. Принято наблюдений: {group.count_first} в тексте 1 и "
-            f"{group.count_second} в тексте 2. Категория сама по себе не является выводом об авторстве."
+            f"{group.count_second} в тексте 2. Основа группировки: {group.basis}. "
+            "Наблюдение само по себе не является выводом об авторстве."
         )
+
+    def populate_final_summary(self):
+        if not all(self.results):
+            self.export_summary.setText("Для экспорта нужны результаты анализа двух текстов.")
+            return
+        rows = []
+        for index, (material, result) in enumerate(zip(self.materials, self.results), 1):
+            accepted = sum(item.status == ReviewStatus.ACCEPTED for item in result.candidates)
+            remaining = sum(item.status == ReviewStatus.NEW for item in result.candidates)
+            rows.append(
+                f"Текст {index}: {material.name} · сохранено наблюдений: {accepted} · "
+                f"не рассмотрено: {remaining}"
+            )
+        self.export_summary.setText("\n".join(rows))
+
+    def export_docx_dialog(self):
+        if not all(self.results):
+            return False
+        default = (self.case_path.with_suffix(".docx") if self.case_path
+                   else Path("Проект исследования.docx"))
+        selected, _ = QFileDialog.getSaveFileName(
+            self, "Сохранить проект исследования", str(default), "Документ Word (*.docx)",
+        )
+        return self.export_docx_to(selected) if selected else False
+
+    def export_docx_to(self, path):
+        if not path:
+            return False
+        self.record_comment_if_changed()
+        try:
+            comparison = compare_results(self.results[0], self.results[1])
+            exported = self.report_service.export_docx(path, self.case, comparison)
+        except (ReportError, CaseError, OSError, TypeError, ValueError):
+            logging.exception("Report export failed")
+            self.error_label.setText(
+                "Не удалось сохранить проект исследования. Дело не изменено; "
+                "подробности находятся в техническом журнале."
+            )
+            self.error_label.show()
+            return False
+        self.record_event("report_exported", {"file_name": exported.name})
+        self.error_label.hide()
+        self.export_summary.setText(f"Проект исследования сохранён: {exported}")
+        self.status.setText("Проект DOCX сохранён · вывод об авторстве не формировался")
+        return True
+
+    def export_verification_dialog(self):
+        if not all(self.results):
+            return False
+        choice = QMessageBox(self)
+        choice.setWindowTitle("Состав проверочного пакета")
+        choice.setIcon(QMessageBox.Icon.Question)
+        choice.setText("Добавить в архив исходные файлы и извлечённые тексты?")
+        choice.setInformativeText(
+            "Обычно достаточно пакета без исходных текстов. Добавляйте их только если "
+            "получатель вправе работать с материалами дела."
+        )
+        without_sources = choice.addButton("Без исходных текстов", QMessageBox.ButtonRole.AcceptRole)
+        with_sources = choice.addButton("Включить исходные тексты", QMessageBox.ButtonRole.ActionRole)
+        choice.addButton("Отмена", QMessageBox.ButtonRole.RejectRole)
+        choice.exec()
+        clicked = choice.clickedButton()
+        if clicked not in {without_sources, with_sources}:
+            return False
+        default = (self.case_path.with_name(self.case_path.stem + "_проверка.zip") if self.case_path
+                   else Path("Проверочный пакет.zip"))
+        selected, _ = QFileDialog.getSaveFileName(
+            self, "Сохранить проверочный пакет", str(default), "Архив ZIP (*.zip)",
+        )
+        return self.export_verification_to(
+            selected, include_sources=clicked is with_sources,
+        ) if selected else False
+
+    def export_verification_to(self, path, *, include_sources=False):
+        if not path:
+            return False
+        self.record_comment_if_changed()
+        try:
+            comparison = compare_results(self.results[0], self.results[1])
+            exported = self.report_service.export_verification_package(
+                path, self.case, comparison, include_sources=include_sources,
+            )
+            self.report_service.verify_verification_package(exported)
+        except (ReportError, CaseError, OSError, TypeError, ValueError):
+            logging.exception("Verification package export failed")
+            self.error_label.setText(
+                "Не удалось создать проверочный пакет. Дело не изменено; "
+                "подробности находятся в техническом журнале."
+            )
+            self.error_label.show()
+            return False
+        self.record_event("verification_package_exported", {
+            "file_name": exported.name, "source_documents_included": include_sources,
+        })
+        self.error_label.hide()
+        source_note = "с исходными текстами" if include_sources else "без исходных текстов"
+        self.export_summary.setText(f"Проверочный пакет сохранён {source_note}: {exported}")
+        self.status.setText(f"Проверочный пакет сохранён · {source_note}")
+        return True
 
     def populate_metrics(self):
         while self.toolbox.count():
             page = self.toolbox.widget(0)
             self.toolbox.removeItem(0)
             page.deleteLater()
-        for group in ["Количественные показатели", "Лексика", "Морфология", "Предложения", "Структура", "Технические связи Stanza (UD)"]:
+        for group in ["Количественные показатели", "Лексика", "Морфология", "Предложения", "Структура", "Служебная синтаксическая разметка Stanza"]:
             page = QListWidget()
             page.setWordWrap(True)
             for metric in self.result.metrics:
@@ -717,13 +1254,17 @@ class MainWindow(QMainWindow):
         self.highlight_note.setText(f"Связанных фрагментов: {len(metric.spans)}" if metric.spans else GLOBAL_NOTE)
 
     def populate_candidates(self, *_):
+        self.record_comment_if_changed()
         selected_id = self.current_candidate.id if self.current_candidate else None
         self.candidate_list.blockSignals(True)
         self.candidate_list.clear()
         wanted = [None, ReviewStatus.NEW, ReviewStatus.ACCEPTED, ReviewStatus.REJECTED][self.filter.currentIndex()]
+        wanted_group = self.candidate_group_filter.currentData()
         selected_item = None
         for candidate in self.result.candidates if self.result else []:
             if wanted is not None and candidate.status != wanted:
+                continue
+            if wanted_group is not None and candidate_group_key(candidate) != wanted_group:
                 continue
             fragment = candidate.fragment.replace("\n", " ").replace("\r", " ")
             if len(fragment) > 55:
@@ -745,6 +1286,36 @@ class MainWindow(QMainWindow):
             self.text_view.highlight(())
         self.update_review_summary()
 
+    def populate_candidate_groups(self):
+        current = self.candidate_group_filter.currentData()
+        groups = group_candidates(self.result.candidates) if self.result else ()
+        self.candidate_group_filter.blockSignals(True)
+        self.candidate_group_filter.clear()
+        self.candidate_group_filter.addItem("Все группы", None)
+        for group in groups:
+            self.candidate_group_filter.addItem(
+                f"{group.definition.title} · {len(group.candidates)}",
+                group.definition.key,
+            )
+        index = self.candidate_group_filter.findData(current)
+        self.candidate_group_filter.setCurrentIndex(max(index, 0))
+        self.candidate_group_filter.blockSignals(False)
+        self.candidate_group_changed()
+
+    def candidate_group_changed(self, *_):
+        key = self.candidate_group_filter.currentData()
+        if key is None:
+            help_text = (
+                "Кандидаты разделены по типу автоматической рекомендации. Выберите группу для пояснения."
+            )
+        else:
+            group = next((item for item in group_candidates(self.result.candidates)
+                          if item.definition.key == key), None) if self.result else None
+            help_text = group.definition.description if group else ""
+        self.candidate_group_help.setText(help_text)
+        self.candidate_group_help.setToolTip(help_text)
+        self.populate_candidates()
+
     def update_review_summary(self):
         if not self.result:
             return
@@ -757,9 +1328,15 @@ class MainWindow(QMainWindow):
     def select_candidate(self, item, previous=None):
         if not item or not self.result:
             return
+        self.record_comment_if_changed()
         self.current_candidate = next(c for c in self.result.candidates if c.id == item.data(Qt.ItemDataRole.UserRole))
         candidate = self.current_candidate
         self.set_candidate_enabled(True)
+        if candidate_group_key(candidate) == "unknown_words":
+            self.accept_button.setText("Сохранить как наблюдение")
+        else:
+            self.accept_button.setText("Подтвердить наблюдение")
+        self.reject_button.setText("Не учитывать")
         self.candidate_detail.setText(f"{candidate.category} · {STATUS_LABELS[candidate.status]}\nИсточник: {candidate.source}")
         message = candidate.explanation
         if candidate.replacements:
@@ -778,19 +1355,32 @@ class MainWindow(QMainWindow):
     def set_candidate_enabled(self, enabled):
         for widget in [self.accept_button, self.reject_button, self.reset_button, self.comment]:
             widget.setEnabled(enabled)
+        if not enabled:
+            self.accept_button.setText("Подтвердить наблюдение")
+            self.reject_button.setText("Не учитывать")
 
     def comment_changed(self):
         if self.current_candidate:
             self.current_candidate.comment = self.comment.toPlainText()
+            self.mark_dirty()
 
     def decide(self, status):
         if self.current_candidate:
+            self.record_comment_if_changed()
+            previous = self.current_candidate.status
             self.current_candidate.review(status, self.comment.toPlainText())
+            self.record_event("candidate_reviewed", {
+                "document_id": self.current_candidate.document_id,
+                "candidate_id": self.current_candidate.id,
+                "category": self.current_candidate.category,
+                "from": previous.value, "to": status.value,
+            })
             self.populate_candidates()
 
     def next_candidate(self):
         if not self.result:
             return
+        self.record_comment_if_changed()
         candidates = self.result.candidates
         current = next((i for i, c in enumerate(candidates) if c is self.current_candidate), -1)
         ordered = candidates[current + 1:] + candidates[:current + 1]
@@ -821,7 +1411,7 @@ class MainWindow(QMainWindow):
         if self.worker and self.worker.isRunning():
             self.status.setText("Дождитесь завершения анализа перед закрытием окна.")
             event.ignore()
-        elif any(self.results) and not self.confirm_discard():
+        elif self.dirty and not self.confirm_discard():
             event.ignore()
         else:
             event.accept()

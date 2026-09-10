@@ -138,9 +138,9 @@ def test_dependency_metrics_are_explicitly_marked_as_ud_model_output():
               Token("дома", "дома", "ADV", {}, "root", 0, 0, 2, Span(3, 7))]
     metrics = {m.name: m for m in calculate_metrics("Он дома", tokens)}
 
-    subject = metrics["UD nsubj — подлежащее"]
-    assert subject.group == "Технические связи Stanza (UD)"
-    assert "не термин традиционного русского синтаксиса" in subject.explanation
+    subject = metrics["подлежащее (код Stanza: nsubj)"]
+    assert subject.group == "Служебная синтаксическая разметка Stanza"
+    assert "не самостоятельное понятие традиционного русского синтаксиса" in subject.explanation
     assert "Universal Dependencies v2" in subject.explanation
 
 

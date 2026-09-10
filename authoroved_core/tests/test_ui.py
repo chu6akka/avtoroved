@@ -7,6 +7,7 @@ from PyQt6.QtGui import QFontDatabase
 from pathlib import Path
 from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
 
+from authoroved_core.core.case_repository import CaseRepository
 from authoroved_core.core.models import AnalysisResult, Candidate, Metric, ReviewStatus, Span
 from authoroved_core.nlp.settings import LocalSettings
 from authoroved_core.ui.main_window import MainWindow
@@ -27,7 +28,8 @@ def app():
 def window(app, tmp_path):
     path = tmp_path / "Текст.txt"
     path.write_bytes("😀\r\nОн пришол домой.".encode())
-    window = MainWindow(LocalSettings())
+    repository = CaseRepository(memory_cost_kib=8192, time_cost=1, parallelism=1)
+    window = MainWindow(LocalSettings(), case_repository=repository)
     window.load_path(path)
     candidate = Candidate("c", window.material.id, "Ошибка", "Орфография", "Возможная ошибка", "пришол", Span(6, 12), "RULE")
     result = AnalysisResult(window.material.id, candidates=[candidate],
@@ -38,6 +40,7 @@ def window(app, tmp_path):
     app.processEvents()
     yield window
     window.results = [None, None]
+    window.dirty = False
     window.close()
     window.deleteLater()
 
@@ -110,6 +113,7 @@ def test_second_text_has_separate_analysis_and_opens_comparison(window, app, tmp
     app.processEvents()
 
     assert window.stage_buttons[3].isEnabled()
+    assert window.stage_buttons[4].isEnabled()
     assert window.results[0].candidates[0].status == ReviewStatus.ACCEPTED
     assert window.results[1].candidates[0].status == ReviewStatus.ACCEPTED
     window.show_stage(3)
@@ -118,8 +122,22 @@ def test_second_text_has_separate_analysis_and_opens_comparison(window, app, tmp
     assert [view.source for view in window.comparison_texts] == [
         window.materials[0].text, window.materials[1].text,
     ]
-    assert window.comparison_candidate_list.count() == 1
-    assert "В обоих текстах" in window.comparison_candidate_list.item(0).text()
+    assert window.comparison_candidate_list.count() == 2
+    relations = [window.comparison_candidate_list.item(row).text()
+                 for row in range(window.comparison_candidate_list.count())]
+    assert any("Только в тексте 1" in text for text in relations)
+    assert any("Только в тексте 2" in text for text in relations)
+
+    window.show_stage(4)
+    app.processEvents()
+    assert window.workspace.currentWidget() is window.final_page
+    report = tmp_path / "Проект.docx"
+    package = tmp_path / "Проверка.zip"
+    assert window.export_docx_to(report)
+    assert window.export_verification_to(package, include_sources=False)
+    assert report.is_file() and package.is_file()
+    assert window.case.audit[-2].event == "report_exported"
+    assert window.case.audit[-1].event == "verification_package_exported"
 
 
 def test_switching_text_restores_its_review_state(window, app, tmp_path):
@@ -141,6 +159,7 @@ def test_busy_disables_new_analysis_and_settings(window):
     assert not window.open_button.isEnabled()
     assert not window.settings_button.isEnabled()
     assert not window.analyze_button.isEnabled()
+    assert not window.save_button.isEnabled()
 
 
 def test_empty_span_does_not_highlight_neighbour(app):
@@ -185,3 +204,71 @@ def test_main_review_actions_visible_without_scrolling_at_default_size(window, a
     viewport = window.review_scroll.viewport()
     for widget in [window.accept_button, window.reject_button, window.next_button]:
         assert viewport.rect().contains(widget.mapTo(viewport, widget.rect().bottomRight()))
+
+
+def test_case_controls_fit_minimum_window(window, app):
+    window.resize(1060, 760)
+    app.processEvents()
+    for widget in [window.settings_button, window.open_case_button, window.save_button,
+                   window.audit_button, window.open_button]:
+        assert window.rect().contains(widget.mapTo(window, widget.rect().topLeft()))
+        assert window.rect().contains(widget.mapTo(window, widget.rect().bottomRight()))
+
+
+def test_case_save_and_restore_keeps_expert_decisions(window, app, tmp_path):
+    window.show_stage(2)
+    window.comment.setPlainText("Проверено экспертом")
+    window.accept_button.click()
+    target = tmp_path / "Рабочее дело.avedcase"
+
+    assert window.save_case_to(target, "надёжный пароль")
+    assert not window.dirty
+    saved_bytes = target.read_bytes()
+    assert "Он пришол".encode("utf-8") not in saved_bytes
+
+    restored = MainWindow(
+        LocalSettings(),
+        case_repository=CaseRepository(memory_cost_kib=8192, time_cost=1, parallelism=1),
+    )
+    assert restored.restore_case_from(target, "надёжный пароль")
+    app.processEvents()
+    candidate = restored.results[0].candidates[0]
+    assert candidate.status == ReviewStatus.ACCEPTED
+    assert candidate.comment == "Проверено экспертом"
+    assert restored.materials[0].original_bytes == window.materials[0].original_bytes
+    assert restored.case.audit[-1].event == "case_opened"
+    assert restored.dirty
+    restored.results = [None, None]
+    restored.dirty = False
+    restored.close()
+
+
+def test_case_audit_records_import_analysis_and_review(window):
+    window.show_stage(2)
+    window.reject_button.click()
+    events = [entry.event for entry in window.case.audit]
+
+    assert events[0] == "case_created"
+    assert "document_imported" in events
+    assert "analysis_completed" in events
+    assert events[-1] == "candidate_reviewed"
+    window.case_repository.verify_integrity(window.case)
+
+
+def test_languagetool_groups_explain_unknown_words(window, app):
+    unknown = Candidate(
+        "unknown", window.material.id, "Слово не распознано словарём",
+        "Слово не распознано словарём", "Не найдено в словаре", "Он",
+        Span(0, 2), "MORFOLOGIK_RULE_RU_RU",
+    )
+    window.result.candidates.append(unknown)
+    window.populate_candidate_groups()
+    index = window.candidate_group_filter.findData("unknown_words")
+    window.candidate_group_filter.setCurrentIndex(index)
+    app.processEvents()
+
+    assert index > 0
+    assert window.candidate_list.count() == 1
+    assert "не доказательство ошибки" in window.candidate_group_help.text()
+    assert window.accept_button.text() == "Сохранить как наблюдение"
+    assert window.reject_button.text() == "Не учитывать"

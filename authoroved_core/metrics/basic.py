@@ -58,7 +58,7 @@ def calculate_metrics(text: str, tokens: list[Token]) -> list[Metric]:
         Metric("Уникальные словоформы", str(len(forms)), "Без различия регистра; ё и е не объединяются. " + definition, "Лексика"),
         Metric("Уникальные леммы", str(len(lemmas)), "По разметке Stanza, без различия регистра. Разметка может содержать ошибки.", "Лексика"),
         Metric("Лексическое разнообразие", number(len(forms) / total) if total else "Нет данных",
-               "Число уникальных словоформ / число слов (TTR). Показатель зависит от объёма текста; не является оценкой автора.", "Лексика"),
+               "Отношение числа уникальных словоформ к общему числу слов. Показатель зависит от объёма текста; не является оценкой автора.", "Лексика"),
     ])
     for title, selected in [("Частотные слова", words), ("Частотные знаменательные слова", [t for t in words if t.pos in {"NOUN", "PROPN", "VERB", "ADJ", "ADV"}])]:
         counts = Counter(t.text.casefold() for t in selected)
@@ -94,11 +94,11 @@ def calculate_metrics(text: str, tokens: list[Token]) -> list[Metric]:
     deps = Counter(t.dependency.split(":")[0] for t in words if t.dependency)
     dep_total = sum(deps.values())
     for dep, count in sorted(deps.items(), key=lambda p: (-p[1], p[0])):
-        metrics.append(Metric(f"UD {dep} — {DEPENDENCY_RU.get(dep, 'иная модельная связь')}",
+        metrics.append(Metric(f"{DEPENDENCY_RU.get(dep, 'иная модельная связь')} (код Stanza: {dep})",
                               f"{count} · {number(count / dep_total * 100)} %",
-                              f"Автоматическая связь «{dep}» в формализме Universal Dependencies v2, назначенная Stanza. "
-                              "Это техническая модель зависимости, а не термин традиционного русского синтаксиса и не экспертный вывод. "
+                              f"Служебный код «{dep}» назначен программой Stanza по международной схеме Universal Dependencies v2. "
+                              "Русское пояснение дано только для чтения машинной разметки: это не самостоятельное понятие традиционного русского синтаксиса и не экспертный вывод. "
                               "Подтипы объединены; показана доля среди размеченных слов. Автоматическая разметка может ошибаться.",
-                              "Технические связи Stanza (UD)",
+                              "Служебная синтаксическая разметка Stanza",
                               tuple(t.span for t in words if t.dependency.split(":")[0] == dep and t.span is not None)))
     return metrics

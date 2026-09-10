@@ -103,6 +103,7 @@ def main():
     (args.output / "verification.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps({k: report[k] for k in ["tokens", "candidates", "metrics", "reproducible"]}), flush=True)
     window.result = None
+    window.dirty = False
     window.close()
 
 
