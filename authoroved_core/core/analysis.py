@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from time import perf_counter
 
 from authoroved_core import __version__
+from authoroved_core.core.auto_features import FeatureExtractionService
 from authoroved_core.core.document import Document
 from authoroved_core.core.models import AnalysisResult
 from authoroved_core.metrics.basic import calculate_metrics, structural_metrics
@@ -15,6 +16,7 @@ class AnalysisService:
     def __init__(self, settings: LocalSettings):
         self.stanza = StanzaAdapter(settings.stanza_dir)
         self.lt = LanguageToolAdapter(settings)
+        self.features = FeatureExtractionService.from_default_registry()
 
     def analyze(self, document: Document, progress=lambda message: None) -> AnalysisResult:
         started = perf_counter()
@@ -29,6 +31,16 @@ class AnalysisService:
         except Exception:
             logging.exception("Stanza analysis failed")
             result.errors.append("Stanza: анализ не выполнен. Проверьте локальные модели в настройках. Подробности записаны в технический журнал.")
+        try:
+            result.feature_observations = self.features.analyze_object(document, result.tokens)
+            result.metadata["feature_registry"] = {
+                "id": self.features.registry.registry_id,
+                "version": self.features.registry.version,
+                "status": self.features.registry.status,
+            }
+        except Exception:
+            logging.exception("AUTO feature extraction failed")
+            result.errors.append("Методические AUTO-показатели: расчёт не выполнен. Подробности записаны в технический журнал.")
         progress("LanguageTool: проверка возможных ошибок…")
         try:
             result.candidates, result.metadata["languagetool"] = self.lt.analyze(document.id, document.text)

@@ -22,6 +22,10 @@ def _check_spans(result, text_length: int) -> list[str]:
         ("токен", (token.span for token in result.tokens if token.span is not None)),
         ("кандидат", (candidate.span for candidate in result.candidates)),
         ("показатель", (span for metric in result.metrics for span in metric.spans)),
+        (
+            "реализация AUTO-показателя",
+            (item.span for observation in result.feature_observations for item in observation.evidence),
+        ),
     ]
     for title, spans in collections:
         for span in spans:
@@ -80,6 +84,16 @@ def main() -> None:
             issues = [message for result in results for message in result.errors]
             for document, result in zip(documents, results):
                 issues.extend(_check_spans(result, len(document.text)))
+                if len(result.feature_observations) != 10:
+                    issues.append(
+                        f"Ожидалось 10 AUTO-показателей, получено {len(result.feature_observations)}."
+                    )
+                for observation in result.feature_observations:
+                    for item in observation.evidence:
+                        if document.text[item.span.start:item.span.end] != item.quote:
+                            issues.append(
+                                f"Цитата {observation.feature_id} не совпадает с исходным текстом."
+                            )
             if not comparison.metrics:
                 issues.append("Сопоставление не содержит измеримых показателей.")
             if hasattr(comparison, "score") or hasattr(comparison, "verdict"):
@@ -95,6 +109,7 @@ def main() -> None:
                         "characters": len(document.text),
                         "tokens": len(result.tokens),
                         "metrics": len(result.metrics),
+                        "auto_features": len(result.feature_observations),
                         "candidates": len(result.candidates),
                     }
                     for document, result in zip(documents, results)

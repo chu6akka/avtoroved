@@ -8,6 +8,9 @@ from authoroved_core.core.case_repository import (
     CaseIntegrityError, CasePasswordError, CaseRepository,
 )
 from authoroved_core.core.document import load_document
+from authoroved_core.core.feature_models import (
+    Applicability, FeatureEvidence, FeatureObservation, SourceReference,
+)
 from authoroved_core.core.models import AnalysisResult, Candidate, Metric, ReviewStatus, Span, Token
 
 
@@ -30,6 +33,13 @@ def populated_case(repository, tmp_path):
         tokens=[Token("Он", "он", "PRON", {"Case": "Nom"}, "nsubj", 2, 0, 1, Span(0, 2))],
         candidates=[candidate],
         metrics=[Metric("Слова", "2", "Подсчёт", "Количественные показатели")],
+        feature_observations=[FeatureObservation(
+            feature_id="LEX_001", raw_value={"он": 1}, normalized_value={"он": 500.0},
+            evidence=(FeatureEvidence("Он", Span(0, 2), "форма"),),
+            applicability=Applicability.APPLICABLE, limitations=("Проверить",),
+            method_version="auto-0.1.0",
+            source=(SourceReference("Методика", "с. 1", "контекст", "checked"),),
+        )],
         metadata={"stanza": {"version": "test"}}, errors=[],
     )
     case = repository.create()
@@ -85,6 +95,15 @@ def test_document_and_audit_mutation_fail_integrity(repository, tmp_path):
     case.materials[0] = original
     case.audit[1] = replace(case.audit[1], event="forged")
     with pytest.raises(CaseIntegrityError, match="цепочка журнала"):
+        repository.verify_integrity(case)
+
+
+def test_feature_evidence_mutation_fails_integrity(repository, tmp_path):
+    case = populated_case(repository, tmp_path)
+    observation = case.results[0].feature_observations[0]
+    observation.evidence = (FeatureEvidence("неверно", Span(0, 2)),)
+
+    with pytest.raises(CaseIntegrityError, match="evidence"):
         repository.verify_integrity(case)
 
 

@@ -1,6 +1,11 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from authoroved_core.core.feature_models import FeatureObservation
 
 
 @dataclass(frozen=True)
@@ -71,5 +76,6 @@ class AnalysisResult:
     tokens: list[Token] = field(default_factory=list)
     candidates: list[Candidate] = field(default_factory=list)
     metrics: list[Metric] = field(default_factory=list)
+    feature_observations: list[FeatureObservation] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)

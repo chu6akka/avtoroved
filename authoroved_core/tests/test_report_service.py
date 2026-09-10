@@ -98,6 +98,7 @@ def test_verification_package_excludes_sources_by_default_and_checks_hashes(tmp_
         manifest = json.loads(archive.read("manifest.json").decode("utf-8"))
         checksums = json.loads(archive.read("checksums.json").decode("utf-8"))["files"]
         assert not any(name.startswith("sources/") for name in names)
+        assert "features.json" in names
         assert manifest["source_documents_included"] is False
         assert set(manifest["contents"]) == names
         for name, expected in checksums.items():

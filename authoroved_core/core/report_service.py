@@ -157,6 +157,34 @@ def _comparison_data(comparison: ComparisonResult) -> dict[str, Any]:
     }
 
 
+def _feature_data(case: CaseData) -> list[dict[str, Any]]:
+    rows = []
+    for slot, result in enumerate(case.results, 1):
+        if result is None:
+            continue
+        for item in result.feature_observations:
+            rows.append({
+                "text": slot,
+                "feature_id": item.feature_id,
+                "raw_value": item.raw_value,
+                "normalized_value": item.normalized_value,
+                "applicability": item.applicability.value,
+                "method_version": item.method_version,
+                "source": [asdict(source) for source in item.source],
+                "confidence": item.confidence,
+                "expert_status": item.expert_status.value,
+                "expert_value": item.expert_value,
+                "expert_comment": item.expert_comment,
+                "limitations": list(item.limitations),
+                "evidence": [
+                    {"quote": evidence.quote, "start": evidence.span.start,
+                     "end": evidence.span.end, "label": evidence.label}
+                    for evidence in item.evidence
+                ],
+            })
+    return rows
+
+
 def _set_font(run, name="Arial", size=11, bold=None, color="000000"):
     run.font.name = name
     run._element.get_or_add_rPr().rFonts.set(qn("w:eastAsia"), name)
@@ -428,6 +456,7 @@ class ReportService:
             "components.json": _json_bytes(_component_rows(case)),
             "materials.json": _json_bytes(_material_rows(case)),
             "comparison.json": _json_bytes(_comparison_data(comparison)),
+            "features.json": _json_bytes(_feature_data(case)),
         }
         if include_sources:
             for index, material in enumerate(case.materials, 1):

@@ -8,6 +8,9 @@ from pathlib import Path
 from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
 
 from authoroved_core.core.case_repository import CaseRepository
+from authoroved_core.core.feature_models import (
+    Applicability, ExpertFeatureStatus, FeatureEvidence, FeatureObservation,
+)
 from authoroved_core.core.models import AnalysisResult, Candidate, Metric, ReviewStatus, Span
 from authoroved_core.nlp.settings import LocalSettings
 from authoroved_core.ui.main_window import MainWindow
@@ -34,6 +37,11 @@ def window(app, tmp_path):
     candidate = Candidate("c", window.material.id, "Ошибка", "Орфография", "Возможная ошибка", "пришол", Span(6, 12), "RULE")
     result = AnalysisResult(window.material.id, candidates=[candidate],
                             metrics=[Metric("Среднее", "3", "Объяснение", "Количественные показатели")],
+                            feature_observations=[FeatureObservation(
+                                "LEX_001", {"и": 1}, {"и": 500.0},
+                                (FeatureEvidence("Он", Span(3, 5), "пример"),),
+                                Applicability.APPLICABLE, (), "auto-0.1.0", (),
+                            )],
                             metadata={"languagetool": {"mode": "local-cli"}})
     window.display_result(result)
     window.show()
@@ -72,6 +80,25 @@ def test_aggregate_clears_highlight(window):
     window.toolbox.widget(0).setCurrentRow(0)
     assert not window.text_view.extraSelections()
     assert "не имеет одного конкретного фрагмента" in window.highlight_note.text()
+
+
+def test_auto_feature_is_russian_explained_and_requires_explicit_review(window):
+    feature_page = next(
+        window.toolbox.widget(index) for index in range(window.toolbox.count())
+        if window.toolbox.itemText(index) == "Методические AUTO-показатели"
+    )
+    feature_page.setCurrentRow(0)
+    observation = window.result.feature_observations[0]
+
+    assert "внутренняя операционализация" in window.metric_help.text().casefold()
+    assert "Сырое значение" in window.metric_help.text()
+    assert observation.expert_status is ExpertFeatureStatus.UNREVIEWED
+    window.feature_comment.setText("Проверено по тексту")
+    window.confirm_feature_button.click()
+
+    assert observation.expert_status is ExpertFeatureStatus.CONFIRMED
+    assert observation.expert_comment == "Проверено по тексту"
+    assert window.case.audit[-1].event == "feature_reviewed"
 
 
 def test_rejected_filter_and_next_unreviewed(window):

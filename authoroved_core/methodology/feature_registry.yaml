@@ -1,0 +1,189 @@
+registry:
+  id: authoroved-core-auto
+  version: "0.1.0"
+  status: research_engineering_profile
+  language: ru
+  notice: >-
+    Идентификаторы LEX_*, MOR_*, SYN_*, PUN_* и GRA_* являются внутренней
+    операционализацией. Реестр описывает воспроизводимые измерения, а не
+    нормативную систему идентификационных признаков и не правила вывода.
+  identification_thresholds: null
+  default_suitability_minimum_words: null
+
+features:
+  - id: LEX_001
+    name_ru: Частоты служебных слов
+    group: Лексика
+    automation_mode: AUTO
+    definition: Частоты словоформ, размеченных как предлоги, союзы, частицы или вспомогательные глаголы.
+    criteria: [буквенный токен, допустимая часть речи Stanza]
+    exclusions: [пунктуация, символы, числовые токены, местоимения]
+    unit: количество и употребления на 1000 слов
+    normalization: count / all_words * 1000
+    minimum_words: 1
+    minimum_volume_status: engineering_only
+    evidence_method: все реализации словоформы с точными координатами
+    dependency_group: lexical_function_distribution
+    method_version: auto-0.1.0
+    sources:
+      - {title: "Методика Минюста", locator: "с. 13", role: "методический контекст частот служебных слов", verification: "checked_local_primary"}
+      - {title: "Universal Dependencies v2 / Stanza", locator: "UPOS: ADP, CCONJ, SCONJ, PART, AUX", role: "техническая разметка", verification: "checked_technical_primary"}
+
+  - id: LEX_002
+    name_ru: Местоименный профиль
+    group: Лексика
+    automation_mode: AUTO
+    definition: Распределение местоимений по словоформам и доступным грамматическим характеристикам лица, числа и типа.
+    criteria: [буквенный токен с UPOS PRON]
+    exclusions: [детерминативы с UPOS DET, токены без букв]
+    unit: количество и употребления на 1000 слов
+    normalization: count / all_words * 1000
+    minimum_words: 1
+    minimum_volume_status: engineering_only
+    evidence_method: все местоимения с точными координатами и метками Stanza
+    dependency_group: lexical_pronoun_distribution
+    method_version: auto-0.1.0
+    sources:
+      - {title: "Методика Минюста", locator: "с. 22", role: "общая рамка частных языковых признаков", verification: "checked_local_primary"}
+      - {title: "Universal Dependencies v2 / Stanza", locator: "UPOS PRON; features Person, Number, PronType", role: "техническая разметка", verification: "checked_technical_primary"}
+
+  - id: LEX_005
+    name_ru: Лексическое разнообразие MATTR
+    group: Лексика
+    automation_mode: AUTO
+    definition: Среднее отношение числа различных словоформ к размеру скользящего окна из 50 слов.
+    criteria: [не менее 50 буквенных токенов, фиксированное окно 50]
+    exclusions: [пунктуация, символы, числовые токены]
+    unit: доля от 0 до 1
+    normalization: mean(unique_casefold_forms_in_window / 50)
+    minimum_words: 50
+    minimum_volume_status: algorithmic_requirement_not_methodological_threshold
+    evidence_method: координаты всех слов, участвующих в последовательности скользящих окон
+    dependency_group: lexical_diversity
+    method_version: auto-0.1.0
+    sources:
+      - {title: "Covington, McFall. Cutting the Gordian Knot: The Moving-Average Type-Token Ratio", locator: "2010, pp. 94–100", role: "определение MATTR", verification: "checked_primary_publication"}
+      - {title: "Методика Минюста", locator: "с. 13", role: "ограниченный контекст количественного анализа", verification: "checked_local_primary"}
+
+  - id: MOR_001
+    name_ru: Профиль частей речи
+    group: Морфология
+    automation_mode: AUTO
+    definition: Распределение слов по универсальным частям речи Stanza.
+    criteria: [буквенный токен с UPOS]
+    exclusions: [PUNCT, SYM, чисто числовые токены]
+    unit: количество и доля слов в процентах
+    normalization: count / all_words * 100
+    minimum_words: 1
+    minimum_volume_status: engineering_only
+    evidence_method: все токены каждой части речи с точными координатами
+    dependency_group: morphology_distribution
+    method_version: auto-0.1.0
+    sources:
+      - {title: "Методика Минюста", locator: "с. 20–22", role: "грамматические признаки в раздельном исследовании", verification: "checked_local_primary"}
+      - {title: "Universal Dependencies v2 / Stanza", locator: "UPOS", role: "техническая разметка", verification: "checked_technical_primary"}
+
+  - id: MOR_003
+    name_ru: Профиль падежей именных форм
+    group: Морфология
+    automation_mode: AUTO
+    definition: Распределение значений Case среди именных форм, для которых Stanza указала падеж.
+    criteria: [UPOS NOUN, PROPN, ADJ, PRON, DET или NUM, наличие Case]
+    exclusions: [формы без значения Case]
+    unit: количество, доля размеченных именных форм и употребления на 1000 слов
+    normalization: count / case_marked_nominals * 100; count / all_words * 1000
+    minimum_words: 1
+    minimum_volume_status: engineering_only
+    evidence_method: все падежно размеченные именные формы с координатами
+    dependency_group: morphology_distribution
+    method_version: auto-0.1.0
+    sources:
+      - {title: "Методика Минюста", locator: "с. 20–22", role: "общая рамка грамматических признаков", verification: "checked_local_primary"}
+      - {title: "Universal Dependencies v2 / Stanza", locator: "feature Case", role: "техническая разметка", verification: "checked_technical_primary"}
+
+  - id: MOR_004
+    name_ru: Профиль глагольных форм
+    group: Морфология
+    automation_mode: AUTO
+    definition: Распределение времени, лица, вида и наклонения среди глаголов и вспомогательных глаголов.
+    criteria: [UPOS VERB или AUX]
+    exclusions: [неразмеченная характеристика не считается её отсутствием]
+    unit: количество и доля размеченных глагольных форм в процентах
+    normalization: count / verb_forms_with_corresponding_feature * 100
+    minimum_words: 1
+    minimum_volume_status: engineering_only
+    evidence_method: все глагольные формы с координатами и метками Stanza
+    dependency_group: morphology_distribution
+    method_version: auto-0.1.0
+    sources:
+      - {title: "Методика Минюста", locator: "с. 20–22", role: "общая рамка грамматических признаков", verification: "checked_local_primary"}
+      - {title: "Universal Dependencies v2 / Stanza", locator: "features Tense, Person, Aspect, Mood", role: "техническая разметка", verification: "checked_technical_primary"}
+
+  - id: SYN_001
+    name_ru: Длина предложений
+    group: Синтаксис
+    automation_mode: AUTO
+    definition: Среднее, медиана и стандартное отклонение числа слов в предложениях Stanza.
+    criteria: [хотя бы одно предложение с буквенным токеном]
+    exclusions: [PUNCT, SYM, чисто числовые токены]
+    unit: слов на предложение
+    normalization: mean, median, population standard deviation
+    minimum_words: 1
+    minimum_volume_status: engineering_only
+    evidence_method: полный диапазон каждого предложения и его длина
+    dependency_group: sentence_length
+    method_version: auto-0.1.0
+    sources:
+      - {title: "Методика Минюста", locator: "с. 12–13", role: "ограниченный контекст стилеметрического показателя длины предложения", verification: "checked_local_primary"}
+      - {title: "Stanza", locator: "tokenize processor", role: "техническая сегментация предложений", verification: "checked_technical_primary"}
+
+  - id: PUN_001
+    name_ru: Профиль знаков препинания
+    group: Пунктуация
+    automation_mode: AUTO
+    definition: Частоты явно перечисленных знаков и многоточий относительно числа слов.
+    criteria: [точное совпадение с перечнем знаков]
+    exclusions: [внутрисловные дефисы и апострофы]
+    unit: количество и употребления на 1000 слов
+    normalization: count / all_words * 1000
+    minimum_words: 1
+    minimum_volume_status: engineering_only
+    evidence_method: каждая реализация знака с точными координатами
+    dependency_group: punctuation_distribution
+    method_version: auto-0.1.0
+    sources:
+      - {title: "Методика Минюста", locator: "с. 20–22", role: "пунктуационные признаки письменной речи", verification: "checked_local_primary"}
+
+  - id: PUN_002
+    name_ru: Вопросительные и восклицательные знаки
+    group: Пунктуация
+    automation_mode: AUTO
+    definition: Частоты одиночных вопросительных и восклицательных знаков, сочетаний и повторных последовательностей.
+    criteria: ["символы ? и !", "непрерывные последовательности длиной не менее двух"]
+    exclusions: [отсутствие знака при отсутствии возможности проявления не интерпретируется]
+    unit: количество и употребления на 1000 слов
+    normalization: count / all_words * 1000
+    minimum_words: 1
+    minimum_volume_status: engineering_only
+    evidence_method: каждый знак и каждая последовательность с точными координатами
+    dependency_group: punctuation_distribution
+    method_version: auto-0.1.0
+    sources:
+      - {title: "Методика Минюста", locator: "с. 22", role: "псевдопунктуация интернет-коммуникации", verification: "checked_local_primary"}
+
+  - id: GRA_001
+    name_ru: Необычный и эмфатический регистр
+    group: Графика
+    automation_mode: AUTO
+    definition: Слова из двух и более букв, набранные целиком прописными, и слова с необычным внутренним смешением регистра.
+    criteria: [не менее двух букв, наличие прописной буквы]
+    exclusions: [обычная прописная в начале слова, однобуквенные слова, аббревиатуры не квалифицируются автоматически]
+    unit: количество и употребления на 1000 слов
+    normalization: count / all_words * 1000
+    minimum_words: 1
+    minimum_volume_status: engineering_only
+    evidence_method: каждая словоформа с точными координатами и нейтральной меткой
+    dependency_group: graphic_case
+    method_version: auto-0.1.0
+    sources:
+      - {title: "Методика Минюста", locator: "с. 22", role: "разные буквенные регистры как графические особенности интернет-коммуникации", verification: "checked_local_primary"}

@@ -105,6 +105,18 @@ def main():
         window.toolbox.widget(ud_group).setCurrentRow(0)
         app.processEvents()
         assert window.grab().save(str(args.output / "stage_c_ud_explanation.png"))
+    auto_group = next((index for index in range(window.toolbox.count())
+                       if window.toolbox.itemText(index) == "Методические AUTO-показатели"), None)
+    assert auto_group is not None
+    assert all(len(result.feature_observations) == 10 for result in results)
+    for document, result in zip(documents, results):
+        for observation in result.feature_observations:
+            for evidence in observation.evidence:
+                assert document.text[evidence.span.start:evidence.span.end] == evidence.quote
+    window.toolbox.setCurrentIndex(auto_group)
+    window.toolbox.widget(auto_group).setCurrentRow(0)
+    app.processEvents()
+    assert window.grab().save(str(args.output / "stage_auto_features.png"))
     window.show_stage(3)
     app.processEvents()
     assert window.workspace.currentWidget() is window.comparison_page
@@ -126,6 +138,12 @@ def main():
         "python_network_attempts": attempts,
         "authorship_score": None,
         "case_roundtrip": True,
+        "auto_features_per_document": [len(result.feature_observations) for result in results],
+        "auto_features_confirmed": [
+            sum(item.expert_status.value in {"CONFIRMED", "CORRECTED"}
+                for item in result.feature_observations)
+            for result in results
+        ],
         "audit_entries": len(restored.audit),
         "screenshot": str(screenshot),
         "export_screenshot": str(final_screenshot),

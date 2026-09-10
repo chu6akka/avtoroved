@@ -18,6 +18,13 @@ from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from authoroved_core.core.document import Document, sha256_bytes
+from authoroved_core.core.feature_models import (
+    Applicability,
+    ExpertFeatureStatus,
+    FeatureEvidence,
+    FeatureObservation,
+    SourceReference,
+)
 from authoroved_core.core.models import AnalysisResult, Candidate, Metric, ReviewStatus, Span, Token
 
 
@@ -137,6 +144,25 @@ def _result(value: AnalysisResult | None):
                 "group": item.group, "spans": [_span(span) for span in item.spans],
             } for item in value.metrics
         ],
+        "feature_observations": [
+            {
+                "feature_id": item.feature_id,
+                "raw_value": item.raw_value,
+                "normalized_value": item.normalized_value,
+                "evidence": [
+                    {"quote": evidence.quote, "span": _span(evidence.span), "label": evidence.label}
+                    for evidence in item.evidence
+                ],
+                "applicability": item.applicability.value,
+                "limitations": list(item.limitations),
+                "method_version": item.method_version,
+                "source": [asdict(source) for source in item.source],
+                "confidence": item.confidence,
+                "expert_status": item.expert_status.value,
+                "expert_value": item.expert_value,
+                "expert_comment": item.expert_comment,
+            } for item in value.feature_observations
+        ],
         "metadata": value.metadata,
         "errors": value.errors,
     }
@@ -166,6 +192,22 @@ def _result_from(value) -> AnalysisResult | None:
             explanation=str(item["explanation"]), group=str(item["group"]),
             spans=tuple(_required_span(span) for span in item["spans"]),
         ) for item in value["metrics"]],
+        feature_observations=[FeatureObservation(
+            feature_id=str(item["feature_id"]), raw_value=item.get("raw_value"),
+            normalized_value=item.get("normalized_value"),
+            evidence=tuple(FeatureEvidence(
+                quote=str(evidence["quote"]), span=_required_span(evidence["span"]),
+                label=str(evidence.get("label", "")),
+            ) for evidence in item.get("evidence", [])),
+            applicability=Applicability(item["applicability"]),
+            limitations=tuple(str(value) for value in item.get("limitations", [])),
+            method_version=str(item["method_version"]),
+            source=tuple(SourceReference(**source) for source in item.get("source", [])),
+            confidence=str(item.get("confidence", "не вычисляется")),
+            expert_status=ExpertFeatureStatus(item.get("expert_status", "UNREVIEWED")),
+            expert_value=item.get("expert_value"),
+            expert_comment=str(item.get("expert_comment", "")),
+        ) for item in value.get("feature_observations", [])],
         metadata=dict(value["metadata"]), errors=list(value["errors"]),
     )
 
@@ -273,6 +315,13 @@ class CaseRepository:
             for metric in result.metrics:
                 if any(not span.valid_for(document.text) for span in metric.spans):
                     issues.append(f"Некорректен диапазон показателя «{metric.name}» текста {index}.")
+            for observation in result.feature_observations:
+                for evidence in observation.evidence:
+                    if (not evidence.span.valid_for(document.text)
+                            or document.text[evidence.span.start:evidence.span.end] != evidence.quote):
+                        issues.append(
+                            f"Некорректен evidence показателя {observation.feature_id} текста {index}."
+                        )
         if issues:
             raise CaseIntegrityError(" ".join(issues))
 

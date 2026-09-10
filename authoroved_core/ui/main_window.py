@@ -1,4 +1,5 @@
 import logging
+import json
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
@@ -16,6 +17,9 @@ from authoroved_core.core.case_repository import (
 )
 from authoroved_core.core.comparison import compare_results
 from authoroved_core.core.document import EncodingChoiceRequired, load_document
+from authoroved_core.core.feature_models import (
+    Applicability, ExpertFeatureStatus, FeatureObservation,
+)
 from authoroved_core.core.lt_grouping import candidate_group_key, group_candidates
 from authoroved_core.core.models import ReviewStatus, STATUS_LABELS
 from authoroved_core.core.report_service import ReportError, ReportService
@@ -42,6 +46,35 @@ def button(text, callback, primary=False):
         widget.setObjectName("primary")
     widget.clicked.connect(callback)
     return widget
+
+
+FEATURE_KEY_RU = {
+    "word_count": "слов в материале", "counts": "количества",
+    "forms": "словоформы", "features": "характеристики",
+    "per_1000_words": "на 1000 слов", "percent_of_words": "доли слов, %",
+    "case_marked_nominals": "именных форм с падежом", "verb_forms": "глагольных форм",
+    "sentence_count": "предложений", "lengths": "длины предложений",
+    "mattr": "MATTR", "window": "окно", "window_count": "окон",
+}
+
+
+def feature_value_preview(value, limit=3):
+    if value is None:
+        return "не рассчитано"
+    if isinstance(value, dict):
+        parts = []
+        for key, item in list(value.items())[:limit]:
+            title = FEATURE_KEY_RU.get(str(key), str(key))
+            parts.append(f"{title}: {feature_value_preview(item, 3)}")
+        if len(value) > limit:
+            parts.append(f"ещё {len(value) - limit}")
+        return "; ".join(parts) if parts else "нет реализаций"
+    if isinstance(value, list):
+        shown = ", ".join(str(item) for item in value[:limit])
+        return shown + (f" … ещё {len(value) - limit}" if len(value) > limit else "")
+    if isinstance(value, float):
+        return f"{value:.3f}".rstrip("0").rstrip(".").replace(".", ",")
+    return str(value)
 
 
 class AnalysisWorker(QThread):
@@ -187,6 +220,7 @@ class MainWindow(QMainWindow):
         self.worker = None
         self.worker_slot = None
         self.current_candidate = None
+        self.current_feature = None
         central = QWidget()
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
@@ -316,6 +350,24 @@ class MainWindow(QMainWindow):
         self.metric_help = label("Выберите показатель: здесь появится объяснение расчёта.", "metricHelp")
         self.metric_help.setMinimumHeight(85)
         metrics_layout.addWidget(self.metric_help)
+        self.feature_review_panel = QWidget()
+        feature_review_layout = QVBoxLayout(self.feature_review_panel)
+        feature_review_layout.setContentsMargins(0, 0, 0, 0)
+        self.feature_comment = QLineEdit()
+        self.feature_comment.setPlaceholderText("Комментарий к методическому показателю (необязательно)")
+        feature_review_layout.addWidget(self.feature_comment)
+        feature_buttons = QHBoxLayout()
+        self.confirm_feature_button = button(
+            "Подтвердить расчёт", lambda: self.review_feature(ExpertFeatureStatus.CONFIRMED), True,
+        )
+        self.reject_feature_button = button(
+            "Не использовать", lambda: self.review_feature(ExpertFeatureStatus.REJECTED),
+        )
+        feature_buttons.addWidget(self.confirm_feature_button)
+        feature_buttons.addWidget(self.reject_feature_button)
+        feature_review_layout.addLayout(feature_buttons)
+        self.feature_review_panel.hide()
+        metrics_layout.addWidget(self.feature_review_panel)
         metrics_layout.addWidget(button("Перейти к проверке кандидатов →", lambda: self.show_stage(2), True))
         self.pages.addWidget(self.metrics_page)
 
@@ -1244,14 +1296,85 @@ class MainWindow(QMainWindow):
                     page.addItem(item)
             page.currentItemChanged.connect(self.select_metric)
             self.toolbox.addItem(page, group)
+        if self.result.feature_observations:
+            page = QListWidget()
+            page.setWordWrap(True)
+            labels = {
+                ExpertFeatureStatus.UNREVIEWED: "Не проверен экспертом",
+                ExpertFeatureStatus.CONFIRMED: "Подтверждён экспертом",
+                ExpertFeatureStatus.REJECTED: "Не используется",
+                ExpertFeatureStatus.CORRECTED: "Исправлен экспертом",
+            }
+            for observation in self.result.feature_observations:
+                definition = self.service.features.registry.get(observation.feature_id)
+                applicability = ("Рассчитан" if observation.applicability is Applicability.APPLICABLE
+                                 else "Недостаточно данных")
+                item = QListWidgetItem(
+                    f"{definition.name_ru} · {applicability}\n"
+                    f"{observation.feature_id} · {labels[observation.expert_status]}"
+                )
+                item.setData(Qt.ItemDataRole.UserRole, observation)
+                page.addItem(item)
+            page.currentItemChanged.connect(self.select_metric)
+            self.toolbox.addItem(page, "Методические AUTO-показатели")
 
     def select_metric(self, item, previous=None):
         if item is None:
             return
         metric = item.data(Qt.ItemDataRole.UserRole)
+        if isinstance(metric, FeatureObservation):
+            self.select_feature(metric)
+            return
+        self.current_feature = None
+        self.feature_review_panel.hide()
         self.metric_help.setText(metric.explanation)
         self.text_view.highlight(metric.spans, METRIC_HIGHLIGHT)
         self.highlight_note.setText(f"Связанных фрагментов: {len(metric.spans)}" if metric.spans else GLOBAL_NOTE)
+
+    def select_feature(self, observation):
+        self.current_feature = observation
+        definition = self.service.features.registry.get(observation.feature_id)
+        applicability = ("применим" if observation.applicability is Applicability.APPLICABLE
+                         else "недостаточно данных")
+        raw = feature_value_preview(observation.raw_value, 3)
+        normalized = feature_value_preview(observation.normalized_value, 3)
+        main_source = definition.sources[0]
+        self.metric_help.setText(
+            f"{definition.name_ru}. Внутренняя операционализация, код: {definition.id}.\n"
+            f"Что считаем: {definition.definition}\n"
+            f"Сырое значение: {raw}\nНормированное значение: {normalized}\n"
+            f"Статус расчёта: {applicability}. Основание: {main_source.title}, {main_source.locator}."
+        )
+        self.metric_help.setToolTip(
+            "Полные данные:\n" + json.dumps({
+                "raw": observation.raw_value,
+                "normalized": observation.normalized_value,
+            }, ensure_ascii=False, sort_keys=True, indent=2)
+        )
+        spans = tuple(item.span for item in observation.evidence)
+        self.text_view.highlight(spans, METRIC_HIGHLIGHT)
+        self.highlight_note.setText(
+            f"Найдено реализаций: {len(spans)}. До подтверждения показатель не участвует в сопоставлении."
+        )
+        self.feature_comment.setText(observation.expert_comment)
+        enabled = observation.applicability is Applicability.APPLICABLE
+        self.confirm_feature_button.setEnabled(enabled)
+        self.reject_feature_button.setEnabled(enabled)
+        self.feature_review_panel.show()
+
+    def review_feature(self, status):
+        if self.current_feature is None:
+            return
+        previous = self.current_feature.expert_status
+        self.current_feature.review(status, comment=self.feature_comment.text())
+        self.record_event("feature_reviewed", {
+            "slot": self.current_slot + 1,
+            "document_id": self.result.document_id,
+            "feature_id": self.current_feature.feature_id,
+            "from": previous.value,
+            "to": status.value,
+        })
+        self.populate_metrics()
 
     def populate_candidates(self, *_):
         self.record_comment_if_changed()
