@@ -1,9 +1,14 @@
 import json
+from hashlib import sha256
 from pathlib import Path
+from types import SimpleNamespace as NS
 
 import pytest
 
 from authoroved_core.core.models import Span, Token
+from authoroved_core.core.auto_features import FeatureExtractionService
+from authoroved_core.core.document import Document
+from authoroved_core.nlp.stanza_adapter import convert_document
 from authoroved_core.nlp.parsed_document import ParsedDocument
 from authoroved_core.nlp.russian.adapter import RussianGrammarAdapter
 from authoroved_core.nlp.russian.enums import InterpretationStatus, MappingType
@@ -118,3 +123,36 @@ def test_registry_contains_all_mvp_rules_and_real_hash():
         *(f"RU_SYN_{index:03d}" for index in range(1, 19)),
     }
     assert len(registry.sha256) == 64
+
+
+def test_vertical_path_stanza_to_adapter_to_mor_001_observation():
+    text = "Этот человек пишет."
+    words = [
+        NS(text="Этот", lemma="этот", upos="DET", xpos="", feats="Case=Nom|PronType=Dem",
+           deprel="det", head=2, id=1, start_char=0, end_char=4),
+        NS(text="человек", lemma="человек", upos="NOUN", xpos="", feats="Case=Nom",
+           deprel="nsubj", head=3, id=2, start_char=5, end_char=12),
+        NS(text="пишет", lemma="писать", upos="VERB", xpos="", feats="VerbForm=Fin|Tense=Pres",
+           deprel="root", head=0, id=3, start_char=13, end_char=18),
+    ]
+    stanza_document = NS(sentences=[NS(tokens=[NS(words=[word]) for word in words])])
+    raw_tokens = convert_document(stanza_document, text)
+    parsed = ParsedDocument.from_tokens(text, raw_tokens)
+    russian = RussianGrammarAdapter().adapt(parsed)
+    data = text.encode("utf-8")
+    document = Document(
+        "vertical", "vertical.txt", text, data, sha256(data).hexdigest(),
+        sha256(data).hexdigest(), "utf-8", "fixture",
+    )
+
+    observations = FeatureExtractionService.from_default_registry().analyze_object(
+        document, raw_tokens, russian_document=russian,
+    )
+    mor_001 = next(item for item in observations if item.feature_id == "MOR_001")
+
+    assert mor_001.raw_value["counts"] == {
+        "Глаголы": 1, "Местоименные слова": 1, "Существительные": 1,
+    }
+    assert mor_001.method_version == "auto-0.2.0"
+    assert len(mor_001.evidence) == 3
+    assert russian.annotation_at(0, 1).rule_id == "RU_POS_010"

@@ -16,10 +16,12 @@ from authoroved_core.core.feature_models import (
 )
 from authoroved_core.core.feature_registry import FeatureRegistry
 from authoroved_core.core.models import Span, Token
+from authoroved_core.nlp.parsed_document import ParsedDocument
+from authoroved_core.nlp.russian.adapter import RussianGrammarAdapter
+from authoroved_core.nlp.russian.enums import RussianPOS
+from authoroved_core.nlp.russian.models import RussianParsedDocument
 from authoroved_core.core.russian_word_classes import (
-    CLASS_BY_KEY,
     is_service_word,
-    russian_word_class_key,
 )
 
 
@@ -165,18 +167,47 @@ def _lex_005(definition: FeatureDefinition, text: str, words: list[Token]):
     )
 
 
-def _mor_001(definition: FeatureDefinition, text: str, words: list[Token]):
-    counts = Counter(russian_word_class_key(token) for token in words)
-    display_counts = dict(sorted(
-        (CLASS_BY_KEY[key].title, count) for key, count in counts.items()
-    ))
-    normalized = {title: _rate(count, len(words), 100)
+RUSSIAN_POS_GROUPS = {
+    RussianPOS.NOUN: "Существительные",
+    RussianPOS.PROPER_NOUN: "Существительные",
+    RussianPOS.ADJECTIVE: "Прилагательные",
+    RussianPOS.VERB_FINITE: "Глаголы",
+    RussianPOS.INFINITIVE: "Глаголы",
+    RussianPOS.PARTICIPLE: "Глаголы",
+    RussianPOS.DEEPRICHASTIE: "Глаголы",
+    RussianPOS.PRONOUN: "Местоименные слова",
+    RussianPOS.PRONOMINAL_WORD: "Местоименные слова",
+    RussianPOS.NUMERAL: "Числительные",
+    RussianPOS.ADVERB: "Наречия",
+    RussianPOS.PREPOSITION: "Предлоги",
+    RussianPOS.CONJUNCTION_COORDINATING: "Союзы",
+    RussianPOS.CONJUNCTION_SUBORDINATING: "Союзы",
+    RussianPOS.PARTICLE: "Частицы",
+    RussianPOS.INTERJECTION: "Междометия",
+    RussianPOS.UNKNOWN: "Не классифицировано",
+}
+
+
+def _mor_001(definition: FeatureDefinition, text: str,
+             russian_document: RussianParsedDocument):
+    annotations = russian_document.word_annotations
+    counts = Counter(RUSSIAN_POS_GROUPS[item.russian_category] for item in annotations)
+    display_counts = dict(sorted(counts.items()))
+    normalized = {title: _rate(count, len(annotations), 100)
                   for title, count in display_counts.items()}
+    evidence = tuple(
+        FeatureEvidence(item.source_text, item.source_span,
+                        RUSSIAN_POS_GROUPS[item.russian_category])
+        for item in annotations
+        if item.source_span is not None and item.source_span.valid_for(text)
+        and text[item.source_span.start:item.source_span.end] == item.source_text
+    )
     return _observation(
-        definition, {"word_count": len(words), "counts": dict(sorted(display_counts.items()))},
+        definition, {"word_count": len(annotations), "counts": display_counts},
         {"percent_of_words": normalized},
-        _token_evidence(words, text, lambda token: CLASS_BY_KEY[russian_word_class_key(token)].title),
-        ("Классы укрупнены для русскоязычного представления; это автоматическая, а не ручная разметка.",),
+        evidence,
+        ("Классы получены Russian Grammar Adapter из неизменённой разметки Stanza; "
+         "неоднозначные случаи остаются отдельными случаями экспертной проверки.",),
     )
 
 
@@ -341,32 +372,44 @@ CALCULATORS = {
 class FeatureExtractionService:
     """Вычисляет зарегистрированные AUTO-показатели без экспертного вывода."""
 
-    def __init__(self, registry: FeatureRegistry):
+    def __init__(self, registry: FeatureRegistry,
+                 grammar_adapter: RussianGrammarAdapter | None = None):
         self.registry = registry
+        self.grammar_adapter = grammar_adapter or RussianGrammarAdapter()
 
     @classmethod
-    def from_default_registry(cls) -> "FeatureExtractionService":
-        return cls(FeatureRegistry.load())
+    def from_default_registry(cls, *,
+                              grammar_adapter: RussianGrammarAdapter | None = None) -> "FeatureExtractionService":
+        return cls(FeatureRegistry.load(), grammar_adapter=grammar_adapter)
 
-    def analyze_object(self, document: Document, tokens: list[Token]) -> list[FeatureObservation]:
+    def analyze_object(self, document: Document, tokens: list[Token], *,
+                       russian_document: RussianParsedDocument | None = None) -> list[FeatureObservation]:
         words = _words(tokens)
+        if russian_document is None:
+            russian_document = self.grammar_adapter.adapt(
+                ParsedDocument.from_tokens(document.text, tokens)
+            )
         observations = []
         for definition in self.registry.by_mode(AutomationMode.AUTO):
             if definition.id not in CALCULATORS:
                 raise ValueError(f"Для {definition.id} нет вычислителя.")
-            if not words:
+            word_count = (len(russian_document.word_annotations)
+                          if definition.id == "MOR_001" else len(words))
+            if not word_count:
                 observations.append(_insufficient(
                     definition, 0,
                     "Нет слов с проверенными координатами Stanza; показатель не вычислен.",
                 ))
-            elif not _minimum_ok(definition, len(words)):
+            elif not _minimum_ok(definition, word_count):
                 observations.append(_insufficient(
-                    definition, len(words),
+                    definition, word_count,
                     f"Для алгоритма нужно не менее {definition.minimum_words} слов; "
                     "это техническое условие вычисления, а не норматив пригодности.",
                 ))
             else:
-                observation = CALCULATORS[definition.id](definition, document.text, words)
+                observation = (_mor_001(definition, document.text, russian_document)
+                               if definition.id == "MOR_001"
+                               else CALCULATORS[definition.id](definition, document.text, words))
                 self._verify_evidence(document.text, observation)
                 observations.append(observation)
         return observations

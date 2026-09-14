@@ -15,7 +15,7 @@ EXPECTED_IDS = {
 def test_default_registry_contains_only_first_ten_auto_features():
     registry = FeatureRegistry.load()
 
-    assert registry.version == "0.1.0"
+    assert registry.version == "0.2.0"
     assert registry.identification_thresholds is None
     assert registry.default_suitability_minimum_words is None
     assert {item.id for item in registry.features} == EXPECTED_IDS

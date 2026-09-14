@@ -99,5 +99,14 @@ class RussianParsedDocument:
         return tuple(item for item in self.constructions if item.type is construction_type)
 
     @property
+    def word_annotations(self) -> tuple[RussianLinguisticAnnotation, ...]:
+        """Буквенные единицы для предметных детекторов без обращения к Token.pos."""
+        return tuple(
+            item for item in self.annotations
+            if any(char.isalpha() for char in item.source_text)
+            and item.raw_ud.upos not in {"PUNCT", "SYM"}
+        )
+
+    @property
     def review_required(self) -> tuple[RussianLinguisticAnnotation, ...]:
         return tuple(item for item in self.annotations if item.requires_review)

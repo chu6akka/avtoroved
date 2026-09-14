@@ -1,6 +1,6 @@
 registry:
   id: authoroved-core-auto
-  version: "0.1.0"
+  version: "0.2.0"
   status: research_engineering_profile
   language: ru
   notice: >-
@@ -69,8 +69,8 @@ features:
     name_ru: Укрупнённые классы слов
     group: Морфология
     automation_mode: AUTO
-    definition: Распределение слов по русскоязычным укрупнённым группам на основе технических меток Stanza.
-    criteria: [буквенный токен с UPOS]
+    definition: Распределение слов по укрупнённым группам Russian Grammar Adapter, полученным из сохранённой технической разметки Stanza.
+    criteria: [буквенная единица с русской грамматической интерпретацией либо явным статусом неоднозначности]
     exclusions: [PUNCT, SYM, чисто числовые токены]
     unit: количество и доля слов в процентах
     normalization: count / all_words * 100
@@ -78,10 +78,11 @@ features:
     minimum_volume_status: engineering_only
     evidence_method: все токены каждой укрупнённой группы с точными координатами
     dependency_group: morphology_distribution
-    method_version: auto-0.1.0
+    method_version: auto-0.2.0
     sources:
       - {title: "Методика Минюста", locator: "с. 20–22", role: "грамматические признаки в раздельном исследовании", verification: "checked_local_primary"}
       - {title: "Universal Dependencies v2 / Stanza", locator: "UPOS; NOUN+PROPN, VERB+AUX, PRON+DET, CCONJ+SCONJ", role: "техническая основа русскоязычного укрупнения", verification: "checked_technical_primary"}
+      - {title: "Russian Grammar Adapter", locator: "rules 0.1.0", role: "трассируемая предметная интерпретация технической разметки", verification: "internal_versioned_mapping"}
 
   - id: MOR_003
     name_ru: Профиль падежей именных форм
