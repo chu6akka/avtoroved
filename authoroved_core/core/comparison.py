@@ -3,16 +3,27 @@ from collections import Counter
 from dataclasses import dataclass
 import re
 
-from authoroved_core.core.lt_grouping import GROUP_BY_KEY, candidate_group_key
+from authoroved_core.core.lt_grouping import (
+    GROUP_BY_KEY,
+    UNKNOWN_WORD_CLASSIFICATION_LABELS,
+    candidate_group_key,
+)
 from authoroved_core.core.models import AnalysisResult, Candidate, Metric, ReviewStatus, Span
+from authoroved_core.core.russian_word_classes import is_service_word
 
 
 _DYNAMIC_LEXICAL_PREFIXES = ("Частотные слова:", "Частотные знаменательные слова:")
 _VOLUME_NAMES = {"Символы", "Слова", "Предложения", "Абзацы", "Уникальные словоформы", "Уникальные леммы"}
 _SENTENCE_RATE_NAMES = {"Предложения с вопросительным знаком", "Предложения с восклицательным знаком"}
 _WORD_RATE_NAMES = {"Многоточия"}
-_FUNCTION_POS = {"ADP", "PART", "CCONJ", "SCONJ", "PRON", "DET", "AUX"}
 _STANZA_DEPENDENCY_GROUP = "Служебная синтаксическая разметка Stanza"
+_WORD_CLASS_NAMES = {
+    "Существительные": {"Существительные", "Имена собственные"},
+    "Глаголы": {"Глаголы", "Вспомогательные глаголы"},
+    "Местоименные слова": {"Местоименные слова", "Местоимения", "Определители"},
+    "Союзы": {"Союзы", "Сочинительные союзы", "Подчинительные союзы"},
+}
+_LEGACY_WORD_CLASS_NAMES = set().union(*_WORD_CLASS_NAMES.values())
 
 
 @dataclass(frozen=True)
@@ -68,8 +79,29 @@ def _difference(first: float, second: float, unit: str) -> tuple[str, str]:
 
 
 def _metric_map(result: AnalysisResult) -> dict[str, Metric]:
-    return {metric.name: metric for metric in result.metrics
-            if not metric.name.startswith(_DYNAMIC_LEXICAL_PREFIXES)}
+    metrics = {
+        metric.name: metric for metric in result.metrics
+        if not metric.name.startswith(_DYNAMIC_LEXICAL_PREFIXES)
+        and metric.group != _STANZA_DEPENDENCY_GROUP
+        and metric.name not in _LEGACY_WORD_CLASS_NAMES
+    }
+    total_metric = next((item for item in result.metrics if item.name == "Слова"), None)
+    total = _number(total_metric.value) if total_metric else None
+    for title, source_names in _WORD_CLASS_NAMES.items():
+        source = [item for item in result.metrics if item.name in source_names]
+        if not source:
+            continue
+        count = sum(_number(item.value) or 0 for item in source)
+        value = _render(count)
+        if total:
+            value += f" · {_render(count / total * 100)} %"
+        metrics[title] = Metric(
+            title, value,
+            "Укрупнённая русскоязычная группа на основе автоматической разметки Stanza; "
+            "отдельные словоформы требуют проверки экспертом.",
+            "Морфология", tuple(span for item in source for span in item.spans),
+        )
+    return metrics
 
 
 def _total(result: AnalysisResult, name: str) -> float:
@@ -147,7 +179,7 @@ def _compare_metric(first: Metric, second: Metric,
 
 def _function_word_metrics(first: AnalysisResult, second: AnalysisResult) -> list[MetricComparison]:
     def selected(result):
-        return [token for token in result.tokens if token.pos in _FUNCTION_POS
+        return [token for token in result.tokens if is_service_word(token)
                 and any(char.isalpha() for char in token.text)]
 
     first_tokens, second_tokens = selected(first), selected(second)
@@ -167,8 +199,8 @@ def _function_word_metrics(first: AnalysisResult, second: AnalysisResult) -> lis
             value_first=f"{first_counts[form]} · {_render(rate_first)} на 1000 слов",
             value_second=f"{second_counts[form]} · {_render(rate_second)} на 1000 слов",
             difference=difference, direction=direction, basis="частота словоформы на 1000 слов",
-            explanation=("Словоформа отобрана по автоматической части речи Stanza: местоимение, "
-                         "предлог, союз, частица, детерминатив или вспомогательный глагол."),
+            explanation=("Словоформа отобрана как предлог, союз или частица по автоматической "
+                         "разметке Stanza. Местоименные и глагольные формы сюда не включаются."),
             caution=("Разметка части речи может ошибаться. Показатель не проверен как "
                      "самостоятельный идентификационный признак."),
             spans_first=tuple(token.span for token in first_tokens
@@ -182,6 +214,8 @@ def _function_word_metrics(first: AnalysisResult, second: AnalysisResult) -> lis
 def _accepted_key(candidate: Candidate):
     group = candidate_group_key(candidate)
     fragment = " ".join(candidate.fragment.casefold().split())
+    if fragment and group == "unknown_words":
+        return (group, "fragment", fragment, candidate.expert_classification)
     return (group, "fragment", fragment) if fragment else (group, "rule", candidate.rule_id)
 
 
@@ -201,9 +235,17 @@ def _accepted_groups(first: AnalysisResult, second: AnalysisResult) -> tuple[Acc
         else:
             relation = "Только в тексте 2"
         if key[1] == "fragment":
-            sample = (items_first or items_second)[0].fragment.replace("\n", " ").replace("\r", " ")
-            label = f"{definition.title}: «{sample}»"
-            basis = "одинаковая словоформа или фрагмент без различия регистра"
+            exemplar = (items_first or items_second)[0]
+            sample = exemplar.fragment.replace("\n", " ").replace("\r", " ")
+            if definition.key == "unknown_words":
+                classification = UNKNOWN_WORD_CLASSIFICATION_LABELS.get(
+                    exemplar.expert_classification, "Классификация экспертом не указана",
+                )
+                label = f"{classification}: «{sample}»"
+                basis = "одинаковая словоформа вне словаря LT без различия регистра"
+            else:
+                label = f"{definition.title}: «{sample}»"
+                basis = "одинаковая словоформа или фрагмент без различия регистра"
         else:
             label = definition.title
             basis = "одинаковый тип автоматической рекомендации LanguageTool"

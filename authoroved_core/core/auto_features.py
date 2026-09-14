@@ -16,9 +16,13 @@ from authoroved_core.core.feature_models import (
 )
 from authoroved_core.core.feature_registry import FeatureRegistry
 from authoroved_core.core.models import Span, Token
+from authoroved_core.core.russian_word_classes import (
+    CLASS_BY_KEY,
+    is_service_word,
+    russian_word_class_key,
+)
 
 
-FUNCTION_POS = {"ADP", "PART", "CCONJ", "SCONJ", "AUX"}
 NOMINAL_POS = {"NOUN", "PROPN", "ADJ", "PRON", "DET", "NUM"}
 WORD_POS_EXCLUDED = {"PUNCT", "SYM"}
 WORD_RE = re.compile(r"[^\W\d_]+(?:[-’'][^\W\d_]+)*", re.UNICODE)
@@ -29,13 +33,6 @@ CASE_RU = {
     "Nom": "именительный", "Gen": "родительный", "Dat": "дательный",
     "Acc": "винительный", "Ins": "творительный", "Loc": "предложный/местный",
     "Par": "частичный", "Voc": "звательный",
-}
-POS_RU = {
-    "NOUN": "существительные", "PROPN": "имена собственные", "VERB": "глаголы",
-    "AUX": "вспомогательные глаголы", "ADJ": "прилагательные", "ADV": "наречия",
-    "PRON": "местоимения", "NUM": "числительные", "DET": "определители",
-    "ADP": "предлоги", "PART": "частицы", "CCONJ": "сочинительные союзы",
-    "SCONJ": "подчинительные союзы", "INTJ": "междометия", "X": "неопределённые слова",
 }
 FEATURE_VALUE_RU = {
     "Person": {"1": "1-е лицо", "2": "2-е лицо", "3": "3-е лицо"},
@@ -48,6 +45,10 @@ FEATURE_VALUE_RU = {
     "Tense": {"Past": "прошедшее", "Pres": "настоящее", "Fut": "будущее"},
     "Aspect": {"Perf": "совершенный вид", "Imp": "несовершенный вид"},
     "Mood": {"Ind": "изъявительное", "Imp": "повелительное", "Cnd": "условное"},
+}
+FEATURE_NAME_RU = {
+    "Person": "лицо", "Number": "число", "PronType": "тип местоименного слова",
+    "Tense": "время", "Aspect": "вид", "Mood": "наклонение",
 }
 
 
@@ -99,7 +100,7 @@ def _minimum_ok(definition: FeatureDefinition, word_count: int) -> bool:
 
 
 def _lex_001(definition: FeatureDefinition, text: str, words: list[Token]):
-    selected = [token for token in words if token.pos in FUNCTION_POS]
+    selected = [token for token in words if is_service_word(token)]
     counts = Counter(token.text.casefold() for token in selected)
     normalized = {form: _rate(count, len(words), 1000) for form, count in sorted(counts.items())}
     return _observation(
@@ -112,7 +113,7 @@ def _lex_001(definition: FeatureDefinition, text: str, words: list[Token]):
 
 
 def _lex_002(definition: FeatureDefinition, text: str, words: list[Token]):
-    selected = [token for token in words if token.pos == "PRON"]
+    selected = [token for token in words if token.pos in {"PRON", "DET"}]
     forms = Counter(token.text.casefold() for token in selected)
     profiles: dict[str, Counter] = {name: Counter() for name in ("Person", "Number", "PronType")}
     for token in selected:
@@ -125,7 +126,7 @@ def _lex_002(definition: FeatureDefinition, text: str, words: list[Token]):
             form: _rate(count, len(words), 1000) for form, count in sorted(forms.items())
         },
         "характеристики_на_1000_слов": {
-            name: {
+            FEATURE_NAME_RU[name]: {
                 FEATURE_VALUE_RU.get(name, {}).get(value, value): _rate(count, len(words), 1000)
                 for value, count in sorted(counts.items())
             } for name, counts in profiles.items()
@@ -134,10 +135,16 @@ def _lex_002(definition: FeatureDefinition, text: str, words: list[Token]):
     return _observation(
         definition,
         {"word_count": len(words), "forms": dict(sorted(forms.items())),
-         "features": {name: dict(sorted(counts.items())) for name, counts in profiles.items()}},
+         "features": {
+             FEATURE_NAME_RU[name]: {
+                 FEATURE_VALUE_RU.get(name, {}).get(value, value): count
+                 for value, count in sorted(counts.items())
+             } for name, counts in profiles.items()
+         }},
         normalized,
         _token_evidence(selected, text, lambda token: ", ".join(
-            f"{key}={token.feats[key]}" for key in ("Person", "Number", "PronType")
+            f"{FEATURE_NAME_RU[key]}: {FEATURE_VALUE_RU[key].get(token.feats[key], token.feats[key])}"
+            for key in ("Person", "Number", "PronType")
             if key in token.feats
         )),
         ("Грамматические характеристики местоимений назначены Stanza и требуют проверки экспертом.",),
@@ -159,37 +166,40 @@ def _lex_005(definition: FeatureDefinition, text: str, words: list[Token]):
 
 
 def _mor_001(definition: FeatureDefinition, text: str, words: list[Token]):
-    counts = Counter(token.pos for token in words)
-    normalized = {
-        POS_RU.get(pos, pos): _rate(count, len(words), 100)
-        for pos, count in sorted(counts.items())
-    }
+    counts = Counter(russian_word_class_key(token) for token in words)
+    display_counts = dict(sorted(
+        (CLASS_BY_KEY[key].title, count) for key, count in counts.items()
+    ))
+    normalized = {title: _rate(count, len(words), 100)
+                  for title, count in display_counts.items()}
     return _observation(
-        definition, {"word_count": len(words), "counts": dict(sorted(counts.items()))},
+        definition, {"word_count": len(words), "counts": dict(sorted(display_counts.items()))},
         {"percent_of_words": normalized},
-        _token_evidence(words, text, lambda token: f"UPOS={token.pos}"),
-        ("UPOS является автоматической технической разметкой Stanza.",),
+        _token_evidence(words, text, lambda token: CLASS_BY_KEY[russian_word_class_key(token)].title),
+        ("Классы укрупнены для русскоязычного представления; это автоматическая, а не ручная разметка.",),
     )
 
 
 def _mor_003(definition: FeatureDefinition, text: str, words: list[Token]):
     selected = [token for token in words if token.pos in NOMINAL_POS and token.feats.get("Case")]
-    counts = Counter(token.feats["Case"] for token in selected)
+    counts = Counter(CASE_RU.get(token.feats["Case"], token.feats["Case"]) for token in selected)
     return _observation(
         definition,
         {"word_count": len(words), "case_marked_nominals": len(selected),
          "counts": dict(sorted(counts.items()))},
         {
             "percent_of_case_marked_nominals": {
-                CASE_RU.get(value, value): _rate(count, len(selected), 100)
+                value: _rate(count, len(selected), 100)
                 for value, count in sorted(counts.items())
             },
             "per_1000_words": {
-                CASE_RU.get(value, value): _rate(count, len(words), 1000)
+                value: _rate(count, len(words), 1000)
                 for value, count in sorted(counts.items())
             },
         },
-        _token_evidence(selected, text, lambda token: f"Case={token.feats['Case']}"),
+        _token_evidence(selected, text, lambda token: (
+            "падеж: " + CASE_RU.get(token.feats["Case"], token.feats["Case"])
+        )),
         ("Падеж назначен Stanza; формы без метки Case не включаются в знаменатель падежного профиля.",),
     )
 
@@ -206,17 +216,24 @@ def _mor_004(definition: FeatureDefinition, text: str, words: list[Token]):
     for name, counts in profiles.items():
         denominator = sum(counts.values())
         denominators[name] = denominator
-        normalized[name] = {
+        normalized[FEATURE_NAME_RU[name]] = {
             FEATURE_VALUE_RU.get(name, {}).get(value, value): _rate(count, denominator, 100)
             for value, count in sorted(counts.items())
         }
     return _observation(
         definition,
-        {"word_count": len(words), "verb_forms": len(selected), "denominators": denominators,
-         "counts": {name: dict(sorted(counts.items())) for name, counts in profiles.items()}},
+        {"word_count": len(words), "verb_forms": len(selected),
+         "denominators": {FEATURE_NAME_RU[name]: value for name, value in denominators.items()},
+         "counts": {
+             FEATURE_NAME_RU[name]: {
+                 FEATURE_VALUE_RU.get(name, {}).get(value, value): count
+                 for value, count in sorted(counts.items())
+             } for name, counts in profiles.items()
+         }},
         {"percent_within_each_marked_feature": normalized},
         _token_evidence(selected, text, lambda token: ", ".join(
-            f"{name}={token.feats[name]}" for name in profiles if name in token.feats
+            f"{FEATURE_NAME_RU[name]}: {FEATURE_VALUE_RU[name].get(token.feats[name], token.feats[name])}"
+            for name in profiles if name in token.feats
         )),
         ("Каждая доля рассчитывается только среди глагольных форм с соответствующей меткой Stanza.",),
     )

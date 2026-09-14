@@ -57,11 +57,17 @@ def test_all_ten_calculators_return_raw_normalized_values_and_exact_evidence(ser
 
     assert len(observations) == 10
     assert by_id["LEX_001"].raw_value["counts"] == {"в": 1, "и": 1}
-    assert by_id["LEX_002"].raw_value["features"]["Person"] == {"1": 1, "2": 1, "3": 1}
+    assert by_id["LEX_002"].raw_value["features"]["лицо"] == {
+        "1-е лицо": 1, "2-е лицо": 1, "3-е лицо": 1,
+    }
     assert by_id["LEX_005"].applicability is Applicability.INSUFFICIENT_DATA
-    assert by_id["MOR_001"].normalized_value["percent_of_words"]["местоимения"] > 0
-    assert by_id["MOR_003"].raw_value["counts"] == {"Acc": 2, "Nom": 5}
-    assert by_id["MOR_004"].raw_value["counts"]["Tense"] == {"Past": 1, "Pres": 1}
+    assert by_id["MOR_001"].normalized_value["percent_of_words"]["Местоименные слова"] > 0
+    assert by_id["MOR_003"].raw_value["counts"] == {
+        "винительный": 2, "именительный": 5,
+    }
+    assert by_id["MOR_004"].raw_value["counts"]["время"] == {
+        "настоящее": 1, "прошедшее": 1,
+    }
     assert by_id["SYN_001"].raw_value["lengths"] == [6, 2, 3]
     assert by_id["SYN_001"].normalized_value == {
         "mean": pytest.approx(11 / 3), "median": 3,

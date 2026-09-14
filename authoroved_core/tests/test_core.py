@@ -88,6 +88,7 @@ def test_unknown_languagetool_word_is_not_declared_an_error():
     assert candidate.category == "Слово не распознано словарём"
     assert "ещё не означает ошибку" in candidate.explanation
     assert candidate.replacements == ("ваххабиты",)
+    assert candidate.expert_classification == ""
 
 
 def test_review_changes_only_decision():
@@ -133,15 +134,23 @@ def test_transparent_metrics():
     assert calculate_metrics(text, tokens) == calculate_metrics(text, tokens)
 
 
-def test_dependency_metrics_are_explicitly_marked_as_ud_model_output():
-    tokens = [Token("Он", "он", "PRON", {}, "nsubj", 2, 0, 1, Span(0, 2)),
-              Token("дома", "дома", "ADV", {}, "root", 0, 0, 2, Span(3, 7))]
-    metrics = {m.name: m for m in calculate_metrics("Он дома", tokens)}
+def test_ud_codes_are_merged_into_russian_groups_and_dependencies_are_not_exposed():
+    tokens = [
+        Token("Москва", "москва", "PROPN", {}, "nsubj", 2, 0, 1, Span(0, 6)),
+        Token("была", "быть", "AUX", {}, "cop", 0, 0, 2, Span(7, 11)),
+        Token("эта", "этот", "DET", {}, "det", 4, 0, 3, Span(12, 15)),
+        Token("и", "и", "PART", {}, "cc", 4, 0, 4, Span(16, 17)),
+    ]
+    metrics = {m.name: m for m in calculate_metrics("Москва была эта и", tokens)}
 
-    subject = metrics["подлежащее (код Stanza: nsubj)"]
-    assert subject.group == "Служебная синтаксическая разметка Stanza"
-    assert "не самостоятельное понятие традиционного русского синтаксиса" in subject.explanation
-    assert "Universal Dependencies v2" in subject.explanation
+    assert metrics["Существительные"].value.startswith("1 ·")
+    assert metrics["Глаголы"].value.startswith("1 ·")
+    assert metrics["Местоименные слова"].value.startswith("1 ·")
+    assert metrics["Союзы"].value.startswith("1 ·")
+    assert "метки Stanza VERB и AUX" in metrics["Глаголы"].explanation
+    assert not any("код Stanza" in name for name in metrics)
+    assert not any(metric.group == "Служебная синтаксическая разметка Stanza"
+                   for metric in metrics.values())
 
 
 def test_zero_word_denominators():

@@ -9,6 +9,7 @@ import tempfile
 from authoroved_core.core.analysis import AnalysisService
 from authoroved_core.core.case_repository import CaseRepository
 from authoroved_core.core.document import load_document
+from authoroved_core.core.lt_grouping import candidate_group_key
 from authoroved_core.core.models import ReviewStatus
 from authoroved_core.nlp.settings import LocalSettings
 
@@ -36,7 +37,13 @@ def main():
     assert not attempts, attempts
     for result in results:
         if result.candidates:
-            result.candidates[0].review(ReviewStatus.ACCEPTED, "Принято для проверки экрана сравнения")
+            candidate = next(
+                (item for item in result.candidates if candidate_group_key(item) != "unknown_words"),
+                result.candidates[0],
+            )
+            if candidate_group_key(candidate) == "unknown_words":
+                candidate.expert_classification = "dictionary_gap"
+            candidate.review(ReviewStatus.ACCEPTED, "Принято для проверки экрана сравнения")
 
     repository = CaseRepository()
     case = repository.create()
@@ -98,13 +105,15 @@ def main():
         app.processEvents()
         assert window.grab().save(str(args.output / "stage_c_unknown_word.png"))
     window.show_stage(1)
-    ud_group = next((index for index in range(window.toolbox.count())
-                     if window.toolbox.itemText(index) == "Служебная синтаксическая разметка Stanza"), None)
-    if ud_group is not None:
-        window.toolbox.setCurrentIndex(ud_group)
-        window.toolbox.widget(ud_group).setCurrentRow(0)
-        app.processEvents()
-        assert window.grab().save(str(args.output / "stage_c_ud_explanation.png"))
+    assert all(
+        window.toolbox.itemText(index) != "Служебная синтаксическая разметка Stanza"
+        for index in range(window.toolbox.count())
+    )
+    assert all(
+        metric.name != "Вспомогательные глаголы"
+        and metric.group != "Служебная синтаксическая разметка Stanza"
+        for result in results for metric in result.metrics
+    )
     auto_group = next((index for index in range(window.toolbox.count())
                        if window.toolbox.itemText(index) == "Методические AUTO-показатели"), None)
     assert auto_group is not None
@@ -144,6 +153,8 @@ def main():
                 for item in result.feature_observations)
             for result in results
         ],
+        "public_auxiliary_metrics": 0,
+        "public_dependency_metrics": 0,
         "audit_entries": len(restored.audit),
         "screenshot": str(screenshot),
         "export_screenshot": str(final_screenshot),

@@ -136,6 +136,7 @@ def _result(value: AnalysisResult | None):
                 "fragment": item.fragment, "span": _span(item.span), "rule_id": item.rule_id,
                 "replacements": list(item.replacements), "source": item.source,
                 "status": item.status.value, "comment": item.comment,
+                "expert_classification": item.expert_classification,
             } for item in value.candidates
         ],
         "metrics": [
@@ -186,6 +187,7 @@ def _result_from(value) -> AnalysisResult | None:
             rule_id=str(item["rule_id"]), replacements=tuple(item["replacements"]),
             source=str(item["source"]), status=ReviewStatus(item["status"]),
             comment=str(item["comment"]),
+            expert_classification=str(item.get("expert_classification", "")),
         ) for item in value["candidates"]],
         metrics=[Metric(
             name=str(item["name"]), value=str(item["value"]),

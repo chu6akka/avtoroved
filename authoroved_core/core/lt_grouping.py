@@ -24,7 +24,9 @@ GROUPS = (
     GroupDefinition(
         "unknown_words", "Слова вне словаря LanguageTool",
         "LanguageTool не распознал словоформу. Это не доказательство ошибки: "
-        "проверьте профессиональную, разговорную, диалектную, новую или авторскую лексику.",
+        "проверьте профессиональную, разговорную, диалектную, новую или авторскую лексику. "
+        "Автоматические варианты LT могут ошибочно разрывать новое слово; перед сохранением "
+        "укажите экспертную классификацию словоформы.",
     ),
     GroupDefinition(
         "spelling", "Правописание и регистр",
@@ -53,6 +55,18 @@ GROUPS = (
 )
 
 GROUP_BY_KEY = {group.key: group for group in GROUPS}
+
+UNKNOWN_WORD_CLASSIFICATIONS = (
+    ("authorial", "Авторское образование или окказионализм"),
+    ("neologism", "Неологизм или новая лексика"),
+    ("professional", "Профессиональная или специальная лексика"),
+    ("colloquial", "Разговорная или жаргонная форма"),
+    ("dialect", "Диалектная форма"),
+    ("name", "Имя, название или заимствование"),
+    ("dictionary_gap", "Нормативная словоформа, которой нет в словаре LT"),
+    ("spelling_error", "Орфографическая ошибка"),
+)
+UNKNOWN_WORD_CLASSIFICATION_LABELS = dict(UNKNOWN_WORD_CLASSIFICATIONS)
 
 
 def candidate_group_key(candidate: Candidate) -> str:

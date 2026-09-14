@@ -63,6 +63,7 @@ class Candidate:
     source: str = "LanguageTool"
     status: ReviewStatus = ReviewStatus.NEW
     comment: str = ""
+    expert_classification: str = ""
 
     def review(self, status: ReviewStatus, comment: str | None = None) -> None:
         self.status = ReviewStatus(status)

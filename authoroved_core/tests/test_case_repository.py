@@ -28,6 +28,7 @@ def populated_case(repository, tmp_path):
         "пришол", Span(3, 9), "RULE", ("пришёл",), status=ReviewStatus.ACCEPTED,
         comment="Подтверждено экспертом",
     )
+    candidate.expert_classification = "authorial"
     result = AnalysisResult(
         document.id,
         tokens=[Token("Он", "он", "PRON", {"Case": "Nom"}, "nsubj", 2, 0, 1, Span(0, 2))],

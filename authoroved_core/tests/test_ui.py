@@ -285,8 +285,8 @@ def test_case_audit_records_import_analysis_and_review(window):
 def test_languagetool_groups_explain_unknown_words(window, app):
     unknown = Candidate(
         "unknown", window.material.id, "Слово не распознано словарём",
-        "Слово не распознано словарём", "Не найдено в словаре", "Он",
-        Span(0, 2), "MORFOLOGIK_RULE_RU_RU",
+        "Слово не распознано словарём", "Не найдено в словаре", "кодемашине",
+        Span(0, 10), "MORFOLOGIK_RULE_RU_RU", ("коде машине",),
     )
     window.result.candidates.append(unknown)
     window.populate_candidate_groups()
@@ -297,5 +297,19 @@ def test_languagetool_groups_explain_unknown_words(window, app):
     assert index > 0
     assert window.candidate_list.count() == 1
     assert "не доказательство ошибки" in window.candidate_group_help.text()
-    assert window.accept_button.text() == "Сохранить как наблюдение"
+    assert window.accept_button.text() == "Сохранить особую словоформу"
     assert window.reject_button.text() == "Не учитывать"
+    assert not window.unknown_classification.isHidden()
+    assert not window.accept_button.isEnabled()
+    assert "не варианты исправления" in window.explanation.toPlainText()
+
+    window.unknown_classification.setCurrentIndex(
+        window.unknown_classification.findData("authorial")
+    )
+    app.processEvents()
+    assert window.accept_button.isEnabled()
+    window.accept_button.click()
+
+    assert unknown.status is ReviewStatus.ACCEPTED
+    assert unknown.expert_classification == "authorial"
+    assert any(entry.event == "candidate_classified" for entry in window.case.audit)

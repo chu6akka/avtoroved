@@ -20,7 +20,12 @@ from authoroved_core.core.document import EncodingChoiceRequired, load_document
 from authoroved_core.core.feature_models import (
     Applicability, ExpertFeatureStatus, FeatureObservation,
 )
-from authoroved_core.core.lt_grouping import candidate_group_key, group_candidates
+from authoroved_core.core.lt_grouping import (
+    UNKNOWN_WORD_CLASSIFICATIONS,
+    UNKNOWN_WORD_CLASSIFICATION_LABELS,
+    candidate_group_key,
+    group_candidates,
+)
 from authoroved_core.core.models import ReviewStatus, STATUS_LABELS
 from authoroved_core.core.report_service import ReportError, ReportService
 from authoroved_core.metrics.basic import GLOBAL_NOTE, WORD_PATTERN
@@ -412,6 +417,13 @@ class MainWindow(QMainWindow):
         self.explanation.setFixedHeight(72)
         detail_layout.addWidget(self.explanation)
         review_layout.addWidget(review_card)
+        self.unknown_classification = QComboBox()
+        self.unknown_classification.addItem("Выберите, что это за словоформа", "")
+        for key, title in UNKNOWN_WORD_CLASSIFICATIONS:
+            self.unknown_classification.addItem(title, key)
+        self.unknown_classification.currentIndexChanged.connect(self.classification_changed)
+        self.unknown_classification.hide()
+        review_layout.addWidget(self.unknown_classification)
         self.comment = QTextEdit()
         self.comment.setObjectName("comment")
         self.comment.setPlaceholderText("Комментарий эксперта (необязательно)")
@@ -766,6 +778,7 @@ class MainWindow(QMainWindow):
             "analysis_completed": "Анализ завершён",
             "analysis_failed": "Анализ завершился с ошибкой",
             "candidate_reviewed": "Изменено решение по кандидату",
+            "candidate_classified": "Классифицирована словоформа вне словаря LT",
             "candidate_comment": "Изменён комментарий эксперта",
             "report_exported": "Сохранён проект исследования",
             "verification_package_exported": "Создан проверочный пакет",
@@ -797,6 +810,10 @@ class MainWindow(QMainWindow):
         if entry.event == "candidate_reviewed":
             status = {"new": "на рассмотрении", "accepted": "принят", "rejected": "отклонён"}
             return f" · {details.get('category', '')} · {status.get(details.get('to'), '')}"
+        if entry.event == "candidate_classified":
+            before = UNKNOWN_WORD_CLASSIFICATION_LABELS.get(details.get("from"), "не указано")
+            after = UNKNOWN_WORD_CLASSIFICATION_LABELS.get(details.get("to"), "не указано")
+            return f" · {before} → {after}"
         if entry.event == "candidate_comment":
             return f" · длина комментария: {details.get('characters', 0)}"
         if entry.event == "report_exported":
@@ -1286,7 +1303,7 @@ class MainWindow(QMainWindow):
             page = self.toolbox.widget(0)
             self.toolbox.removeItem(0)
             page.deleteLater()
-        for group in ["Количественные показатели", "Лексика", "Морфология", "Предложения", "Структура", "Служебная синтаксическая разметка Stanza"]:
+        for group in ["Количественные показатели", "Лексика", "Морфология", "Предложения", "Структура"]:
             page = QListWidget()
             page.setWordWrap(True)
             for metric in self.result.metrics:
@@ -1392,7 +1409,12 @@ class MainWindow(QMainWindow):
             fragment = candidate.fragment.replace("\n", " ").replace("\r", " ")
             if len(fragment) > 55:
                 fragment = fragment[:52] + "…"
-            item = QListWidgetItem(f"{candidate.category} · {STATUS_LABELS[candidate.status]}\n«{fragment}»" if fragment else f"{candidate.category} · {STATUS_LABELS[candidate.status]}\nМесто возможной вставки")
+            category = (
+                UNKNOWN_WORD_CLASSIFICATION_LABELS.get(
+                    candidate.expert_classification, candidate.category,
+                ) if candidate_group_key(candidate) == "unknown_words" else candidate.category
+            )
+            item = QListWidgetItem(f"{category} · {STATUS_LABELS[candidate.status]}\n«{fragment}»" if fragment else f"{category} · {STATUS_LABELS[candidate.status]}\nМесто возможной вставки")
             item.setData(Qt.ItemDataRole.UserRole, candidate.id)
             self.candidate_list.addItem(item)
             if candidate.id == selected_id:
@@ -1456,14 +1478,24 @@ class MainWindow(QMainWindow):
         candidate = self.current_candidate
         self.set_candidate_enabled(True)
         if candidate_group_key(candidate) == "unknown_words":
-            self.accept_button.setText("Сохранить как наблюдение")
+            self.accept_button.setText("Сохранить особую словоформу")
+            self.unknown_classification.blockSignals(True)
+            index = self.unknown_classification.findData(candidate.expert_classification)
+            self.unknown_classification.setCurrentIndex(max(0, index))
+            self.unknown_classification.blockSignals(False)
+            self.unknown_classification.show()
+            self.accept_button.setEnabled(bool(candidate.expert_classification))
         else:
             self.accept_button.setText("Подтвердить наблюдение")
+            self.unknown_classification.hide()
         self.reject_button.setText("Не учитывать")
-        self.candidate_detail.setText(f"{candidate.category} · {STATUS_LABELS[candidate.status]}\nИсточник: {candidate.source}")
+        category = UNKNOWN_WORD_CLASSIFICATION_LABELS.get(
+            candidate.expert_classification, candidate.category,
+        )
+        self.candidate_detail.setText(f"{category} · {STATUS_LABELS[candidate.status]}\nИсточник: {candidate.source}")
         message = candidate.explanation
         if candidate.replacements:
-            heading = ("Варианты из словаря LanguageTool: "
+            heading = ("Автоматические догадки словаря LT — не варианты исправления: "
                        if candidate.rule_id == "MORFOLOGIK_RULE_RU_RU"
                        else "Предлагаемые варианты: ")
             message += "\n\n" + heading + ", ".join(candidate.replacements[:5])
@@ -1479,8 +1511,31 @@ class MainWindow(QMainWindow):
         for widget in [self.accept_button, self.reject_button, self.reset_button, self.comment]:
             widget.setEnabled(enabled)
         if not enabled:
+            self.unknown_classification.hide()
             self.accept_button.setText("Подтвердить наблюдение")
             self.reject_button.setText("Не учитывать")
+
+    def classification_changed(self):
+        if not self.current_candidate or candidate_group_key(self.current_candidate) != "unknown_words":
+            return
+        previous = self.current_candidate.expert_classification
+        current = str(self.unknown_classification.currentData() or "")
+        self.current_candidate.expert_classification = current
+        self.accept_button.setEnabled(bool(current))
+        title = UNKNOWN_WORD_CLASSIFICATION_LABELS.get(
+            current, self.current_candidate.category,
+        )
+        self.candidate_detail.setText(
+            f"{title} · {STATUS_LABELS[self.current_candidate.status]}\n"
+            f"Источник: {self.current_candidate.source}"
+        )
+        if previous != current:
+            self.mark_dirty()
+            self.record_event("candidate_classified", {
+                "document_id": self.current_candidate.document_id,
+                "candidate_id": self.current_candidate.id,
+                "from": previous, "to": current,
+            })
 
     def comment_changed(self):
         if self.current_candidate:
@@ -1489,6 +1544,11 @@ class MainWindow(QMainWindow):
 
     def decide(self, status):
         if self.current_candidate:
+            if (status is ReviewStatus.ACCEPTED
+                    and candidate_group_key(self.current_candidate) == "unknown_words"
+                    and not self.current_candidate.expert_classification):
+                self.status.setText("Сначала укажите, что это за словоформа.")
+                return
             self.record_comment_if_changed()
             previous = self.current_candidate.status
             self.current_candidate.review(status, self.comment.toPlainText())
@@ -1496,6 +1556,7 @@ class MainWindow(QMainWindow):
                 "document_id": self.current_candidate.document_id,
                 "candidate_id": self.current_candidate.id,
                 "category": self.current_candidate.category,
+                "expert_classification": self.current_candidate.expert_classification,
                 "from": previous.value, "to": status.value,
             })
             self.populate_candidates()

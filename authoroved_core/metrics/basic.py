@@ -4,28 +4,10 @@ from collections import Counter, defaultdict
 from statistics import mean, median
 
 from authoroved_core.core.models import Metric, Span, Token
-
-POS_RU = {
-    "NOUN": "Существительные", "PROPN": "Имена собственные", "VERB": "Глаголы",
-    "AUX": "Вспомогательные глаголы", "ADJ": "Прилагательные", "ADV": "Наречия",
-    "PRON": "Местоимения", "NUM": "Числительные", "DET": "Определители",
-    "ADP": "Предлоги", "PART": "Частицы", "CCONJ": "Сочинительные союзы",
-    "SCONJ": "Подчинительные союзы", "INTJ": "Междометия", "X": "Неопределённые слова",
-}
-DEPENDENCY_RU = {
-    "root": "вершина дерева", "nsubj": "подлежащее", "csubj": "часть предложения в роли подлежащего",
-    "obj": "объект", "iobj": "косвенный объект", "obl": "косвенный именной компонент",
-    "advmod": "наречный модификатор", "amod": "определение-прилагательное", "nmod": "именное определение",
-    "acl": "часть предложения при существительном", "advcl": "обстоятельственная часть предложения", "xcomp": "предикативная часть без собственного подлежащего",
-    "ccomp": "зависимая предикативная часть", "conj": "сочинённый элемент", "cc": "показатель сочинения",
-    "case": "показатель падежной связи", "mark": "показатель подчинения", "det": "детерминатив",
-    "aux": "вспомогательный элемент", "cop": "связка", "nummod": "числовое определение",
-    "appos": "приложение", "parataxis": "связь самостоятельных частей", "fixed": "неизменяемое сочетание",
-    "flat": "связь без внутренней структуры", "compound": "составной элемент", "dep": "неуточнённая зависимость",
-    "discourse": "дискурсивный элемент", "vocative": "обращение", "expl": "формальный элемент",
-    "orphan": "элемент эллиптической конструкции", "list": "элемент списка", "dislocated": "вынесенный элемент",
-    "reparandum": "исправляемый фрагмент", "goeswith": "часть ошибочно разделённого слова",
-}
+from authoroved_core.core.russian_word_classes import (
+    WORD_CLASSES,
+    russian_word_class_key,
+)
 WORD_PATTERN = re.compile(r"[^\W\d_]+(?:[-’'][^\W\d_]+)*", re.UNICODE)
 GLOBAL_NOTE = "Этот показатель относится ко всему тексту и не имеет одного конкретного фрагмента."
 
@@ -60,16 +42,32 @@ def calculate_metrics(text: str, tokens: list[Token]) -> list[Metric]:
         Metric("Лексическое разнообразие", number(len(forms) / total) if total else "Нет данных",
                "Отношение числа уникальных словоформ к общему числу слов. Показатель зависит от объёма текста; не является оценкой автора.", "Лексика"),
     ])
-    for title, selected in [("Частотные слова", words), ("Частотные знаменательные слова", [t for t in words if t.pos in {"NOUN", "PROPN", "VERB", "ADJ", "ADV"}])]:
+    for title, selected in [
+        ("Частотные слова", words),
+        ("Частотные знаменательные слова", [
+            token for token in words
+            if russian_word_class_key(token) in {"noun", "verb", "adjective", "adverb"}
+        ]),
+    ]:
         counts = Counter(t.text.casefold() for t in selected)
         for form, count in sorted(counts.items(), key=lambda p: (-p[1], p[0]))[:10]:
             metrics.append(Metric(f"{title}: {form}", str(count),
                                   "Число употреблений словоформы без различия регистра. Знаменательные слова отбираются по части речи, без словаря.", "Лексика",
                                   tuple(t.span for t in selected if t.text.casefold() == form and t.span is not None)))
-    for pos, count in sorted(Counter(t.pos for t in words).items(), key=lambda p: (-p[1], p[0])):
-        metrics.append(Metric(POS_RU.get(pos, "Другая часть речи"), f"{count} · {number(count / total * 100)} %",
-                              "Доля среди слов по разметке Stanza. " + definition, "Морфология",
-                              tuple(t.span for t in words if t.pos == pos and t.span is not None)))
+    class_counts = Counter(russian_word_class_key(token) for token in words)
+    for item in WORD_CLASSES:
+        count = class_counts[item.key]
+        if not count:
+            continue
+        metrics.append(Metric(
+            item.title, f"{count} · {number(count / total * 100)} %",
+            "Укрупнённая русскоязычная группа для чтения автоматической разметки: "
+            f"{item.technical_basis}. Это не ручной морфологический разбор; модель может "
+            "ошибочно классифицировать отдельные словоформы.",
+            "Морфология",
+            tuple(token.span for token in words
+                  if russian_word_class_key(token) == item.key and token.span is not None),
+        ))
     sentences = defaultdict(list)
     for token in tokens:
         sentences[token.sentence].append(token)
@@ -91,14 +89,4 @@ def calculate_metrics(text: str, tokens: list[Token]) -> list[Metric]:
             if located:
                 spans.append(Span(min(s.start for s in located), max(s.end for s in located)))
         metrics.append(Metric(label, str(len(matching)), "Предложения Stanza, содержащие соответствующий знак. Это подсчёт формы, а не коммуникативного намерения.", "Структура", tuple(spans)))
-    deps = Counter(t.dependency.split(":")[0] for t in words if t.dependency)
-    dep_total = sum(deps.values())
-    for dep, count in sorted(deps.items(), key=lambda p: (-p[1], p[0])):
-        metrics.append(Metric(f"{DEPENDENCY_RU.get(dep, 'иная модельная связь')} (код Stanza: {dep})",
-                              f"{count} · {number(count / dep_total * 100)} %",
-                              f"Служебный код «{dep}» назначен программой Stanza по международной схеме Universal Dependencies v2. "
-                              "Русское пояснение дано только для чтения машинной разметки: это не самостоятельное понятие традиционного русского синтаксиса и не экспертный вывод. "
-                              "Подтипы объединены; показана доля среди размеченных слов. Автоматическая разметка может ошибаться.",
-                              "Служебная синтаксическая разметка Stanza",
-                              tuple(t.span for t in words if t.dependency.split(":")[0] == dep and t.span is not None)))
     return metrics

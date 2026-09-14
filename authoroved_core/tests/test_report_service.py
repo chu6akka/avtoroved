@@ -43,6 +43,11 @@ def result(document, accepted, rejected, new):
             Metric("Предложения", "2", "Границы определены Stanza.", "Количественные показатели"),
             Metric("Абзацы", "1", "Непустые строки.", "Структура"),
             Metric("Лексическое разнообразие", "0,75", "Отношение словоформ.", "Лексика"),
+            Metric("Вспомогательные глаголы", "1 · 12,5 %", "Код AUX.", "Морфология"),
+            Metric(
+                "подлежащее (код Stanza: nsubj)", "2 · 25 %", "Служебный код.",
+                "Служебная синтаксическая разметка Stanza",
+            ),
         ],
         metadata={
             "program_version": "0.2.0",
@@ -85,6 +90,9 @@ def test_docx_contains_auditable_sections_and_only_accepted_observations(tmp_pat
     assert "отклонено1" not in text and "новое1" not in text
     assert "не содержит вывода о тождестве или различии авторов" in text
     assert case.materials[0].file_sha256 in text
+    assert "Вспомогательные глаголы" not in text
+    assert "код Stanza: nsubj" not in text
+    assert "Глаголы" in text
 
 
 def test_verification_package_excludes_sources_by_default_and_checks_hashes(tmp_path, ready_case):

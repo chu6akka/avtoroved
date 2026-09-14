@@ -15,9 +15,9 @@ features:
     name_ru: Частоты служебных слов
     group: Лексика
     automation_mode: AUTO
-    definition: Частоты словоформ, размеченных как предлоги, союзы, частицы или вспомогательные глаголы.
-    criteria: [буквенный токен, допустимая часть речи Stanza]
-    exclusions: [пунктуация, символы, числовые токены, местоимения]
+    definition: Частоты словоформ, отнесённых автоматической разметкой к предлогам, союзам или частицам.
+    criteria: [буквенный токен, русскоязычная группа предлогов, союзов или частиц]
+    exclusions: [пунктуация, символы, числовые токены, местоименные и глагольные формы]
     unit: количество и употребления на 1000 слов
     normalization: count / all_words * 1000
     minimum_words: 1
@@ -27,15 +27,15 @@ features:
     method_version: auto-0.1.0
     sources:
       - {title: "Методика Минюста", locator: "с. 13", role: "методический контекст частот служебных слов", verification: "checked_local_primary"}
-      - {title: "Universal Dependencies v2 / Stanza", locator: "UPOS: ADP, CCONJ, SCONJ, PART, AUX", role: "техническая разметка", verification: "checked_technical_primary"}
+      - {title: "Universal Dependencies v2 / Stanza", locator: "UPOS: ADP, CCONJ, SCONJ, PART", role: "техническая разметка с русскоязычным укрупнением", verification: "checked_technical_primary"}
 
   - id: LEX_002
-    name_ru: Местоименный профиль
+    name_ru: Профиль местоименных слов
     group: Лексика
     automation_mode: AUTO
-    definition: Распределение местоимений по словоформам и доступным грамматическим характеристикам лица, числа и типа.
-    criteria: [буквенный токен с UPOS PRON]
-    exclusions: [детерминативы с UPOS DET, токены без букв]
+    definition: Распределение местоименных слов по словоформам и доступным грамматическим характеристикам лица, числа и типа.
+    criteria: [буквенный токен с технической меткой PRON или DET]
+    exclusions: [токены без букв]
     unit: количество и употребления на 1000 слов
     normalization: count / all_words * 1000
     minimum_words: 1
@@ -45,7 +45,7 @@ features:
     method_version: auto-0.1.0
     sources:
       - {title: "Методика Минюста", locator: "с. 22", role: "общая рамка частных языковых признаков", verification: "checked_local_primary"}
-      - {title: "Universal Dependencies v2 / Stanza", locator: "UPOS PRON; features Person, Number, PronType", role: "техническая разметка", verification: "checked_technical_primary"}
+      - {title: "Universal Dependencies v2 / Stanza", locator: "UPOS PRON, DET; features Person, Number, PronType", role: "техническая разметка, объединённая в русскоязычную группу", verification: "checked_technical_primary"}
 
   - id: LEX_005
     name_ru: Лексическое разнообразие MATTR
@@ -66,22 +66,22 @@ features:
       - {title: "Методика Минюста", locator: "с. 13", role: "ограниченный контекст количественного анализа", verification: "checked_local_primary"}
 
   - id: MOR_001
-    name_ru: Профиль частей речи
+    name_ru: Укрупнённые классы слов
     group: Морфология
     automation_mode: AUTO
-    definition: Распределение слов по универсальным частям речи Stanza.
+    definition: Распределение слов по русскоязычным укрупнённым группам на основе технических меток Stanza.
     criteria: [буквенный токен с UPOS]
     exclusions: [PUNCT, SYM, чисто числовые токены]
     unit: количество и доля слов в процентах
     normalization: count / all_words * 100
     minimum_words: 1
     minimum_volume_status: engineering_only
-    evidence_method: все токены каждой части речи с точными координатами
+    evidence_method: все токены каждой укрупнённой группы с точными координатами
     dependency_group: morphology_distribution
     method_version: auto-0.1.0
     sources:
       - {title: "Методика Минюста", locator: "с. 20–22", role: "грамматические признаки в раздельном исследовании", verification: "checked_local_primary"}
-      - {title: "Universal Dependencies v2 / Stanza", locator: "UPOS", role: "техническая разметка", verification: "checked_technical_primary"}
+      - {title: "Universal Dependencies v2 / Stanza", locator: "UPOS; NOUN+PROPN, VERB+AUX, PRON+DET, CCONJ+SCONJ", role: "техническая основа русскоязычного укрупнения", verification: "checked_technical_primary"}
 
   - id: MOR_003
     name_ru: Профиль падежей именных форм
@@ -105,8 +105,8 @@ features:
     name_ru: Профиль глагольных форм
     group: Морфология
     automation_mode: AUTO
-    definition: Распределение времени, лица, вида и наклонения среди глаголов и вспомогательных глаголов.
-    criteria: [UPOS VERB или AUX]
+    definition: Распределение времени, лица, вида и наклонения среди форм, отображаемых в программе как глаголы.
+    criteria: [глагольная форма; технические метки VERB и AUX объединяются и не образуют в интерфейсе двух частей речи]
     exclusions: [неразмеченная характеристика не считается её отсутствием]
     unit: количество и доля размеченных глагольных форм в процентах
     normalization: count / verb_forms_with_corresponding_feature * 100

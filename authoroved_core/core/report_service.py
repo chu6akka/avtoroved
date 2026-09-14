@@ -13,6 +13,7 @@ from uuid import uuid4
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from docx import Document as WordDocument
+from docx.enum.section import WD_SECTION
 from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT, WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
@@ -325,6 +326,13 @@ def _add_heading(document, text, level=1):
     return paragraph
 
 
+def _new_report_page(document):
+    """Начинает страницу секционным разрывом, устойчивым при экспорте Word в PDF."""
+    section = document.add_section(WD_SECTION.NEW_PAGE)
+    _configure_section(section)
+    section.footer.is_linked_to_previous = True
+
+
 def _add_report_body(document, case: CaseData, comparison: ComparisonResult):
     title = document.add_paragraph(style="Title")
     title.alignment = WD_ALIGN_PARAGRAPH.LEFT
@@ -371,8 +379,8 @@ def _add_report_body(document, case: CaseData, comparison: ComparisonResult):
         "Отклонённые и нерассмотренные рекомендации в доказательную часть не переносятся."
     )
 
-    comparison_heading = _add_heading(document, "Сопоставление измерений")
-    comparison_heading.paragraph_format.page_break_before = True
+    _new_report_page(document)
+    _add_heading(document, "Сопоставление измерений")
     grouped: dict[str, list] = {}
     for item in comparison.metrics:
         grouped.setdefault(item.group, []).append(item)
@@ -381,14 +389,18 @@ def _add_report_body(document, case: CaseData, comparison: ComparisonResult):
         # Word sometimes loses the text of a repeated table header after an
         # automatic page break.  Small, explicit blocks keep every header
         # visible and also keep a data row from being divided between pages.
-        block_count = max(1, (len(items) + 7) // 8)
+        # Пять строк гарантированно помещаются на страницу Letter вместе с
+        # заголовком даже при длинных пояснениях в последнем столбце. Более
+        # крупный блок Word иногда пытался удержать целиком и вытеснял его
+        # верхнюю часть за печатное поле.
+        block_count = max(1, (len(items) + 4) // 5)
         block_size = (len(items) + block_count - 1) // block_count
         for offset in range(0, len(items), block_size):
             block = items[offset:offset + block_size]
             heading_text = group if offset == 0 else f"{group} — продолжение"
-            heading = _add_heading(document, heading_text, level=2)
             if not first_comparison_block:
-                heading.paragraph_format.page_break_before = True
+                _new_report_page(document)
+            _add_heading(document, heading_text, level=2)
             first_comparison_block = False
             _table(document, ["Показатель", "Текст 1", "Текст 2", "Разница", "Основа сопоставления"], [
                 [item.name, item.value_first, item.value_second,
@@ -396,12 +408,19 @@ def _add_report_body(document, case: CaseData, comparison: ComparisonResult):
                 for item in block
             ], [1.6, 1.0, 1.0, 1.05, 2.35])
 
+    _new_report_page(document)
     _add_heading(document, "Принятые наблюдения")
     if comparison.accepted_groups:
-        _table(document, ["Наблюдение", "Текст 1", "Текст 2", "Результат", "Основа группировки"], [
-            [item.label, item.count_first, item.count_second, item.relation, item.basis]
-            for item in comparison.accepted_groups
-        ], [1.9, 0.7, 0.7, 1.25, 2.45])
+        accepted = list(comparison.accepted_groups)
+        for offset in range(0, len(accepted), 8):
+            if offset:
+                _new_report_page(document)
+                _add_heading(document, "Принятые наблюдения — продолжение")
+            block = accepted[offset:offset + 8]
+            _table(document, ["Наблюдение", "Текст 1", "Текст 2", "Результат", "Основа группировки"], [
+                [item.label, item.count_first, item.count_second, item.relation, item.basis]
+                for item in block
+            ], [1.9, 0.7, 0.7, 1.25, 2.45])
     else:
         document.add_paragraph("Эксперт не сохранил наблюдений для сопоставления.")
 
