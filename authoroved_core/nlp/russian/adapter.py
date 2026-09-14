@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Any
 
 from authoroved_core.core.models import Span, Token
 from authoroved_core.nlp.parsed_document import ParsedDocument
@@ -13,7 +12,6 @@ from authoroved_core.nlp.russian.enums import (
     RussianPOS,
 )
 from authoroved_core.nlp.russian.models import (
-    GrammarAmbiguityCase,
     RawUDAnnotation,
     RussianConstruction,
     RussianLinguisticAnnotation,
@@ -90,6 +88,29 @@ def _status(rule: RussianGrammarRule) -> InterpretationStatus:
             if rule.requires_review else InterpretationStatus.RESOLVED)
 
 
+_MAPPING_RANK = {
+    MappingType.DIRECT: 0,
+    MappingType.CONTEXTUAL: 1,
+    MappingType.NON_ISOMORPHIC: 2,
+    MappingType.AMBIGUOUS: 3,
+}
+_STATUS_RANK = {
+    InterpretationStatus.RESOLVED: 0,
+    InterpretationStatus.EXPERT_REVIEW_REQUIRED: 1,
+    InterpretationStatus.AMBIGUOUS: 2,
+    InterpretationStatus.INVALID_SOURCE: 3,
+}
+
+
+def _combined_mapping(first: MappingType, second: MappingType) -> MappingType:
+    return max((first, second), key=_MAPPING_RANK.get)
+
+
+def _combined_status(first: InterpretationStatus,
+                     second: InterpretationStatus) -> InterpretationStatus:
+    return max((first, second), key=_STATUS_RANK.get)
+
+
 class RussianGrammarAdapter:
     """Создаёт отдельную интерпретацию, не изменяя ParsedDocument и его токены."""
 
@@ -101,9 +122,15 @@ class RussianGrammarAdapter:
         self.syntax_rules = self.registry.by_level("syntax")
 
     def adapt(self, parsed: ParsedDocument) -> RussianParsedDocument:
-        annotations = tuple(self._morphology(token, parsed.text) for token in parsed.tokens)
+        annotations = [self._morphology(token, parsed.text) for token in parsed.tokens]
+        constructions: list[RussianConstruction] = []
+        for position, token in enumerate(parsed.tokens):
+            annotation, created = self._syntax(token, annotations[position], parsed, annotations)
+            annotations[position] = annotation
+            constructions.extend(created)
         return RussianParsedDocument(
-            source=parsed, annotations=annotations, adapter_version=self.version,
+            source=parsed, annotations=tuple(annotations), constructions=tuple(constructions),
+            adapter_version=self.version,
             rules_version=self.registry.version, rules_hash=self.registry.sha256,
         )
 
@@ -142,4 +169,139 @@ class RussianGrammarAdapter:
             _russian_features(raw.features), function, None, rule.id, (rule.id,),
             rule.mapping_type, _status(rule), explanation,
             rule.requires_review,
+        )
+
+    def _syntax(self, token: Token, annotation: RussianLinguisticAnnotation,
+                parsed: ParsedDocument,
+                annotations: list[RussianLinguisticAnnotation]) -> tuple[
+                    RussianLinguisticAnnotation, tuple[RussianConstruction, ...]]:
+        if not token.dependency:
+            return replace(
+                annotation, status=InterpretationStatus.INVALID_SOURCE,
+                requires_review=True,
+                explanation=annotation.explanation + " Синтаксическое отношение в UD не указано.",
+            ), ()
+        matches = [rule for rule in self.syntax_rules if _matches(rule, token)]
+        if not matches:
+            return annotation, ()
+        if len(matches) > 1:
+            return replace(
+                annotation, mapping_type=MappingType.AMBIGUOUS,
+                status=InterpretationStatus.AMBIGUOUS, requires_review=True,
+                explanation=annotation.explanation
+                + " Для синтаксического отношения одновременно сработало несколько правил.",
+                triggered_rule_ids=annotation.triggered_rule_ids
+                + tuple(rule.id for rule in matches),
+            ), ()
+
+        rule = matches[0]
+        function = rule.result.get("russian_function", annotation.russian_function)
+        construction_type = (
+            RussianConstructionType(rule.result["construction"])
+            if rule.result.get("construction") else None
+        )
+        syntax_status = _status(rule)
+        requires_review = annotation.requires_review or rule.requires_review
+        constructions: tuple[RussianConstruction, ...] = ()
+
+        if rule.implementation == "participial_construction":
+            members = self._subtree(parsed, token)
+            meaningful_dependents = [item for item in members if item.index != token.index
+                                     and item.pos not in {"PUNCT", "SYM"}]
+            if meaningful_dependents:
+                constructions = (self._construction(rule, token, members, parsed, construction_type),)
+            else:
+                construction_type = None
+                syntax_status = InterpretationStatus.EXPERT_REVIEW_REQUIRED
+                requires_review = True
+                function = "причастная форма при имени; состав конструкции требует проверки"
+        elif rule.implementation == "gerund_construction":
+            members = self._subtree(parsed, token)
+            constructions = (self._construction(rule, token, members, parsed, construction_type),)
+        elif rule.implementation == "finite_advcl":
+            members = self._subtree(parsed, token)
+            constructions = (self._construction(rule, token, members, parsed, construction_type),)
+        elif rule.implementation == "coordination":
+            head = parsed.token_at(token.sentence, token.head)
+            head_annotation = next((item for item in annotations
+                                    if item.raw_ud.sentence_id == token.sentence
+                                    and item.raw_ud.token_id == token.head), None)
+            if head is not None and head_annotation is not None:
+                finite = {annotation.russian_category, head_annotation.russian_category}
+                if finite == {RussianPOS.VERB_FINITE}:
+                    construction_type = RussianConstructionType.COORDINATED_CLAUSES
+                    function = "сочинительная связь предикативных частей"
+                elif (annotation.russian_category is head_annotation.russian_category
+                      and annotation.russian_category is not RussianPOS.UNKNOWN):
+                    construction_type = RussianConstructionType.COORDINATED_MEMBERS
+                    function = "сочинительная связь однородных компонентов"
+                else:
+                    construction_type = None
+                    syntax_status = InterpretationStatus.AMBIGUOUS
+                    requires_review = True
+                if construction_type is not None:
+                    members = (head, token) + tuple(
+                        item for item in parsed.dependents_of(token) if item.dependency == "cc"
+                    )
+                    unique_members = {item.index: item for item in members}
+                    constructions = (self._construction(
+                        rule, token, tuple(unique_members[index] for index in sorted(unique_members)),
+                        parsed, construction_type,
+                    ),)
+            else:
+                syntax_status = InterpretationStatus.INVALID_SOURCE
+                requires_review = True
+        elif rule.implementation == "ambiguous_syntax":
+            syntax_status = (InterpretationStatus.EXPERT_REVIEW_REQUIRED
+                             if rule.id == "RU_SYN_016" else InterpretationStatus.AMBIGUOUS)
+            requires_review = True
+            if construction_type is not None:
+                constructions = (self._construction(
+                    rule, token, self._subtree(parsed, token), parsed, construction_type,
+                    status=syntax_status,
+                ),)
+        elif construction_type is not None:
+            constructions = (self._construction(
+                rule, token, self._subtree(parsed, token), parsed, construction_type,
+            ),)
+
+        updated = replace(
+            annotation,
+            russian_function=function,
+            russian_construction=construction_type,
+            triggered_rule_ids=annotation.triggered_rule_ids + (rule.id,),
+            mapping_type=_combined_mapping(annotation.mapping_type, rule.mapping_type),
+            status=_combined_status(annotation.status, syntax_status),
+            explanation=annotation.explanation + " " + rule.description,
+            requires_review=requires_review,
+        )
+        return updated, constructions
+
+    @staticmethod
+    def _subtree(parsed: ParsedDocument, root: Token) -> tuple[Token, ...]:
+        members = {root.index: root}
+        pending = [root]
+        while pending:
+            parent = pending.pop()
+            for child in parsed.dependents_of(parent):
+                if child.index not in members:
+                    members[child.index] = child
+                    pending.append(child)
+        return tuple(members[index] for index in sorted(members))
+
+    @staticmethod
+    def _construction(rule: RussianGrammarRule, root: Token, members: tuple[Token, ...],
+                      parsed: ParsedDocument, construction_type: RussianConstructionType | None,
+                      *, status: InterpretationStatus | None = None) -> RussianConstruction:
+        spans = [item.span for item in members
+                 if item.span is not None and item.span.valid_for(parsed.text)]
+        span = Span(min(item.start for item in spans), max(item.end for item in spans)) if spans else None
+        return RussianConstruction(
+            id=f"{rule.id}:{root.sentence}:{root.index}",
+            type=construction_type or RussianConstructionType.UNKNOWN,
+            sentence_id=root.sentence, source_span=span,
+            member_token_ids=tuple(item.index for item in members),
+            head_token_id=root.index, rule_id=rule.id,
+            mapping_type=rule.mapping_type, status=status or _status(rule),
+            explanation=rule.description,
         )
