@@ -1,0 +1,96 @@
+[
+  {
+    "id": "aux_be",
+    "text": "Я буду писать письмо.",
+    "tokens": [
+      {"text":"Я","lemma":"я","pos":"PRON","feats":{"Case":"Nom"},"dependency":"nsubj","head":3,"index":1,"span":[0,1]},
+      {"text":"буду","lemma":"быть","pos":"AUX","feats":{"Tense":"Fut","Person":"1","Number":"Sing"},"dependency":"aux","head":3,"index":2,"span":[2,6]},
+      {"text":"писать","lemma":"писать","pos":"VERB","feats":{"VerbForm":"Inf","Aspect":"Imp"},"dependency":"root","head":0,"index":3,"span":[7,13]},
+      {"text":"письмо","lemma":"письмо","pos":"NOUN","feats":{"Case":"Acc"},"dependency":"obj","head":3,"index":4,"span":[14,20]}
+    ],
+    "expected": {"token":2,"category":"VERB_FINITE","rule":"RU_POS_008","status":"RESOLVED","not_category":"AUX"}
+  },
+  {
+    "id": "gerund",
+    "text": "Закончив работу, он ушёл домой.",
+    "tokens": [
+      {"text":"Закончив","lemma":"закончить","pos":"VERB","feats":{"VerbForm":"Conv","Aspect":"Perf"},"dependency":"advcl","head":4,"index":1,"span":[0,8]},
+      {"text":"работу","lemma":"работа","pos":"NOUN","feats":{"Case":"Acc"},"dependency":"obj","head":1,"index":2,"span":[9,15]},
+      {"text":"он","lemma":"он","pos":"PRON","feats":{"Case":"Nom"},"dependency":"nsubj","head":4,"index":3,"span":[17,19]},
+      {"text":"ушёл","lemma":"уйти","pos":"VERB","feats":{"VerbForm":"Fin","Tense":"Past"},"dependency":"root","head":0,"index":4,"span":[20,24]},
+      {"text":"домой","lemma":"домой","pos":"ADV","feats":{},"dependency":"advmod","head":4,"index":5,"span":[25,30]}
+    ],
+    "expected": {"token":1,"category":"DEEPRICHASTIE","rule":"RU_POS_007","syntax_rule":"RU_SYN_009","construction":"GERUND_CONSTRUCTION"}
+  },
+  {
+    "id": "participle",
+    "text": "Человек, написавший письмо, ушёл.",
+    "tokens": [
+      {"text":"Человек","lemma":"человек","pos":"NOUN","feats":{"Case":"Nom"},"dependency":"nsubj","head":4,"index":1,"span":[0,7]},
+      {"text":"написавший","lemma":"написать","pos":"VERB","feats":{"VerbForm":"Part","Voice":"Act","Tense":"Past","Case":"Nom"},"dependency":"acl","head":1,"index":2,"span":[9,19]},
+      {"text":"письмо","lemma":"письмо","pos":"NOUN","feats":{"Case":"Acc"},"dependency":"obj","head":2,"index":3,"span":[20,26]},
+      {"text":"ушёл","lemma":"уйти","pos":"VERB","feats":{"VerbForm":"Fin","Tense":"Past"},"dependency":"root","head":0,"index":4,"span":[28,32]}
+    ],
+    "expected": {"token":2,"category":"PARTICIPLE","rule":"RU_POS_006","syntax_rule":"RU_SYN_008","construction":"PARTICIPIAL_CONSTRUCTION"}
+  },
+  {
+    "id": "finite_advcl",
+    "text": "Когда он закончил работу, он ушёл.",
+    "tokens": [
+      {"text":"Когда","lemma":"когда","pos":"SCONJ","feats":{},"dependency":"mark","head":3,"index":1,"span":[0,5]},
+      {"text":"он","lemma":"он","pos":"PRON","feats":{"Case":"Nom"},"dependency":"nsubj","head":3,"index":2,"span":[6,8]},
+      {"text":"закончил","lemma":"закончить","pos":"VERB","feats":{"VerbForm":"Fin","Tense":"Past"},"dependency":"advcl","head":6,"index":3,"span":[9,17]},
+      {"text":"работу","lemma":"работа","pos":"NOUN","feats":{"Case":"Acc"},"dependency":"obj","head":3,"index":4,"span":[18,24]},
+      {"text":"он","lemma":"он","pos":"PRON","feats":{"Case":"Nom"},"dependency":"nsubj","head":6,"index":5,"span":[26,28]},
+      {"text":"ушёл","lemma":"уйти","pos":"VERB","feats":{"VerbForm":"Fin","Tense":"Past"},"dependency":"root","head":0,"index":6,"span":[29,33]}
+    ],
+    "expected": {"token":3,"category":"VERB_FINITE","syntax_rule":"RU_SYN_010","construction":"SUBORDINATE_CLAUSE","not_construction":"GERUND_CONSTRUCTION"}
+  },
+  {
+    "id": "coordinated_members",
+    "text": "Красные и белые машины стояли рядом.",
+    "tokens": [
+      {"text":"Красные","lemma":"красный","pos":"ADJ","feats":{"Case":"Nom"},"dependency":"amod","head":4,"index":1,"span":[0,7]},
+      {"text":"и","lemma":"и","pos":"CCONJ","feats":{},"dependency":"cc","head":3,"index":2,"span":[8,9]},
+      {"text":"белые","lemma":"белый","pos":"ADJ","feats":{"Case":"Nom"},"dependency":"conj","head":1,"index":3,"span":[10,15]},
+      {"text":"машины","lemma":"машина","pos":"NOUN","feats":{"Case":"Nom"},"dependency":"nsubj","head":5,"index":4,"span":[16,22]},
+      {"text":"стояли","lemma":"стоять","pos":"VERB","feats":{"VerbForm":"Fin","Tense":"Past"},"dependency":"root","head":0,"index":5,"span":[23,29]},
+      {"text":"рядом","lemma":"рядом","pos":"ADV","feats":{},"dependency":"advmod","head":5,"index":6,"span":[30,35]}
+    ],
+    "expected": {"token":3,"syntax_rule":"RU_SYN_011","construction":"COORDINATED_MEMBERS"}
+  },
+  {
+    "id": "coordinated_clauses",
+    "text": "Он вошёл, и свет погас.",
+    "tokens": [
+      {"text":"Он","lemma":"он","pos":"PRON","feats":{"Case":"Nom"},"dependency":"nsubj","head":2,"index":1,"span":[0,2]},
+      {"text":"вошёл","lemma":"войти","pos":"VERB","feats":{"VerbForm":"Fin","Tense":"Past"},"dependency":"root","head":0,"index":2,"span":[3,8]},
+      {"text":"и","lemma":"и","pos":"CCONJ","feats":{},"dependency":"cc","head":5,"index":3,"span":[10,11]},
+      {"text":"свет","lemma":"свет","pos":"NOUN","feats":{"Case":"Nom"},"dependency":"nsubj","head":5,"index":4,"span":[12,16]},
+      {"text":"погас","lemma":"погаснуть","pos":"VERB","feats":{"VerbForm":"Fin","Tense":"Past"},"dependency":"conj","head":2,"index":5,"span":[17,22]}
+    ],
+    "expected": {"token":5,"syntax_rule":"RU_SYN_011","construction":"COORDINATED_CLAUSES"}
+  },
+  {
+    "id": "det_pronominal",
+    "text": "Этот человек пришёл первым.",
+    "tokens": [
+      {"text":"Этот","lemma":"этот","pos":"DET","feats":{"Case":"Nom","PronType":"Dem"},"dependency":"det","head":2,"index":1,"span":[0,4]},
+      {"text":"человек","lemma":"человек","pos":"NOUN","feats":{"Case":"Nom"},"dependency":"nsubj","head":3,"index":2,"span":[5,12]},
+      {"text":"пришёл","lemma":"прийти","pos":"VERB","feats":{"VerbForm":"Fin","Tense":"Past"},"dependency":"root","head":0,"index":3,"span":[13,19]},
+      {"text":"первым","lemma":"первый","pos":"ADJ","feats":{"Case":"Ins"},"dependency":"xcomp","head":3,"index":4,"span":[20,26]}
+    ],
+    "expected": {"token":1,"category":"PRONOMINAL_WORD","rule":"RU_POS_010","status":"RESOLVED","not_label":"детерминатив"}
+  },
+  {
+    "id": "ambiguous_parataxis",
+    "text": "Он пришёл — я ушёл.",
+    "tokens": [
+      {"text":"Он","lemma":"он","pos":"PRON","feats":{"Case":"Nom"},"dependency":"nsubj","head":2,"index":1,"span":[0,2]},
+      {"text":"пришёл","lemma":"прийти","pos":"VERB","feats":{"VerbForm":"Fin","Tense":"Past"},"dependency":"root","head":0,"index":2,"span":[3,9]},
+      {"text":"я","lemma":"я","pos":"PRON","feats":{"Case":"Nom"},"dependency":"nsubj","head":4,"index":3,"span":[12,13]},
+      {"text":"ушёл","lemma":"уйти","pos":"VERB","feats":{"VerbForm":"Fin","Tense":"Past"},"dependency":"parataxis","head":2,"index":4,"span":[14,18]}
+    ],
+    "expected": {"token":4,"syntax_rule":"RU_SYN_015","status":"AMBIGUOUS","construction":"UNKNOWN"}
+  }
+]
