@@ -2,6 +2,7 @@
 
 from authoroved_core.nlp.russian.adapter import RussianGrammarAdapter
 from authoroved_core.nlp.russian.enums import (
+    GrammarArbitrationStatus,
     InterpretationStatus,
     MappingType,
     RussianConstructionType,
@@ -16,6 +17,7 @@ from authoroved_core.nlp.russian.models import (
 
 __all__ = [
     "GrammarAmbiguityCase",
+    "GrammarArbitrationStatus",
     "InterpretationStatus",
     "MappingType",
     "RussianConstruction",

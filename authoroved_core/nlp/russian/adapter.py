@@ -10,8 +10,10 @@ from authoroved_core.nlp.russian.enums import (
     MappingType,
     RussianConstructionType,
     RussianPOS,
+    RUSSIAN_POS_LABELS,
 )
 from authoroved_core.nlp.russian.models import (
+    GrammarAmbiguityCase,
     RawUDAnnotation,
     RussianConstruction,
     RussianLinguisticAnnotation,
@@ -122,14 +124,43 @@ class RussianGrammarAdapter:
         self.syntax_rules = self.registry.by_level("syntax")
 
     def adapt(self, parsed: ParsedDocument) -> RussianParsedDocument:
-        annotations = [self._morphology(token, parsed.text) for token in parsed.tokens]
+        annotations = []
+        for token in parsed.tokens:
+            try:
+                annotations.append(self._morphology(token, parsed.text))
+            except Exception as exc:
+                raw, _ = _safe_raw(token)
+                annotations.append(RussianLinguisticAnnotation(
+                    token.span, token.text, str(token.lemma or ""), raw,
+                    RussianPOS.UNKNOWN, {}, "", None, "INVALID_SOURCE", (),
+                    MappingType.AMBIGUOUS, InterpretationStatus.INVALID_SOURCE,
+                    f"Токен не интерпретирован из-за некорректных исходных данных: {type(exc).__name__}.",
+                    True,
+                ))
         constructions: list[RussianConstruction] = []
         for position, token in enumerate(parsed.tokens):
-            annotation, created = self._syntax(token, annotations[position], parsed, annotations)
+            try:
+                annotation, created = self._syntax(
+                    token, annotations[position], parsed, annotations,
+                )
+            except Exception as exc:
+                annotation = replace(
+                    annotations[position], status=InterpretationStatus.INVALID_SOURCE,
+                    requires_review=True,
+                    explanation=annotations[position].explanation
+                    + f" Синтаксическая интерпретация не выполнена: {type(exc).__name__}.",
+                )
+                created = ()
             annotations[position] = annotation
             constructions.extend(created)
+        ambiguities = tuple(
+            self._ambiguity_case(parsed, item) for item in annotations
+            if item.requires_review
+            or item.status in {InterpretationStatus.AMBIGUOUS, InterpretationStatus.INVALID_SOURCE}
+        )
         return RussianParsedDocument(
             source=parsed, annotations=tuple(annotations), constructions=tuple(constructions),
+            ambiguity_cases=ambiguities,
             adapter_version=self.version,
             rules_version=self.registry.version, rules_hash=self.registry.sha256,
         )
@@ -169,6 +200,40 @@ class RussianGrammarAdapter:
             _russian_features(raw.features), function, None, rule.id, (rule.id,),
             rule.mapping_type, _status(rule), explanation,
             rule.requires_review,
+        )
+
+    @staticmethod
+    def _ambiguity_case(parsed: ParsedDocument,
+                        annotation: RussianLinguisticAnnotation) -> GrammarAmbiguityCase:
+        tokens = parsed.sentence_tokens(annotation.raw_ud.sentence_id)
+        spans = [token.span for token in tokens
+                 if token.span is not None and token.span.valid_for(parsed.text)]
+        sentence_span = (Span(min(item.start for item in spans), max(item.end for item in spans))
+                         if spans else annotation.source_span)
+        sentence_text = (parsed.text[sentence_span.start:sentence_span.end]
+                         if sentence_span is not None else annotation.source_text)
+        candidates = []
+        if annotation.russian_category is not RussianPOS.UNKNOWN:
+            candidates.append(RUSSIAN_POS_LABELS[annotation.russian_category])
+        relation = annotation.raw_ud.deprel.split(":", 1)[0]
+        if relation == "conj":
+            candidates.extend(("однородные компоненты", "предикативные части", "иная координация"))
+        elif relation == "parataxis":
+            candidates.extend(("бессоюзная связь", "присоединение", "парцелляция"))
+        elif relation == "orphan":
+            candidates.append("эллиптическая конструкция")
+        elif annotation.raw_ud.upos == "ADV":
+            candidates.extend(("наречие", "слово категории состояния"))
+        elif annotation.raw_ud.upos == "SCONJ":
+            candidates.extend(("подчинительный союз", "другое союзное средство"))
+        if not candidates:
+            candidates.append("русская категория требует экспертного установления")
+        return GrammarAmbiguityCase(
+            sentence_text=sentence_text, source_span=annotation.source_span,
+            stanza_annotation=annotation.raw_ud,
+            candidate_interpretations=tuple(dict.fromkeys(candidates)),
+            triggered_rules=annotation.triggered_rule_ids,
+            reason=annotation.explanation,
         )
 
     def _syntax(self, token: Token, annotation: RussianLinguisticAnnotation,

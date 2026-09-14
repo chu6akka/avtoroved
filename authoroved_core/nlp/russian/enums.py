@@ -16,6 +16,15 @@ class InterpretationStatus(str, Enum):
     INVALID_SOURCE = "INVALID_SOURCE"
 
 
+class GrammarArbitrationStatus(str, Enum):
+    """Зарезервированные статусы будущей отдельной LLM-оценки."""
+
+    CONSISTENT = "CONSISTENT"
+    ONTOLOGY_DIFFERENCE = "ONTOLOGY_DIFFERENCE"
+    STANZA_SUSPECT = "STANZA_SUSPECT"
+    AMBIGUOUS = "AMBIGUOUS"
+
+
 class RussianPOS(str, Enum):
     NOUN = "NOUN"
     PROPER_NOUN = "PROPER_NOUN"
