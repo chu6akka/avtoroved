@@ -1,0 +1,71 @@
+"""Контролируемые словари Russian Grammar Adapter."""
+from enum import Enum
+
+
+class MappingType(str, Enum):
+    DIRECT = "DIRECT"
+    CONTEXTUAL = "CONTEXTUAL"
+    NON_ISOMORPHIC = "NON_ISOMORPHIC"
+    AMBIGUOUS = "AMBIGUOUS"
+
+
+class InterpretationStatus(str, Enum):
+    RESOLVED = "RESOLVED"
+    AMBIGUOUS = "AMBIGUOUS"
+    EXPERT_REVIEW_REQUIRED = "EXPERT_REVIEW_REQUIRED"
+    INVALID_SOURCE = "INVALID_SOURCE"
+
+
+class RussianPOS(str, Enum):
+    NOUN = "NOUN"
+    PROPER_NOUN = "PROPER_NOUN"
+    ADJECTIVE = "ADJECTIVE"
+    VERB_FINITE = "VERB_FINITE"
+    INFINITIVE = "INFINITIVE"
+    PARTICIPLE = "PARTICIPLE"
+    DEEPRICHASTIE = "DEEPRICHASTIE"
+    PRONOUN = "PRONOUN"
+    PRONOMINAL_WORD = "PRONOMINAL_WORD"
+    NUMERAL = "NUMERAL"
+    ADVERB = "ADVERB"
+    PREPOSITION = "PREPOSITION"
+    CONJUNCTION_COORDINATING = "CONJUNCTION_COORDINATING"
+    CONJUNCTION_SUBORDINATING = "CONJUNCTION_SUBORDINATING"
+    PARTICLE = "PARTICLE"
+    INTERJECTION = "INTERJECTION"
+    UNKNOWN = "UNKNOWN"
+
+
+RUSSIAN_POS_LABELS = {
+    RussianPOS.NOUN: "имя существительное",
+    RussianPOS.PROPER_NOUN: "имя собственное",
+    RussianPOS.ADJECTIVE: "имя прилагательное",
+    RussianPOS.VERB_FINITE: "личная форма глагола",
+    RussianPOS.INFINITIVE: "инфинитив",
+    RussianPOS.PARTICIPLE: "причастие",
+    RussianPOS.DEEPRICHASTIE: "деепричастие",
+    RussianPOS.PRONOUN: "местоимение",
+    RussianPOS.PRONOMINAL_WORD: "местоименное слово",
+    RussianPOS.NUMERAL: "имя числительное",
+    RussianPOS.ADVERB: "наречие",
+    RussianPOS.PREPOSITION: "предлог",
+    RussianPOS.CONJUNCTION_COORDINATING: "сочинительный союз",
+    RussianPOS.CONJUNCTION_SUBORDINATING: "подчинительный союз или союзное средство",
+    RussianPOS.PARTICLE: "частица",
+    RussianPOS.INTERJECTION: "междометие",
+    RussianPOS.UNKNOWN: "категория не установлена",
+}
+
+
+class RussianConstructionType(str, Enum):
+    PARTICIPIAL_CONSTRUCTION = "PARTICIPIAL_CONSTRUCTION"
+    GERUND_CONSTRUCTION = "GERUND_CONSTRUCTION"
+    COORDINATED_MEMBERS = "COORDINATED_MEMBERS"
+    COORDINATED_CLAUSES = "COORDINATED_CLAUSES"
+    SUBORDINATE_CLAUSE = "SUBORDINATE_CLAUSE"
+    RELATIVE_CLAUSE = "RELATIVE_CLAUSE"
+    ELLIPTICAL_CONSTRUCTION = "ELLIPTICAL_CONSTRUCTION"
+    PARENTHETICAL_CONSTRUCTION = "PARENTHETICAL_CONSTRUCTION"
+    VOCATIVE_CONSTRUCTION = "VOCATIVE_CONSTRUCTION"
+    APPOSITIVE_CONSTRUCTION = "APPOSITIVE_CONSTRUCTION"
+    UNKNOWN = "UNKNOWN"

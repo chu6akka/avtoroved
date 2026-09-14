@@ -28,6 +28,7 @@ class Token:
     sentence: int
     index: int
     span: Span | None
+    xpos: str = ""
 
 
 @dataclass(frozen=True)

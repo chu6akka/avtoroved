@@ -21,8 +21,11 @@ def convert_document(parsed, text: str) -> list[Token]:
                 if span is not None and (not span.valid_for(text) or text[start:end] != word.text):
                     span = None
                 feats = dict(part.split("=", 1) for part in (word.feats or "").split("|") if "=" in part)
-                result.append(Token(word.text, word.lemma or word.text, word.upos or "X", feats,
-                                    word.deprel or "", word.head or 0, sentence_id, word.id, span))
+                result.append(Token(
+                    word.text, word.lemma or word.text, word.upos or "X", feats,
+                    word.deprel or "", word.head or 0, sentence_id, word.id, span,
+                    xpos=getattr(word, "xpos", None) or "",
+                ))
     return result
 
 

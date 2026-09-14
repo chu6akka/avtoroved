@@ -125,6 +125,7 @@ def _result(value: AnalysisResult | None):
         "tokens": [
             {
                 "text": item.text, "lemma": item.lemma, "pos": item.pos,
+                "xpos": item.xpos,
                 "feats": item.feats, "dependency": item.dependency, "head": item.head,
                 "sentence": item.sentence, "index": item.index, "span": _span(item.span),
             } for item in value.tokens
@@ -179,6 +180,7 @@ def _result_from(value) -> AnalysisResult | None:
             feats=dict(item["feats"]), dependency=str(item["dependency"]),
             head=int(item["head"]), sentence=int(item["sentence"]),
             index=int(item["index"]), span=_span_from(item["span"]),
+            xpos=str(item.get("xpos", "")),
         ) for item in value["tokens"]],
         candidates=[Candidate(
             id=str(item["id"]), document_id=str(item["document_id"]), name=str(item["name"]),
