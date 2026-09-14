@@ -20,11 +20,6 @@ from authoroved_core.nlp.parsed_document import ParsedDocument
 from authoroved_core.nlp.russian.adapter import RussianGrammarAdapter
 from authoroved_core.nlp.russian.enums import RussianPOS
 from authoroved_core.nlp.russian.models import RussianParsedDocument
-from authoroved_core.core.russian_word_classes import (
-    is_service_word,
-)
-
-
 WORD_POS_EXCLUDED = {"PUNCT", "SYM"}
 WORD_RE = re.compile(r"[^\W\d_]+(?:[-’'][^\W\d_]+)*", re.UNICODE)
 PUNCT_RE = re.compile(r"\.{3,}|…|[.,;:!?—–()]|[\[\]{}]|(?<!\w)-(?!\w)|[«»„“”\"]")
@@ -95,16 +90,31 @@ def _minimum_ok(definition: FeatureDefinition, word_count: int) -> bool:
     return definition.minimum_words is None or word_count >= definition.minimum_words
 
 
-def _lex_001(definition: FeatureDefinition, text: str, words: list[Token]):
-    selected = [token for token in words if is_service_word(token)]
-    counts = Counter(token.text.casefold() for token in selected)
+def _lex_001(definition: FeatureDefinition, text: str,
+             russian_document: RussianParsedDocument):
+    words = russian_document.word_annotations
+    selected = [
+        annotation for annotation in words
+        if annotation.russian_category in RUSSIAN_SERVICE_CATEGORIES
+    ]
+    counts = Counter(annotation.source_text.casefold() for annotation in selected)
     normalized = {form: _rate(count, len(words), 1000) for form, count in sorted(counts.items())}
+    evidence = tuple(
+        FeatureEvidence(annotation.source_text, annotation.source_span,
+                        annotation.source_text.casefold())
+        for annotation in selected
+        if annotation.source_span is not None
+        and annotation.source_span.valid_for(text)
+        and text[annotation.source_span.start:annotation.source_span.end]
+        == annotation.source_text
+    )
     return _observation(
         definition,
         {"word_count": len(words), "counts": dict(sorted(counts.items()))},
         {"per_1000_words": normalized},
-        _token_evidence(selected, text, lambda token: token.text.casefold()),
-        ("Части речи назначены Stanza; отсутствие словоформы не является различием без проверки возможности её проявления.",),
+        evidence,
+        ("Служебная русская категория получена Russian Grammar Adapter; отсутствие "
+         "словоформы не является различием без проверки возможности её проявления.",),
     )
 
 
@@ -201,6 +211,13 @@ RUSSIAN_VERB_FEATURE_NAMES = ("время", "лицо", "вид", "наклон�
 RUSSIAN_VERB_FEATURE_VALUES = {
     "лицо": {"первое": "1-е лицо", "второе": "2-е лицо", "третье": "3-е лицо"},
     "вид": {"совершенный": "совершенный вид", "несовершенный": "несовершенный вид"},
+}
+
+RUSSIAN_SERVICE_CATEGORIES = {
+    RussianPOS.PREPOSITION,
+    RussianPOS.CONJUNCTION_COORDINATING,
+    RussianPOS.CONJUNCTION_SUBORDINATING,
+    RussianPOS.PARTICLE,
 }
 
 
@@ -443,7 +460,7 @@ class FeatureExtractionService:
             if definition.id not in CALCULATORS:
                 raise ValueError(f"Для {definition.id} нет вычислителя.")
             word_count = (len(russian_document.word_annotations)
-                          if definition.id in {"MOR_001", "MOR_003", "MOR_004"}
+                          if definition.id in {"LEX_001", "MOR_001", "MOR_003", "MOR_004"}
                           else len(words))
             if not word_count:
                 observations.append(_insufficient(
@@ -457,7 +474,9 @@ class FeatureExtractionService:
                     "это техническое условие вычисления, а не норматив пригодности.",
                 ))
             else:
-                if definition.id == "MOR_001":
+                if definition.id == "LEX_001":
+                    observation = _lex_001(definition, document.text, russian_document)
+                elif definition.id == "MOR_001":
                     observation = _mor_001(definition, document.text, russian_document)
                 elif definition.id == "MOR_003":
                     observation = _mor_003(definition, document.text, russian_document)

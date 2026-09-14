@@ -15,8 +15,8 @@ features:
     name_ru: Частоты служебных слов
     group: Лексика
     automation_mode: AUTO
-    definition: Частоты словоформ, отнесённых автоматической разметкой к предлогам, союзам или частицам.
-    criteria: [буквенный токен, русскоязычная группа предлогов, союзов или частиц]
+    definition: Частоты словоформ, отнесённых Russian Grammar Adapter к предлогам, союзам или частицам русского представления.
+    criteria: [буквенная единица, русская категория предлога, союза или частицы]
     exclusions: [пунктуация, символы, числовые токены, местоименные и глагольные формы]
     unit: количество и употребления на 1000 слов
     normalization: count / all_words * 1000
@@ -24,10 +24,11 @@ features:
     minimum_volume_status: engineering_only
     evidence_method: все реализации словоформы с точными координатами
     dependency_group: lexical_function_distribution
-    method_version: auto-0.1.0
+    method_version: auto-0.2.0
     sources:
       - {title: "Методика Минюста", locator: "с. 13", role: "методический контекст частот служебных слов", verification: "checked_local_primary"}
       - {title: "Universal Dependencies v2 / Stanza", locator: "UPOS: ADP, CCONJ, SCONJ, PART", role: "техническая разметка с русскоязычным укрупнением", verification: "checked_technical_primary"}
+      - {title: "Russian Grammar Adapter", locator: "rules 0.1.1", role: "трассируемое выделение русских служебных категорий", verification: "internal_versioned_mapping"}
 
   - id: LEX_002
     name_ru: Профиль местоименных слов

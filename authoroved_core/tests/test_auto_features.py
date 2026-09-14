@@ -107,6 +107,26 @@ def test_mor_003_uses_russian_representation_instead_of_raw_ud_tokens(service):
     assert feature.method_version == "auto-0.2.0"
 
 
+def test_lex_001_uses_russian_service_categories_instead_of_raw_ud(service):
+    text = "и"
+    source = Token("и", "и", "CCONJ", {}, "root", 0, 0, 1, Span(0, 1))
+    russian_document = RussianGrammarAdapter().adapt(
+        ParsedDocument.from_tokens(text, [source])
+    )
+    conflicting_raw_token = Token(
+        "и", "и", "NOUN", {"Case": "Nom"}, "root", 0, 0, 1, Span(0, 1),
+    )
+
+    observations = service.analyze_object(
+        document(text), [conflicting_raw_token], russian_document=russian_document,
+    )
+    feature = next(item for item in observations if item.feature_id == "LEX_001")
+
+    assert feature.raw_value["counts"] == {"и": 1}
+    assert feature.evidence[0].quote == "и"
+    assert feature.method_version == "auto-0.2.0"
+
+
 def test_mor_004_uses_russian_categories_and_human_readable_features(service):
     text = "писал"
     source = Token(
