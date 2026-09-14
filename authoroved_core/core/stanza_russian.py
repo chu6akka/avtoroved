@@ -3,9 +3,31 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from authoroved_core.core.auto_features import CASE_RU, FEATURE_NAME_RU, FEATURE_VALUE_RU
 from authoroved_core.core.models import Span, Token
 from authoroved_core.core.russian_word_classes import russian_word_class
+
+
+CASE_RU = {
+    "Nom": "именительный", "Gen": "родительный", "Dat": "дательный",
+    "Acc": "винительный", "Ins": "творительный", "Loc": "предложный/местный",
+    "Par": "частичный", "Voc": "звательный",
+}
+FEATURE_NAME_RU = {
+    "Person": "лицо", "Number": "число", "PronType": "тип местоименного слова",
+    "Tense": "время", "Aspect": "вид", "Mood": "наклонение",
+}
+FEATURE_VALUE_RU = {
+    "Person": {"1": "1-е лицо", "2": "2-е лицо", "3": "3-е лицо"},
+    "Number": {"Sing": "единственное число", "Plur": "множественное число"},
+    "PronType": {
+        "Prs": "личные", "Rel": "относительные", "Int": "вопросительные",
+        "Dem": "указательные", "Neg": "отрицательные", "Ind": "неопределённые",
+        "Tot": "определительные", "Rcp": "взаимные",
+    },
+    "Tense": {"Past": "прошедшее", "Pres": "настоящее", "Fut": "будущее"},
+    "Aspect": {"Perf": "совершенный вид", "Imp": "несовершенный вид"},
+    "Mood": {"Ind": "изъявительное", "Imp": "повелительное", "Cnd": "условное"},
+}
 
 
 FEATURE_NAMES = {
