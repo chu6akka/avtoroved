@@ -107,19 +107,20 @@ features:
     name_ru: Профиль глагольных форм
     group: Морфология
     automation_mode: AUTO
-    definition: Распределение времени, лица, вида и наклонения среди форм, отображаемых в программе как глаголы.
-    criteria: [глагольная форма; технические метки VERB и AUX объединяются и не образуют в интерфейсе двух частей речи]
+    definition: Распределение времени, лица, вида и наклонения среди глагольных форм русского представления Russian Grammar Adapter.
+    criteria: [личная форма глагола, инфинитив, причастие или деепричастие; форма быть во вспомогательной функции остаётся глагольной формой]
     exclusions: [неразмеченная характеристика не считается её отсутствием]
     unit: количество и доля размеченных глагольных форм в процентах
     normalization: count / verb_forms_with_corresponding_feature * 100
     minimum_words: 1
     minimum_volume_status: engineering_only
-    evidence_method: все глагольные формы с координатами и метками Stanza
+    evidence_method: все русские глагольные формы с координатами и интерпретированными характеристиками
     dependency_group: morphology_distribution
-    method_version: auto-0.1.0
+    method_version: auto-0.2.0
     sources:
       - {title: "Методика Минюста", locator: "с. 20–22", role: "общая рамка грамматических признаков", verification: "checked_local_primary"}
       - {title: "Universal Dependencies v2 / Stanza", locator: "features Tense, Person, Aspect, Mood", role: "техническая разметка", verification: "checked_technical_primary"}
+      - {title: "Russian Grammar Adapter", locator: "rules 0.1.1", role: "трассируемая предметная интерпретация глагольных форм", verification: "internal_versioned_mapping"}
 
   - id: SYN_001
     name_ru: Длина предложений

@@ -44,13 +44,13 @@ def test_all_ten_calculators_return_raw_normalized_values_and_exact_evidence(ser
         ("Я", "PRON", {"Person": "1", "Number": "Sing", "PronType": "Prs", "Case": "Nom"}, 0),
         ("и", "CCONJ", {}, 0),
         ("ТЫ", "PRON", {"Person": "2", "Number": "Sing", "PronType": "Prs", "Case": "Nom"}, 0),
-        ("Иду", "VERB", {"Tense": "Pres", "Person": "1", "Aspect": "Imp", "Mood": "Ind"}, 0),
+        ("Иду", "VERB", {"VerbForm": "Fin", "Tense": "Pres", "Person": "1", "Aspect": "Imp", "Mood": "Ind"}, 0),
         ("в", "ADP", {}, 0),
         ("дом", "NOUN", {"Case": "Acc"}, 0),
         ("eMail", "NOUN", {"Case": "Nom"}, 1),
         ("ёлка", "NOUN", {"Case": "Nom"}, 1),
         ("Он", "PRON", {"Person": "3", "Number": "Sing", "PronType": "Prs", "Case": "Nom"}, 2),
-        ("видел", "VERB", {"Tense": "Past", "Aspect": "Imp", "Mood": "Ind"}, 2),
+        ("видел", "VERB", {"VerbForm": "Fin", "Tense": "Past", "Aspect": "Imp", "Mood": "Ind"}, 2),
         ("дом", "NOUN", {"Case": "Acc"}, 2),
     ])
 
@@ -104,6 +104,38 @@ def test_mor_003_uses_russian_representation_instead_of_raw_ud_tokens(service):
 
     assert feature.raw_value["counts"] == {"родительный": 1}
     assert feature.evidence[0].label == "падеж: родительный"
+    assert feature.method_version == "auto-0.2.0"
+
+
+def test_mor_004_uses_russian_categories_and_human_readable_features(service):
+    text = "писал"
+    source = Token(
+        "писал", "писать", "VERB",
+        {"VerbForm": "Fin", "Tense": "Past", "Person": "1",
+         "Aspect": "Imp", "Mood": "Ind"},
+        "root", 0, 0, 1, Span(0, 5),
+    )
+    russian_document = RussianGrammarAdapter().adapt(
+        ParsedDocument.from_tokens(text, [source])
+    )
+    conflicting_raw_token = Token(
+        "писал", "писал", "NOUN", {"Case": "Nom"},
+        "root", 0, 0, 1, Span(0, 5),
+    )
+
+    observations = service.analyze_object(
+        document(text), [conflicting_raw_token], russian_document=russian_document,
+    )
+    feature = next(item for item in observations if item.feature_id == "MOR_004")
+
+    assert feature.raw_value["verb_forms"] == 1
+    assert feature.raw_value["counts"] == {
+        "время": {"прошедшее": 1},
+        "вид": {"несовершенный вид": 1},
+        "лицо": {"1-е лицо": 1},
+        "наклонение": {"изъявительное": 1},
+    }
+    assert "время: прошедшее" in feature.evidence[0].label
     assert feature.method_version == "auto-0.2.0"
 
 
