@@ -34,19 +34,20 @@ features:
     name_ru: Профиль местоименных слов
     group: Лексика
     automation_mode: AUTO
-    definition: Распределение местоименных слов по словоформам и доступным грамматическим характеристикам лица, числа и типа.
-    criteria: [буквенный токен с технической меткой PRON или DET]
+    definition: Распределение местоименных слов русского представления по словоформам и доступным характеристикам лица, числа и типа.
+    criteria: [буквенная единица с русской категорией местоимения или местоименного слова]
     exclusions: [токены без букв]
     unit: количество и употребления на 1000 слов
     normalization: count / all_words * 1000
     minimum_words: 1
     minimum_volume_status: engineering_only
-    evidence_method: все местоимения с точными координатами и метками Stanza
+    evidence_method: все местоименные единицы с координатами и русскими названиями характеристик
     dependency_group: lexical_pronoun_distribution
-    method_version: auto-0.1.0
+    method_version: auto-0.2.0
     sources:
       - {title: "Методика Минюста", locator: "с. 22", role: "общая рамка частных языковых признаков", verification: "checked_local_primary"}
       - {title: "Universal Dependencies v2 / Stanza", locator: "UPOS PRON, DET; features Person, Number, PronType", role: "техническая разметка, объединённая в русскоязычную группу", verification: "checked_technical_primary"}
+      - {title: "Russian Grammar Adapter", locator: "adapter 0.1.2; rules 0.1.1", role: "трассируемая русская интерпретация местоименных слов и характеристик", verification: "internal_versioned_mapping"}
 
   - id: LEX_005
     name_ru: Лексическое разнообразие MATTR

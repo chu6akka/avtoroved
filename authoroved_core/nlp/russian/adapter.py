@@ -22,12 +22,13 @@ from authoroved_core.nlp.russian.models import (
 from authoroved_core.nlp.russian.rules import RussianGrammarRule, RussianGrammarRuleRegistry
 
 
-RUSSIAN_GRAMMAR_ADAPTER_VERSION = "0.1.1"
+RUSSIAN_GRAMMAR_ADAPTER_VERSION = "0.1.2"
 
 FEATURE_NAMES = {
     "Animacy": "одушевлённость", "Aspect": "вид", "Case": "падеж",
     "Degree": "степень сравнения", "Gender": "род", "Mood": "наклонение",
-    "Number": "число", "Person": "лицо", "Tense": "время",
+    "Number": "число", "Person": "лицо", "PronType": "тип местоименного слова",
+    "Tense": "время",
     "Variant": "форма", "Voice": "залог", "VerbForm": "форма глагола",
 }
 FEATURE_VALUES = {
@@ -41,6 +42,12 @@ FEATURE_VALUES = {
     "Mood": {"Ind": "изъявительное", "Imp": "повелительное", "Cnd": "условное"},
     "Number": {"Sing": "единственное", "Plur": "множественное"},
     "Person": {"1": "первое", "2": "второе", "3": "третье"},
+    "PronType": {
+        "Prs": "личные", "Rel": "относительные", "Int": "вопросительные",
+        "Dem": "указательные", "Neg": "отрицательные",
+        "Ind": "неопределённые", "Tot": "определительные",
+        "Rcp": "взаимные",
+    },
     "Tense": {"Past": "прошедшее", "Pres": "настоящее", "Fut": "будущее"},
     "Variant": {"Short": "краткая"},
     "Voice": {"Act": "действительный", "Pass": "страдательный", "Mid": "средний"},

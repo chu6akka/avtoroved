@@ -127,6 +127,36 @@ def test_lex_001_uses_russian_service_categories_instead_of_raw_ud(service):
     assert feature.method_version == "auto-0.2.0"
 
 
+def test_lex_002_uses_russian_pronominal_categories_and_labels(service):
+    text = "этот"
+    source = Token(
+        "этот", "этот", "DET",
+        {"Case": "Nom", "Number": "Sing", "PronType": "Dem"},
+        "det", 0, 0, 1, Span(0, 4),
+    )
+    russian_document = RussianGrammarAdapter().adapt(
+        ParsedDocument.from_tokens(text, [source])
+    )
+    conflicting_raw_token = Token(
+        "этот", "этот", "ADJ", {"Case": "Nom"},
+        "root", 0, 0, 1, Span(0, 4),
+    )
+
+    observations = service.analyze_object(
+        document(text), [conflicting_raw_token], russian_document=russian_document,
+    )
+    feature = next(item for item in observations if item.feature_id == "LEX_002")
+
+    assert feature.raw_value["forms"] == {"этот": 1}
+    assert feature.raw_value["features"] == {
+        "лицо": {},
+        "тип местоименного слова": {"указательные": 1},
+        "число": {"единственное число": 1},
+    }
+    assert "тип местоименного слова: указательные" in feature.evidence[0].label
+    assert feature.method_version == "auto-0.2.0"
+
+
 def test_mor_004_uses_russian_categories_and_human_readable_features(service):
     text = "писал"
     source = Token(

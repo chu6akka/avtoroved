@@ -78,6 +78,18 @@ def test_mapping_types_and_raw_ud_are_preserved(examples):
     assert result.source.tokens[1] is tokens[1]
 
 
+def test_pronominal_feature_codes_receive_russian_labels(examples):
+    source = next(item for item in examples if item["id"] == "det_pronominal")
+    tokens = [token(item) for item in source["tokens"]]
+    result = RussianGrammarAdapter().adapt(
+        ParsedDocument.from_tokens(source["text"], tokens)
+    )
+
+    demonstrative = result.annotation_at(0, 1)
+    assert demonstrative.russian_features["тип местоименного слова"] == "указательные"
+    assert "PronType" not in demonstrative.russian_features
+
+
 @pytest.mark.parametrize("relation,expected_rule", [
     ("nsubj", "RU_SYN_001"), ("obj", "RU_SYN_002"), ("iobj", "RU_SYN_003"),
     ("amod", "RU_SYN_004"), ("nmod", "RU_SYN_005"), ("advmod", "RU_SYN_006"),

@@ -25,24 +25,6 @@ WORD_RE = re.compile(r"[^\W\d_]+(?:[-’'][^\W\d_]+)*", re.UNICODE)
 PUNCT_RE = re.compile(r"\.{3,}|…|[.,;:!?—–()]|[\[\]{}]|(?<!\w)-(?!\w)|[«»„“”\"]")
 EMPHATIC_RE = re.compile(r"[!?]{2,}")
 
-FEATURE_VALUE_RU = {
-    "Person": {"1": "1-е лицо", "2": "2-е лицо", "3": "3-е лицо"},
-    "Number": {"Sing": "единственное число", "Plur": "множественное число"},
-    "PronType": {
-        "Prs": "личные", "Rel": "относительные", "Int": "вопросительные",
-        "Dem": "указательные", "Neg": "отрицательные", "Ind": "неопределённые",
-        "Tot": "определительные", "Rcp": "взаимные",
-    },
-    "Tense": {"Past": "прошедшее", "Pres": "настоящее", "Fut": "будущее"},
-    "Aspect": {"Perf": "совершенный вид", "Imp": "несовершенный вид"},
-    "Mood": {"Ind": "изъявительное", "Imp": "повелительное", "Cnd": "условное"},
-}
-FEATURE_NAME_RU = {
-    "Person": "лицо", "Number": "число", "PronType": "тип местоименного слова",
-    "Tense": "время", "Aspect": "вид", "Mood": "наклонение",
-}
-
-
 def _words(tokens: list[Token]) -> list[Token]:
     return [token for token in tokens if token.pos not in WORD_POS_EXCLUDED
             and any(char.isalpha() for char in token.text)]
@@ -118,22 +100,29 @@ def _lex_001(definition: FeatureDefinition, text: str,
     )
 
 
-def _lex_002(definition: FeatureDefinition, text: str, words: list[Token]):
-    selected = [token for token in words if token.pos in {"PRON", "DET"}]
-    forms = Counter(token.text.casefold() for token in selected)
-    profiles: dict[str, Counter] = {name: Counter() for name in ("Person", "Number", "PronType")}
-    for token in selected:
+def _lex_002(definition: FeatureDefinition, text: str,
+             russian_document: RussianParsedDocument):
+    words = russian_document.word_annotations
+    selected = [
+        annotation for annotation in words
+        if annotation.russian_category in RUSSIAN_PRONOUN_CATEGORIES
+    ]
+    forms = Counter(annotation.source_text.casefold() for annotation in selected)
+    profiles: dict[str, Counter] = {
+        name: Counter() for name in RUSSIAN_PRONOUN_FEATURE_NAMES
+    }
+    for annotation in selected:
         for name in profiles:
-            value = token.feats.get(name)
+            value = annotation.russian_features.get(name)
             if value:
-                profiles[name][value] += 1
+                profiles[name][RUSSIAN_PRONOUN_FEATURE_VALUES.get(name, {}).get(value, value)] += 1
     normalized = {
         "словоформы_на_1000_слов": {
             form: _rate(count, len(words), 1000) for form, count in sorted(forms.items())
         },
         "характеристики_на_1000_слов": {
-            FEATURE_NAME_RU[name]: {
-                FEATURE_VALUE_RU.get(name, {}).get(value, value): _rate(count, len(words), 1000)
+            name: {
+                value: _rate(count, len(words), 1000)
                 for value, count in sorted(counts.items())
             } for name, counts in profiles.items()
         },
@@ -142,18 +131,27 @@ def _lex_002(definition: FeatureDefinition, text: str, words: list[Token]):
         definition,
         {"word_count": len(words), "forms": dict(sorted(forms.items())),
          "features": {
-             FEATURE_NAME_RU[name]: {
-                 FEATURE_VALUE_RU.get(name, {}).get(value, value): count
-                 for value, count in sorted(counts.items())
-             } for name, counts in profiles.items()
+             name: dict(sorted(counts.items())) for name, counts in profiles.items()
          }},
         normalized,
-        _token_evidence(selected, text, lambda token: ", ".join(
-            f"{FEATURE_NAME_RU[key]}: {FEATURE_VALUE_RU[key].get(token.feats[key], token.feats[key])}"
-            for key in ("Person", "Number", "PronType")
-            if key in token.feats
-        )),
-        ("Грамматические характеристики местоимений назначены Stanza и требуют проверки экспертом.",),
+        tuple(
+            FeatureEvidence(
+                annotation.source_text,
+                annotation.source_span,
+                ", ".join(
+                    f"{name}: {RUSSIAN_PRONOUN_FEATURE_VALUES.get(name, {}).get(value, value)}"
+                    for name in RUSSIAN_PRONOUN_FEATURE_NAMES
+                    if (value := annotation.russian_features.get(name))
+                ),
+            )
+            for annotation in selected
+            if annotation.source_span is not None
+            and annotation.source_span.valid_for(text)
+            and text[annotation.source_span.start:annotation.source_span.end]
+            == annotation.source_text
+        ),
+        ("Местоименные категории и характеристики получены Russian Grammar Adapter; "
+         "предметная квалификация остаётся доступна для проверки экспертом.",),
     )
 
 
@@ -218,6 +216,18 @@ RUSSIAN_SERVICE_CATEGORIES = {
     RussianPOS.CONJUNCTION_COORDINATING,
     RussianPOS.CONJUNCTION_SUBORDINATING,
     RussianPOS.PARTICLE,
+}
+
+RUSSIAN_PRONOUN_CATEGORIES = {
+    RussianPOS.PRONOUN,
+    RussianPOS.PRONOMINAL_WORD,
+}
+RUSSIAN_PRONOUN_FEATURE_NAMES = (
+    "лицо", "число", "тип местоименного слова",
+)
+RUSSIAN_PRONOUN_FEATURE_VALUES = {
+    "лицо": {"первое": "1-е лицо", "второе": "2-е лицо", "третье": "3-е лицо"},
+    "число": {"единственное": "единственное число", "множественное": "множественное число"},
 }
 
 
@@ -460,7 +470,7 @@ class FeatureExtractionService:
             if definition.id not in CALCULATORS:
                 raise ValueError(f"Для {definition.id} нет вычислителя.")
             word_count = (len(russian_document.word_annotations)
-                          if definition.id in {"LEX_001", "MOR_001", "MOR_003", "MOR_004"}
+                          if definition.id in {"LEX_001", "LEX_002", "MOR_001", "MOR_003", "MOR_004"}
                           else len(words))
             if not word_count:
                 observations.append(_insufficient(
@@ -476,6 +486,8 @@ class FeatureExtractionService:
             else:
                 if definition.id == "LEX_001":
                     observation = _lex_001(definition, document.text, russian_document)
+                elif definition.id == "LEX_002":
+                    observation = _lex_002(definition, document.text, russian_document)
                 elif definition.id == "MOR_001":
                     observation = _mor_001(definition, document.text, russian_document)
                 elif definition.id == "MOR_003":
