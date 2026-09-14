@@ -7,6 +7,8 @@ from authoroved_core.core.document import Document
 from authoroved_core.core.feature_models import Applicability
 from authoroved_core.core.feature_registry import FeatureRegistry
 from authoroved_core.core.models import Span, Token
+from authoroved_core.nlp.parsed_document import ParsedDocument
+from authoroved_core.nlp.russian.adapter import RussianGrammarAdapter
 
 
 def document(text: str) -> Document:
@@ -81,6 +83,28 @@ def test_all_ten_calculators_return_raw_normalized_values_and_exact_evidence(ser
     for observation in observations:
         for evidence in observation.evidence:
             assert text[evidence.span.start:evidence.span.end] == evidence.quote
+
+
+def test_mor_003_uses_russian_representation_instead_of_raw_ud_tokens(service):
+    text = "дома"
+    source = Token(
+        "дома", "дом", "NOUN", {"Case": "Gen"}, "root", 0, 0, 1, Span(0, 4),
+    )
+    russian_document = RussianGrammarAdapter().adapt(
+        ParsedDocument.from_tokens(text, [source])
+    )
+    conflicting_raw_token = Token(
+        "дома", "дома", "X", {"Case": "Acc"}, "root", 0, 0, 1, Span(0, 4),
+    )
+
+    observations = service.analyze_object(
+        document(text), [conflicting_raw_token], russian_document=russian_document,
+    )
+    feature = next(item for item in observations if item.feature_id == "MOR_003")
+
+    assert feature.raw_value["counts"] == {"родительный": 1}
+    assert feature.evidence[0].label == "падеж: родительный"
+    assert feature.method_version == "auto-0.2.0"
 
 
 def test_mattr_uses_fixed_window_50_and_is_deterministic(service):

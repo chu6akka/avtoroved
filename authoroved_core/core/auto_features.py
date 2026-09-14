@@ -25,17 +25,11 @@ from authoroved_core.core.russian_word_classes import (
 )
 
 
-NOMINAL_POS = {"NOUN", "PROPN", "ADJ", "PRON", "DET", "NUM"}
 WORD_POS_EXCLUDED = {"PUNCT", "SYM"}
 WORD_RE = re.compile(r"[^\W\d_]+(?:[-’'][^\W\d_]+)*", re.UNICODE)
 PUNCT_RE = re.compile(r"\.{3,}|…|[.,;:!?—–()]|[\[\]{}]|(?<!\w)-(?!\w)|[«»„“”\"]")
 EMPHATIC_RE = re.compile(r"[!?]{2,}")
 
-CASE_RU = {
-    "Nom": "именительный", "Gen": "родительный", "Dat": "дательный",
-    "Acc": "винительный", "Ins": "творительный", "Loc": "предложный/местный",
-    "Par": "частичный", "Voc": "звательный",
-}
 FEATURE_VALUE_RU = {
     "Person": {"1": "1-е лицо", "2": "2-е лицо", "3": "3-е лицо"},
     "Number": {"Sing": "единственное число", "Plur": "множественное число"},
@@ -187,6 +181,15 @@ RUSSIAN_POS_GROUPS = {
     RussianPOS.UNKNOWN: "Не классифицировано",
 }
 
+RUSSIAN_NOMINAL_CATEGORIES = {
+    RussianPOS.NOUN,
+    RussianPOS.PROPER_NOUN,
+    RussianPOS.ADJECTIVE,
+    RussianPOS.PRONOUN,
+    RussianPOS.PRONOMINAL_WORD,
+    RussianPOS.NUMERAL,
+}
+
 
 def _mor_001(definition: FeatureDefinition, text: str,
              russian_document: RussianParsedDocument):
@@ -211,9 +214,24 @@ def _mor_001(definition: FeatureDefinition, text: str,
     )
 
 
-def _mor_003(definition: FeatureDefinition, text: str, words: list[Token]):
-    selected = [token for token in words if token.pos in NOMINAL_POS and token.feats.get("Case")]
-    counts = Counter(CASE_RU.get(token.feats["Case"], token.feats["Case"]) for token in selected)
+def _mor_003(definition: FeatureDefinition, text: str,
+             russian_document: RussianParsedDocument):
+    words = russian_document.word_annotations
+    selected = [
+        annotation for annotation in words
+        if annotation.russian_category in RUSSIAN_NOMINAL_CATEGORIES
+        and annotation.russian_features.get("падеж")
+    ]
+    counts = Counter(annotation.russian_features["падеж"] for annotation in selected)
+    evidence = tuple(
+        FeatureEvidence(annotation.source_text, annotation.source_span,
+                        "падеж: " + annotation.russian_features["падеж"])
+        for annotation in selected
+        if annotation.source_span is not None
+        and annotation.source_span.valid_for(text)
+        and text[annotation.source_span.start:annotation.source_span.end]
+        == annotation.source_text
+    )
     return _observation(
         definition,
         {"word_count": len(words), "case_marked_nominals": len(selected),
@@ -228,10 +246,9 @@ def _mor_003(definition: FeatureDefinition, text: str, words: list[Token]):
                 for value, count in sorted(counts.items())
             },
         },
-        _token_evidence(selected, text, lambda token: (
-            "падеж: " + CASE_RU.get(token.feats["Case"], token.feats["Case"])
-        )),
-        ("Падеж назначен Stanza; формы без метки Case не включаются в знаменатель падежного профиля.",),
+        evidence,
+        ("Падеж перенесён Russian Grammar Adapter из неизменённой разметки Stanza; "
+         "формы без установленного падежа не включаются в знаменатель профиля.",),
     )
 
 
@@ -394,7 +411,7 @@ class FeatureExtractionService:
             if definition.id not in CALCULATORS:
                 raise ValueError(f"Для {definition.id} нет вычислителя.")
             word_count = (len(russian_document.word_annotations)
-                          if definition.id == "MOR_001" else len(words))
+                          if definition.id in {"MOR_001", "MOR_003"} else len(words))
             if not word_count:
                 observations.append(_insufficient(
                     definition, 0,
@@ -407,9 +424,12 @@ class FeatureExtractionService:
                     "это техническое условие вычисления, а не норматив пригодности.",
                 ))
             else:
-                observation = (_mor_001(definition, document.text, russian_document)
-                               if definition.id == "MOR_001"
-                               else CALCULATORS[definition.id](definition, document.text, words))
+                if definition.id == "MOR_001":
+                    observation = _mor_001(definition, document.text, russian_document)
+                elif definition.id == "MOR_003":
+                    observation = _mor_003(definition, document.text, russian_document)
+                else:
+                    observation = CALCULATORS[definition.id](definition, document.text, words)
                 self._verify_evidence(document.text, observation)
                 observations.append(observation)
         return observations

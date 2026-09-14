@@ -88,8 +88,8 @@ features:
     name_ru: Профиль падежей именных форм
     group: Морфология
     automation_mode: AUTO
-    definition: Распределение значений Case среди именных форм, для которых Stanza указала падеж.
-    criteria: [UPOS NOUN, PROPN, ADJ, PRON, DET или NUM, наличие Case]
+    definition: Распределение падежей среди именных форм по русскому представлению Russian Grammar Adapter.
+    criteria: [именная русская категория, наличие интерпретированного признака падежа]
     exclusions: [формы без значения Case]
     unit: количество, доля размеченных именных форм и употребления на 1000 слов
     normalization: count / case_marked_nominals * 100; count / all_words * 1000
@@ -97,10 +97,11 @@ features:
     minimum_volume_status: engineering_only
     evidence_method: все падежно размеченные именные формы с координатами
     dependency_group: morphology_distribution
-    method_version: auto-0.1.0
+    method_version: auto-0.2.0
     sources:
       - {title: "Методика Минюста", locator: "с. 20–22", role: "общая рамка грамматических признаков", verification: "checked_local_primary"}
       - {title: "Universal Dependencies v2 / Stanza", locator: "feature Case", role: "техническая разметка", verification: "checked_technical_primary"}
+      - {title: "Russian Grammar Adapter", locator: "rules 0.1.1", role: "трассируемая предметная интерпретация падежа", verification: "internal_versioned_mapping"}
 
   - id: MOR_004
     name_ru: Профиль глагольных форм
