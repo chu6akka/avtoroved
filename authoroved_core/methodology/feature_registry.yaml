@@ -82,7 +82,7 @@ features:
     sources:
       - {title: "Методика Минюста", locator: "с. 20–22", role: "грамматические признаки в раздельном исследовании", verification: "checked_local_primary"}
       - {title: "Universal Dependencies v2 / Stanza", locator: "UPOS; NOUN+PROPN, VERB+AUX, PRON+DET, CCONJ+SCONJ", role: "техническая основа русскоязычного укрупнения", verification: "checked_technical_primary"}
-      - {title: "Russian Grammar Adapter", locator: "rules 0.1.0", role: "трассируемая предметная интерпретация технической разметки", verification: "internal_versioned_mapping"}
+      - {title: "Russian Grammar Adapter", locator: "rules 0.1.1", role: "трассируемая предметная интерпретация технической разметки", verification: "internal_versioned_mapping"}
 
   - id: MOR_003
     name_ru: Профиль падежей именных форм

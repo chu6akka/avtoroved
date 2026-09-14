@@ -22,7 +22,7 @@ from authoroved_core.nlp.russian.models import (
 from authoroved_core.nlp.russian.rules import RussianGrammarRule, RussianGrammarRuleRegistry
 
 
-RUSSIAN_GRAMMAR_ADAPTER_VERSION = "0.1.0"
+RUSSIAN_GRAMMAR_ADAPTER_VERSION = "0.1.1"
 
 FEATURE_NAMES = {
     "Animacy": "одушевлённость", "Aspect": "вид", "Case": "падеж",

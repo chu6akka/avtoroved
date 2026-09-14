@@ -121,8 +121,28 @@ def test_registry_contains_all_mvp_rules_and_real_hash():
     assert {item.id for item in registry.rules} == {
         *(f"RU_POS_{index:03d}" for index in range(1, 18)),
         *(f"RU_SYN_{index:03d}" for index in range(1, 19)),
+        "RU_TECH_001", "RU_TECH_002",
     }
+    assert registry.version == "0.1.1"
     assert len(registry.sha256) == 64
+
+
+@pytest.mark.parametrize("upos,rule_id,function", [
+    ("PUNCT", "RU_TECH_001", "знак препинания"),
+    ("SYM", "RU_TECH_002", "символ"),
+])
+def test_nonlexical_ud_tokens_are_preserved_without_false_grammar_review(
+        upos, rule_id, function):
+    value = Token(".", ".", upos, {}, "punct", 0, 0, 1, Span(0, 1))
+    result = RussianGrammarAdapter().adapt(ParsedDocument.from_tokens(".", [value]))
+    annotation = result.annotations[0]
+
+    assert annotation.raw_ud.upos == upos
+    assert annotation.rule_id == rule_id
+    assert function in annotation.russian_function
+    assert annotation.status is InterpretationStatus.RESOLVED
+    assert not annotation.requires_review
+    assert not result.ambiguity_cases
 
 
 def test_vertical_path_stanza_to_adapter_to_mor_001_observation():
