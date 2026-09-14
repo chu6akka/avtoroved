@@ -84,3 +84,21 @@ def test_insufficient_data_requires_empty_observations(registry):
     invalid = '{"status":"INSUFFICIENT_DATA","observations":[{"feature_id":"LEX_900","quote":"x"}]}'
     with pytest.raises(LLMContractError, match="должен быть пуст"):
         LLMResponseValidator(registry).validate(invalid, "x")
+
+
+def test_contract_enforces_active_profile_whitelist(registry):
+    raw = json.dumps({
+        "status": "DETECTED",
+        "observations": [{"feature_id": "LEX_900", "quote": "фраза"}],
+    })
+    with pytest.raises(LLMContractError, match="специализированным профилем"):
+        LLMResponseValidator(registry).validate(
+            raw, "Здесь есть фраза.", allowed_feature_ids=frozenset(),
+        )
+
+
+def test_contract_rejects_duplicate_observation(registry):
+    item = {"feature_id": "LEX_900", "quote": "фраза"}
+    raw = json.dumps({"status": "DETECTED", "observations": [item, item]})
+    with pytest.raises(LLMContractError, match="дублирующее"):
+        LLMResponseValidator(registry).validate(raw, "Здесь есть фраза.")

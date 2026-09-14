@@ -1,0 +1,22 @@
+[
+  {
+    "id": "internet_zy",
+    "text": "Основное сообщение завершено. ЗЫ: завтра пришлю исходный файл.",
+    "expected_feature_ids": ["GRA_101", "GRA_102"]
+  },
+  {
+    "id": "internet_ps",
+    "text": "На этом всё. P.S. Встречу перенесли на девять часов.",
+    "expected_feature_ids": ["GRA_101"]
+  },
+  {
+    "id": "layout_switch",
+    "text": "Привет! Я случайно написал ghbdtn в неверной раскладке.",
+    "expected_feature_ids": ["GRA_102"]
+  },
+  {
+    "id": "negative_control",
+    "text": "Обычное законченное сообщение без добавочного примечания.",
+    "expected_feature_ids": []
+  }
+]

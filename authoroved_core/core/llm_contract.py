@@ -67,7 +67,8 @@ class LLMResponseValidator:
     def __init__(self, registry: FeatureRegistry):
         self.registry = registry
 
-    def validate(self, raw_response: str, text: str) -> ValidatedLLMResponse:
+    def validate(self, raw_response: str, text: str, *,
+                 allowed_feature_ids: frozenset[str] | None = None) -> ValidatedLLMResponse:
         if not isinstance(raw_response, str):
             raise LLMContractError("Исходный ответ модели должен быть строкой.")
         try:
@@ -101,6 +102,10 @@ class LLMResponseValidator:
                 raise LLMContractError(f"Признак {feature_id} отсутствует в реестре.") from exc
             if definition.automation_mode is not AutomationMode.LLM_ASSISTED:
                 raise LLMContractError(f"Признак {feature_id} не разрешён для LLM-кандидатов.")
+            if allowed_feature_ids is not None and feature_id not in allowed_feature_ids:
+                raise LLMContractError(
+                    f"Признак {feature_id} не разрешён активным специализированным профилем."
+                )
             starts = []
             offset = 0
             while True:
@@ -117,4 +122,8 @@ class LLMResponseValidator:
             candidates.append(ValidatedLLMCandidate(
                 feature_id, FeatureEvidence(quote=quote, span=span, label="дословная цитата"),
             ))
+        keys = [(item.feature_id, item.evidence.span.start, item.evidence.span.end)
+                for item in candidates]
+        if len(keys) != len(set(keys)):
+            raise LLMContractError("Ответ содержит дублирующее наблюдение.")
         return ValidatedLLMResponse(raw_response, status, tuple(candidates))

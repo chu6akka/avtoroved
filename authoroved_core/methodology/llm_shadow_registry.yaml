@@ -1,0 +1,46 @@
+registry:
+  id: authoroved-core-llm-shadow
+  version: "0.1.1"
+  status: experimental_shadow_not_evidentiary
+  language: ru
+  notice: >-
+    Реестр предназначен только для теневой проверки локальной модели. Кандидаты
+    не участвуют в сопоставлении и не имеют экспертной или идентификационной
+    значимости до отдельной методической и корпусной валидации.
+  identification_thresholds: null
+  default_suitability_minimum_words: null
+
+features:
+  - id: GRA_101
+    name_ru: Постскриптумный маркер интернет-коммуникации
+    group: Графические особенности интернет-коммуникации
+    automation_mode: LLM_ASSISTED
+    definition: Явный маркер добавочного сообщения после основной части текста, включая P.S., PS, постскриптум, З.Ы., ЗЫ и контекстно эквивалентные варианты.
+    criteria: [дословно присутствующий маркер, функция добавочного сообщения после основной части]
+    exclusions: [случайное сочетание букв внутри слова, цитирование обозначения без функции постскриптума]
+    unit: кандидат с дословной цитатой
+    normalization: не применяется
+    minimum_words: 1
+    minimum_volume_status: engineering_only
+    evidence_method: одна уникальная дословная цитата; координаты вычисляет Python
+    dependency_group: internet_graphics
+    method_version: llm-shadow-0.1.0
+    sources:
+      - {title: "Методика Минюста", locator: "с. 22", role: "общий контекст графических особенностей интернет-коммуникации", verification: "checked_local_primary"}
+
+  - id: GRA_102
+    name_ru: Переключение клавиатурной раскладки или клавиатурная транслитерация
+    group: Графические особенности интернет-коммуникации
+    automation_mode: LLM_ASSISTED
+    definition: Осмысленная последовательность, набранная в другой клавиатурной раскладке, включая ЗЫ как клавиатурный аналог PS.
+    criteria: [дословно присутствующий фрагмент, интерпретация подтверждается соответствием клавиш русской и латинской раскладки]
+    exclusions: [обычное иностранное слово, аббревиатура без признака переключения раскладки, латинские P.S. и PS сами по себе — это постскриптумный маркер GRA_101, а не переключение раскладки]
+    unit: кандидат с дословной цитатой
+    normalization: не применяется
+    minimum_words: 1
+    minimum_volume_status: engineering_only
+    evidence_method: одна уникальная дословная цитата; координаты вычисляет Python
+    dependency_group: internet_graphics
+    method_version: llm-shadow-0.1.1
+    sources:
+      - {title: "Методика Минюста", locator: "с. 22", role: "общий контекст графических особенностей интернет-коммуникации", verification: "checked_local_primary"}
