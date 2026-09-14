@@ -11,9 +11,13 @@ from authoroved_core.core.case_repository import CaseRepository
 from authoroved_core.core.feature_models import (
     Applicability, ExpertFeatureStatus, FeatureEvidence, FeatureObservation,
 )
-from authoroved_core.core.models import AnalysisResult, Candidate, Metric, ReviewStatus, Span
+from authoroved_core.core.models import (
+    AnalysisResult, Candidate, Metric, ReviewStatus, Span, Token,
+)
+from authoroved_core.core.qwen_theme import QwenThemeRun, ThemeCandidate, ThemeRunStatus
 from authoroved_core.nlp.settings import LocalSettings
 from authoroved_core.ui.main_window import MainWindow
+from authoroved_core.ui.qwen_pilot import QwenPilotDialog
 from authoroved_core.ui.text_view import SourceTextView
 
 
@@ -240,6 +244,58 @@ def test_case_controls_fit_minimum_window(window, app):
                    window.audit_button, window.open_button]:
         assert window.rect().contains(widget.mapTo(window, widget.rect().topLeft()))
         assert window.rect().contains(widget.mapTo(window, widget.rect().bottomRight()))
+
+
+def test_qwen_pilot_button_is_available_for_loaded_text(window):
+    assert window.qwen_button.isEnabled()
+    assert window.qwen_button.text() == "Qwen · пилот"
+
+
+def test_qwen_pilot_displays_theme_quotes_and_review(app):
+    text = "Обсуждались ремонт дороги и сроки укладки асфальта."
+    dialog = QwenPilotDialog(text, "Тема.txt")
+    quote = "ремонт дороги"
+    start = text.index(quote)
+    run = QwenThemeRun(
+        "theme_assistance", "0.1.0", ThemeRunStatus.VALIDATED_CANDIDATES,
+        '{"status":"DETECTED"}',
+        (ThemeCandidate("Ремонт дороги", (
+            FeatureEvidence(quote, Span(start, start + len(quote)), "основание"),
+        )),),
+        {"provider": "test"},
+    )
+
+    dialog.display_run(run)
+    app.processEvents()
+    assert dialog.candidate_list.count() == 1
+    assert "Тема · Ремонт дороги" in dialog.candidate_list.item(0).text()
+    assert "Дослов" not in dialog.detail.toPlainText()
+    assert quote in dialog.detail.toPlainText()
+    dialog.accept_button.click()
+    assert "Подтверждён только в пилоте" in dialog.candidate_list.item(0).text()
+    dialog.close()
+
+
+def test_qwen_pilot_humanizes_existing_stanza_tokens_without_model(app):
+    text = "Он будет писать."
+    tokens = [
+        Token("Он", "он", "PRON", {"Case": "Nom"}, "nsubj", 3, 1, 1, Span(0, 2)),
+        Token("будет", "быть", "AUX", {"Tense": "Fut"}, "aux", 3, 1, 2, Span(3, 8)),
+        Token("писать", "писать", "VERB", {"VerbForm": "Inf"}, "root", 0, 1, 3, Span(9, 15)),
+    ]
+    dialog = QwenPilotDialog(text, "Stanza.txt", tokens=tokens)
+    dialog.profile.setCurrentIndex(dialog.profile.findData("stanza_explanation"))
+    dialog.run_button.click()
+    app.processEvents()
+
+    assert dialog.worker is None
+    assert dialog.candidate_list.count() == 3
+    assert "Глаголы" in dialog.candidate_list.item(1).text()
+    dialog.candidate_list.setCurrentRow(1)
+    assert "будущее" in dialog.detail.toPlainText()
+    assert "вспомогатель" not in dialog.detail.toPlainText().casefold()
+    assert "AUX" in dialog.raw_response.toPlainText()
+    dialog.close()
 
 
 def test_case_save_and_restore_keeps_expert_decisions(window, app, tmp_path):

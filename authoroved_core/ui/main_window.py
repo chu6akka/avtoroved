@@ -32,6 +32,7 @@ from authoroved_core.metrics.basic import GLOBAL_NOTE, WORD_PATTERN
 from authoroved_core.nlp.settings import LocalSettings
 from authoroved_core.ui.text_view import SourceTextView
 from authoroved_core.ui.appearance import STYLE, METRIC_HIGHLIGHT
+from authoroved_core.ui.qwen_pilot import QwenPilotDialog
 
 
 
@@ -60,6 +61,14 @@ FEATURE_KEY_RU = {
     "case_marked_nominals": "именных форм с падежом", "verb_forms": "глагольных форм",
     "sentence_count": "предложений", "lengths": "длины предложений",
     "mattr": "MATTR", "window": "окно", "window_count": "окон",
+    "denominators": "форм с указанной характеристикой",
+    "percent_of_case_marked_nominals": "доли форм с указанным падежом, %",
+    "percent_within_each_marked_feature": "доли внутри размеченной характеристики, %",
+    "mean": "среднее", "median": "медиана",
+    "population_standard_deviation": "разброс",
+    "sequences": "сочетания и повторы",
+    "словоформы_на_1000_слов": "словоформы на 1000 слов",
+    "характеристики_на_1000_слов": "характеристики на 1000 слов",
 }
 
 
@@ -309,6 +318,12 @@ class MainWindow(QMainWindow):
         title_row = QHBoxLayout()
         self.filename = label("Материал исследования", "sectionTitle")
         title_row.addWidget(self.filename, 1)
+        self.qwen_button = button("Qwen · пилот", self.open_qwen_pilot)
+        self.qwen_button.setEnabled(False)
+        self.qwen_button.setToolTip(
+            "Открыть отдельную локальную теневую проверку выбранного текста"
+        )
+        title_row.addWidget(self.qwen_button)
         self.analyze_button = button("Анализировать", self.start_analysis, True)
         self.analyze_button.setEnabled(False)
         title_row.addWidget(self.analyze_button)
@@ -953,6 +968,7 @@ class MainWindow(QMainWindow):
             self.import_note.setText("Добавьте документ, затем выполните его отдельный анализ.")
             self.hash_note.clear()
             self.analyze_button.setEnabled(False)
+            self.qwen_button.setEnabled(False)
             return
         self.filename.setText(material.name)
         self.text_view.set_source(material.text)
@@ -962,6 +978,7 @@ class MainWindow(QMainWindow):
         self.hash_note.setText("SHA-256 исходного файла\n" + material.file_sha256[:32] + "\n" + material.file_sha256[32:])
         self.hash_note.setToolTip(material.file_sha256)
         self.analyze_button.setEnabled(not (self.worker and self.worker.isRunning()))
+        self.qwen_button.setEnabled(not (self.worker and self.worker.isRunning()))
         if result:
             values = {metric.name: metric.value for metric in result.metrics}
             self.summary.setText(" · ".join(
@@ -1019,6 +1036,20 @@ class MainWindow(QMainWindow):
         self.worker.finished.connect(lambda: self.set_busy(False))
         self.worker.start()
 
+    def open_qwen_pilot(self):
+        if not self.material:
+            self.status.setText("Сначала загрузите текст для проверки Qwen.")
+            return
+        tokens = self.result.tokens if self.result else []
+        dialog = QwenPilotDialog(
+            self.material.text, self.material.name, self, tokens=tokens,
+        )
+        dialog.exec()
+        self.text_view.highlight(())
+        self.status.setText(
+            "Пилотное окно Qwen закрыто · его результаты не добавлены в дело"
+        )
+
     def set_busy(self, busy):
         self.busy = busy
         self.progress_bar.setVisible(busy)
@@ -1028,6 +1059,7 @@ class MainWindow(QMainWindow):
         self.audit_button.setEnabled(not busy)
         self.material_selector.setEnabled(not busy)
         self.analyze_button.setEnabled(not busy and self.material is not None)
+        self.qwen_button.setEnabled(not busy and self.material is not None)
         for i in range(3):
             self.stage_buttons[i].setEnabled(not busy)
         self.stage_buttons[3].setEnabled(not busy and all(self.results))
