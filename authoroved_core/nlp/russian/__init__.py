@@ -1,5 +1,6 @@
 """Интерпретация технической UD-разметки в категориях русского языка."""
 
+from authoroved_core.nlp.russian.adapter import RussianGrammarAdapter
 from authoroved_core.nlp.russian.enums import (
     InterpretationStatus,
     MappingType,
@@ -19,6 +20,7 @@ __all__ = [
     "MappingType",
     "RussianConstruction",
     "RussianConstructionType",
+    "RussianGrammarAdapter",
     "RussianLinguisticAnnotation",
     "RussianPOS",
     "RussianParsedDocument",
