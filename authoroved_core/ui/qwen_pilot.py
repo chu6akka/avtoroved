@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
 )
 
 from authoroved_core.core.qwen_shadow import (
-    DEFAULT_SHADOW_REGISTRY, QwenShadowService,
+    DEFAULT_SHADOW_REGISTRY, QwenShadowService, load_shadow_profiles,
 )
 from authoroved_core.core.feature_registry import FeatureRegistry
 from authoroved_core.core.qwen_theme import QwenThemeService
@@ -32,12 +32,26 @@ DEFAULT_QWEN_RUNTIME = (
 DEFAULT_QWEN_MODEL = CORE_ROOT / ".local" / "qwen" / "models" / "Qwen3-8B-Q5_K_M.gguf"
 DEFAULT_QWEN_LOG = CORE_ROOT / ".local" / "qwen" / "llama-server.log"
 
+# Подписи профилей кандидатов. Профиль реестра, которого здесь нет, всё равно
+# попадает в список: подпись строится из его name_ru, поэтому расширение
+# qwen_shadow_profiles.yaml не требует правки интерфейса.
 PROFILE_LABELS = {
     "overview": "Кандидаты · обзор методического реестра",
     "internet_communication": "Кандидаты · интернет-коммуникация",
+    "phonetic_imitation": "Кандидаты · фонетические искажения написания",
+    "internet_lexicon": "Кандидаты · интернет-сленг",
     "theme_assistance": "Тематика · помощь с определением",
     "stanza_explanation": "Stanza · объяснение по-русски",
 }
+NON_SHADOW_PROFILE_IDS = ("theme_assistance", "stanza_explanation")
+
+
+def shadow_profile_choices(registry):
+    """Подписи профилей теневого реестра в порядке их объявления в YAML."""
+    return tuple(
+        (PROFILE_LABELS.get(item.id, f"Кандидаты · {item.name_ru}"), item.id)
+        for item in load_shadow_profiles(registry=registry)
+    )
 REVIEW_LABELS = {
     "new": "Не рассмотрен",
     "accepted": "Подтверждён только в пилоте",
@@ -158,12 +172,10 @@ class QwenPilotDialog(QDialog):
 
         controls = QHBoxLayout()
         self.profile = QComboBox()
-        self.profile.addItem(PROFILE_LABELS["overview"], "overview")
-        self.profile.addItem(
-            PROFILE_LABELS["internet_communication"], "internet_communication",
-        )
-        self.profile.addItem(PROFILE_LABELS["theme_assistance"], "theme_assistance")
-        self.profile.addItem(PROFILE_LABELS["stanza_explanation"], "stanza_explanation")
+        for title, profile_id in shadow_profile_choices(self.registry):
+            self.profile.addItem(title, profile_id)
+        for profile_id in NON_SHADOW_PROFILE_IDS:
+            self.profile.addItem(PROFILE_LABELS[profile_id], profile_id)
         self.profile.currentIndexChanged.connect(self.profile_changed)
         self.profile.setToolTip(
             "Кандидаты ограничены реестром; тематика требует дословных оснований; "

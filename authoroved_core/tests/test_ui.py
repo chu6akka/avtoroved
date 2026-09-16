@@ -17,7 +17,9 @@ from authoroved_core.core.models import (
 from authoroved_core.core.qwen_theme import QwenThemeRun, ThemeCandidate, ThemeRunStatus
 from authoroved_core.nlp.settings import LocalSettings
 from authoroved_core.ui.main_window import MainWindow
-from authoroved_core.ui.qwen_pilot import QwenPilotDialog
+from authoroved_core.ui.qwen_pilot import (
+    NON_SHADOW_PROFILE_IDS, PROFILE_LABELS, QwenPilotDialog,
+)
 from authoroved_core.ui.text_view import SourceTextView
 
 
@@ -369,3 +371,23 @@ def test_languagetool_groups_explain_unknown_words(window, app):
     assert unknown.status is ReviewStatus.ACCEPTED
     assert unknown.expert_classification == "authorial"
     assert any(entry.event == "candidate_classified" for entry in window.case.audit)
+
+
+def test_qwen_pilot_offers_every_shadow_profile_from_the_registry(app):
+    from authoroved_core.core.feature_registry import FeatureRegistry
+    from authoroved_core.core.qwen_shadow import (
+        DEFAULT_SHADOW_REGISTRY, load_shadow_profiles,
+    )
+
+    registry = FeatureRegistry.load(DEFAULT_SHADOW_REGISTRY)
+    expected = [item.id for item in load_shadow_profiles(registry=registry)]
+    dialog = QwenPilotDialog("Ну что, дааа, договорились.", "Профили.txt")
+
+    offered = [dialog.profile.itemData(index) for index in range(dialog.profile.count())]
+
+    assert offered == expected + list(NON_SHADOW_PROFILE_IDS)
+    assert "phonetic_imitation" in offered and "internet_lexicon" in offered
+    labels = [dialog.profile.itemText(index) for index in range(dialog.profile.count())]
+    assert all(label.strip() for label in labels)
+    assert labels[offered.index("phonetic_imitation")] == PROFILE_LABELS["phonetic_imitation"]
+    dialog.close()
