@@ -54,26 +54,16 @@ def iter_corpus_documents(root: Path) -> list[tuple[str, str]]:
 
 
 def exclusion_violations(feature_id: str, quote: str) -> tuple[str, ...]:
-    """Нарушения исключений признака, проверяемые без модели и без разметки.
+    """Нарушения, проверяемые без модели и без ручной разметки.
 
-    Каждая проверка соответствует пункту `exclusions` того же признака в
-    llm_shadow_registry.yaml. Проверка выявляет нарушение, но не отменяет
-    кандидата: решение об отсечении в Python методически отдельное.
+    Правила, выведенные из исключений GRA_103 и LEX_201, изъяты вместе с самими
+    признаками. Осталась проверка, не привязанная к признаку и описавшая главный
+    отказ замера: цитата длиннее одного слова встретилась в 20 случаях из 25,
+    то есть модель выделяла фрагмент текста, а не реализацию признака.
     """
     found = []
-    words = quote.split()
-    if feature_id in ("GRA_103", "LEX_201") and len(words) > 1:
+    if len(quote.split()) > 1:
         found.append("цитата не является отдельным словом")
-    if feature_id == "LEX_201":
-        if LATIN.search(quote):
-            found.append("латиница в форме — это GRA_102, а не лексика")
-        if TRIPLED_LETTER.search(quote):
-            found.append("тройная буква — это GRA_103, а не лексика")
-    if feature_id == "GRA_103":
-        if REPEATED_PUNCTUATION.search(quote):
-            found.append("повтор знака препинания — не искажение написания слова")
-        if LATIN.search(quote):
-            found.append("латиница — это GRA_102, а не имитация произношения")
     return tuple(found)
 
 

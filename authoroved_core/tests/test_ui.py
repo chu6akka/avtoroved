@@ -386,10 +386,9 @@ def test_qwen_pilot_offers_every_shadow_profile_from_the_registry(app):
     offered = [dialog.profile.itemData(index) for index in range(dialog.profile.count())]
 
     assert offered == expected + list(NON_SHADOW_PROFILE_IDS)
-    assert "phonetic_imitation" in offered and "internet_lexicon" in offered
     labels = [dialog.profile.itemText(index) for index in range(dialog.profile.count())]
     assert all(label.strip() for label in labels)
-    assert labels[offered.index("phonetic_imitation")] == PROFILE_LABELS["phonetic_imitation"]
+    assert labels[offered.index("overview")] == PROFILE_LABELS["overview"]
     dialog.close()
 
 

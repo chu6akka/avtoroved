@@ -39,35 +39,15 @@ def detected(feature_id, quote):
 ABSTAINED = '{"status":"INSUFFICIENT_DATA","observations":[]}'
 
 
-# Кандидаты реального прогона 17 сентября: четыре верных и шесть ложных.
-@pytest.mark.parametrize("feature_id,quote,expected_violation", [
-    ("GRA_103", "дааа", False),
-    ("GRA_103", "чё", False),
-    ("LEX_201", "база", False),
-    ("LEX_201", "огонь", False),
-    ("GRA_103", "ЗЫ: завтра пришлю исходный файл.", True),
-    ("GRA_103", "Ну и что!!!", True),
-    ("LEX_201", "ghbdtn", True),
-    ("LEX_201", "дааа", True),
-    # Опечатка и разговорная форма записаны обычными русскими буквами одним
-    # словом, поэтому машинно неотличимы и остаются эксперту.
-    ("LEX_201", "првиет", False),
-    ("LEX_201", "чё", False),
+# Главный отказ замера: цитата длиннее одного слова в 20 случаях из 25.
+@pytest.mark.parametrize("quote,expected_violation", [
+    ("дааа", False),
+    ("ЗЫ", False),
+    ("ЗЫ: завтра пришлю исходный файл.", True),
+    ("Ну и что!!!", True),
 ])
-def test_machine_checks_match_the_real_run(feature_id, quote, expected_violation):
-    assert bool(exclusion_violations(feature_id, quote)) is expected_violation
-
-
-def test_machine_checks_never_touch_a_correct_candidate():
-    for feature_id, quote in [("GRA_103", "дааа"), ("GRA_103", "чё"),
-                              ("LEX_201", "база"), ("LEX_201", "огонь")]:
-        assert exclusion_violations(feature_id, quote) == ()
-
-
-def test_same_quote_is_judged_per_feature():
-    """`дааа` допустимо для графики и запрещено для лексики."""
-    assert exclusion_violations("GRA_103", "дааа") == ()
-    assert exclusion_violations("LEX_201", "дааа")
+def test_multiword_quote_is_the_violation_that_survived(quote, expected_violation):
+    assert bool(exclusion_violations("GRA_101", quote)) is expected_violation
 
 
 def test_corpus_reader_walks_blind_cases_in_stable_order(tmp_path):
@@ -94,37 +74,35 @@ def test_corpus_reader_reports_a_missing_corpus_clearly(tmp_path):
 def test_blind_measurement_counts_violations_and_keeps_every_candidate(tmp_path):
     registry = FeatureRegistry.load(DEFAULT_SHADOW_REGISTRY)
     documents = [
-        ("CASE_001/TEXT_A.txt", "Ну что, дааа, договорились."),
+        ("CASE_001/TEXT_A.txt", "Основное сообщение. ЗЫ: завтра пришлю файл."),
         ("CASE_001/TEXT_B.txt", "Он написал ghbdtn в неверной раскладке."),
     ]
     # Первый документ: верный кандидат. Второй: ложный, ловится машинно.
     provider = ScriptedProvider([
-        detected("GRA_103", "дааа"), ABSTAINED,
-        ABSTAINED, detected("LEX_201", "ghbdtn"),
+        detected("GRA_101", "ЗЫ"), ABSTAINED,
+        ABSTAINED, detected("GRA_102", "ghbdtn"),
     ])
     service = QwenShadowService(provider, registry=registry)
 
     report, rows = evaluate_blind(
-        service, documents, ("phonetic_imitation", "internet_lexicon"),
+        service, documents, ("overview", "internet_communication"),
     )
 
     assert report["documents"] == 2 and report["runs"] == 4
     assert report["candidates"] == 2
     assert report["per_feature"] == {
-        "GRA_103": {"candidates": 1, "violations": 0},
-        "LEX_201": {"candidates": 1, "violations": 1},
+        "GRA_101": {"candidates": 1, "violations": 0},
+        "GRA_102": {"candidates": 1, "violations": 0},
     }
-    # Инструмент измеряет, а не отсекает: нарушивший кандидат остаётся в листе.
-    flagged = next(row for row in rows if row["feature_id"] == "LEX_201")
-    assert "латиница" in flagged["machine_violations"]
-    assert next(row for row in rows if row["feature_id"] == "GRA_103")["machine_violations"] == ""
+    # Инструмент измеряет, а не отсекает: все кандидаты остаются в листе.
+    assert {row["feature_id"] for row in rows} == {"GRA_101", "GRA_102"}
 
 
 def test_review_sheet_carries_context_and_an_empty_expert_column(tmp_path):
-    documents = [("CASE_001/TEXT_A.txt", "Ну что, дааа, договорились о встрече.")]
-    provider = ScriptedProvider([detected("GRA_103", "дааа"), ABSTAINED])
+    documents = [("CASE_001/TEXT_A.txt", "Основное сообщение. ЗЫ: завтра пришлю файл.")]
+    provider = ScriptedProvider([detected("GRA_101", "ЗЫ"), ABSTAINED])
     service = QwenShadowService(provider, registry=FeatureRegistry.load(DEFAULT_SHADOW_REGISTRY))
-    _, rows = evaluate_blind(service, documents, ("phonetic_imitation", "internet_lexicon"))
+    _, rows = evaluate_blind(service, documents, ("overview", "internet_communication"))
 
     path = tmp_path / "review.csv"
     _write_review_sheet(path, rows)
@@ -132,6 +110,6 @@ def test_review_sheet_carries_context_and_an_empty_expert_column(tmp_path):
         written = list(csv.DictReader(handle))
 
     assert len(written) == 1
-    assert written[0]["quote"] == "дааа"
-    assert "[дааа]" in written[0]["context"]
+    assert written[0]["quote"] == "ЗЫ"
+    assert "[ЗЫ]" in written[0]["context"]
     assert written[0]["expert_verdict"] == ""

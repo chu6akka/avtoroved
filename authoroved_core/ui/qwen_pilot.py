@@ -40,8 +40,6 @@ DEFAULT_QWEN_LOG = CORE_ROOT / ".local" / "qwen" / "llama-server.log"
 PROFILE_LABELS = {
     "overview": "Кандидаты · обзор методического реестра",
     "internet_communication": "Кандидаты · интернет-коммуникация",
-    "phonetic_imitation": "Кандидаты · фонетические искажения написания",
-    "internet_lexicon": "Кандидаты · интернет-сленг",
     "theme_assistance": "Тематика · помощь с определением",
     "stanza_explanation": "Stanza · объяснение по-русски",
 }

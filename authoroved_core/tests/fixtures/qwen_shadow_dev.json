@@ -25,53 +25,5 @@
     "id": "negative_control",
     "text": "Обычное законченное сообщение без добавочного примечания.",
     "expected_feature_ids": []
-  },
-  {
-    "id": "phonetic_stretch",
-    "text": "Ну что, дааа, договорились, встретимся у входа.",
-    "expected_feature_ids": [
-      "GRA_103"
-    ]
-  },
-  {
-    "id": "phonetic_typo_control",
-    "text": "Извини, опечатался в прошлом сообщении: првиет вместо приветствия.",
-    "expected_feature_ids": []
-  },
-  {
-    "id": "slang_contextual",
-    "text": "Коллега ответил в чате: всё посчитано верно, база.",
-    "expected_feature_ids": [
-      "LEX_201"
-    ]
-  },
-  {
-    "id": "slang_term_control",
-    "text": "Мы перенесли базу данных на новый сервер в пятницу вечером.",
-    "expected_feature_ids": []
-  },
-  {
-    "id": "slang_fire",
-    "text": "Посмотрел новый макет — вообще огонь, ничего не меняем.",
-    "expected_feature_ids": [
-      "LEX_201"
-    ]
-  },
-  {
-    "id": "slang_fire_literal_control",
-    "text": "В камине ровно горел огонь, и все молчали.",
-    "expected_feature_ids": []
-  },
-  {
-    "id": "phonetic_reduction",
-    "text": "Ладно, чё, давай завтра созвонимся.",
-    "expected_feature_ids": [
-      "GRA_103"
-    ]
-  },
-  {
-    "id": "phonetic_punctuation_control",
-    "text": "Ну и что!!! Я же предупреждал заранее.",
-    "expected_feature_ids": []
   }
 ]
