@@ -234,3 +234,38 @@ def test_narrow_profile_prompt_carries_only_its_feature_and_exclusions(feature_i
     assert payload["allowed_features"][0]["exclusions"] == list(
         registry.get(feature_id).exclusions
     )
+
+
+def test_expected_set_metric_is_scoped_to_the_profile_whitelist():
+    """Узкий профиль не штрафуется за признаки, которых он не умеет находить."""
+    from authoroved_core.tools.evaluate_qwen_shadow import in_scope_expectation
+
+    registry = FeatureRegistry.load(DEFAULT_SHADOW_REGISTRY)
+    profiles = {item.id: item for item in load_shadow_profiles(registry=registry)}
+    fixtures = json.loads(FIXTURES.read_text(encoding="utf-8"))
+    expectations = {item["id"]: item["expected_feature_ids"] for item in fixtures}
+
+    # Чужой кейс: корректным ответом узкого профиля является пустой список.
+    assert in_scope_expectation(
+        expectations["slang_contextual"], profiles["phonetic_imitation"].allowed_feature_ids,
+    ) == []
+    # Свой кейс: ожидание сохраняется целиком.
+    assert in_scope_expectation(
+        expectations["slang_contextual"], profiles["internet_lexicon"].allowed_feature_ids,
+    ) == ["LEX_201"]
+    # Обзорный профиль видит весь реестр, поэтому ожидание не сужается.
+    for fixture in fixtures:
+        assert in_scope_expectation(
+            fixture["expected_feature_ids"], profiles["overview"].allowed_feature_ids,
+        ) == sorted(fixture["expected_feature_ids"])
+
+    # Ни один запуск не должен быть недостижимым по построению.
+    unreachable = [
+        (fixture["id"], profile_id)
+        for fixture in fixtures
+        for profile_id, profile in profiles.items()
+        if in_scope_expectation(
+            fixture["expected_feature_ids"], profile.allowed_feature_ids,
+        ) != sorted(set(fixture["expected_feature_ids"]) & profile.allowed_feature_ids)
+    ]
+    assert not unreachable

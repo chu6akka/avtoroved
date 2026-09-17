@@ -19,6 +19,18 @@ DEFAULT_FIXTURES = Path(__file__).parents[1] / "tests" / "fixtures" / "qwen_shad
 DEFAULT_THEME_FIXTURES = Path(__file__).parents[1] / "tests" / "fixtures" / "qwen_theme_dev.json"
 
 
+def in_scope_expectation(expected_feature_ids, allowed_feature_ids):
+    """Ожидание, приведённое к белому списку профиля.
+
+    Узкий профиль умеет только свои признаки, поэтому сравнивать его ответ со
+    всем ожидаемым набором fixture нельзя: на чужом кейсе он не может совпасть
+    ни при каком поведении модели, а правильное воздержание засчиталось бы как
+    промах. В границах профиля ожидание — это пересечение; пустое пересечение
+    означает, что корректный ответ здесь — пустой список наблюдений.
+    """
+    return sorted(set(expected_feature_ids) & set(allowed_feature_ids))
+
+
 def _candidate(item):
     return {
         "feature_id": item.feature_id,
@@ -49,11 +61,15 @@ def evaluate(endpoint: str, fixtures_path: Path, theme_fixtures_path: Path,
     theme_service = QwenThemeService(provider)
     cases = []
     started = perf_counter()
+    profile_scope = {item.id: item.allowed_feature_ids for item in service.profiles}
     for fixture in fixtures:
         runs = service.analyze(fixture["text"])
         case_runs = []
         for run in runs:
             detected = sorted({item.feature_id for item in run.candidates})
+            expected_in_scope = in_scope_expectation(
+                fixture["expected_feature_ids"], profile_scope[run.profile_id],
+            )
             case_runs.append({
                 "profile_id": run.profile_id,
                 "profile_version": run.profile_version,
@@ -64,9 +80,10 @@ def evaluate(endpoint: str, fixtures_path: Path, theme_fixtures_path: Path,
                 "provider_metadata": run.provider_metadata,
                 "rejection_reason": run.rejection_reason,
                 "expert_use_allowed": run.expert_use_allowed,
+                "expected_in_profile_scope": expected_in_scope,
                 "matches_expected_set": (
                     run.status.value != "SYSTEM_REJECTED"
-                    and detected == sorted(fixture["expected_feature_ids"])
+                    and detected == expected_in_scope
                 ),
             })
         cases.append({
@@ -128,6 +145,11 @@ def evaluate(endpoint: str, fixtures_path: Path, theme_fixtures_path: Path,
         "theme_fixture_sha256": file_sha256(theme_fixtures_path),
         "total_seconds": round(perf_counter() - started, 3),
         "runs": sum(len(item["runs"]) for item in cases),
+        "expected_set_metric": (
+            "Ответ профиля сравнивается с пересечением ожидания fixture и белого "
+            "списка этого профиля, поэтому узкий профиль не штрафуется за "
+            "признаки, которых он не умеет находить."
+        ),
         "system_rejections": sum(
             run["status"] == "SYSTEM_REJECTED" for item in cases for run in item["runs"]
         ),
