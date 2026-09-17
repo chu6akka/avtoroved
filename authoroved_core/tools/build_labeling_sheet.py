@@ -31,9 +31,15 @@ DEFAULT_RANDOM = 80
 DEFAULT_ENRICHED = 40
 
 # Границей считается знак конца предложения с последующим пробелом и заглавной
-# буквой или кавычкой. Разбиение приблизительное и на модель не опирается.
-SENTENCE_BOUNDARY = re.compile(r'(?<=[.!?…])\s+(?=[«"А-ЯЁ])')
-TRIPLED_LETTER = re.compile(r"(\w)\1\1", re.UNICODE)
+# буквой или кавычкой, а также перевод строки: без него реплики диалога
+# слипались в одну строку листа, и 25 строк первой выборки оказались
+# многострочными. Разбиение приблизительное и на модель не опирается.
+SENTENCE_BOUNDARY = re.compile(r'(?<=[.!?…])[ \t]+(?=[«"А-ЯЁ])|\n+')
+# Только буквы: \w захватывал цифры, из-за чего сигнал давали годы 1999,
+# суммы вида 5 000 и адрес ww777. Аббревиатуры отсеиваются отдельно, потому
+# что СССР и римское III неотличимы от растяжения одним лишь повтором.
+TRIPLED_LETTER = re.compile(r"([^\W\d_])\1\1", re.UNICODE)
+ACRONYM = re.compile(r"^[^\W\d_]{2,6}$")
 LATIN_TOKEN = re.compile(r"\b[A-Za-z]{3,}\b")
 REPEATED_PUNCTUATION = re.compile(r"([!?])\1")
 
@@ -57,10 +63,17 @@ def split_sentences(text: str) -> list[tuple[int, int, str]]:
     return result
 
 
+def _is_acronym(token: str) -> bool:
+    """СССР и III — не растяжение. Длинный прописной токен им быть может."""
+    stripped = token.strip(".,!?«»\"'()-—…")
+    return bool(ACRONYM.fullmatch(stripped)) and stripped.isupper()
+
+
 def orthographic_signals(sentence: str) -> tuple[str, ...]:
     """Детерминированные признаки необычной орфографии — только для отбора."""
     found = []
-    if TRIPLED_LETTER.search(sentence):
+    if any(TRIPLED_LETTER.search(token) and not _is_acronym(token)
+           for token in sentence.split()):
         found.append("тройная буква")
     if LATIN_TOKEN.search(sentence):
         found.append("латиница")

@@ -30,6 +30,12 @@ def test_sentence_split_survives_crlf():
 
 @pytest.mark.parametrize("sentence,expected", [
     ("Ну что, дааа, договорились с ними.", ("тройная буква",)),
+    # Первая выборка потратила 12 строк из 40 на цифры и аббревиатуры.
+    ("30 мая 1999 года в Минске было тепло.", ()),
+    ("Штраф составил от 1 000 до 5 000 рублей.", ()),
+    ("В СССР тоже прекрасно горели леса.", ()),
+    ("Длинный прописной токен растяжением быть может: ДАААААААААААААА!?",
+     ("тройная буква",)),
     ("Он написал ghbdtn в неверной раскладке.", ("латиница",)),
     ("Ну и что!!! Я предупреждал.", ("повтор знака",)),
     ("Совершенно обычное предложение без сигналов.", ()),
@@ -93,3 +99,20 @@ def test_written_sheet_has_empty_columns_for_the_expert(tmp_path):
 
     assert list(written[0]) == FIELDS
     assert all(row["gold_features"] == "" and row["note"] == "" for row in written)
+
+
+def test_dialogue_lines_do_not_merge_into_one_row():
+    """25 строк первой выборки слиплись, потому что перевод строки не был границей."""
+    text = "Берет хлеб.\n\\- Положи хлеб на место Марик.\nОн посмотрел на часы."
+
+    pieces = split_sentences(text)
+
+    assert [item[2] for item in pieces] == [
+        "Берет хлеб.", "\\- Положи хлеб на место Марик.", "Он посмотрел на часы.",
+    ]
+    assert all(text[start:end] == value for start, end, value in pieces)
+
+
+def test_typo_with_a_tripled_letter_still_reaches_the_expert():
+    """«групппы» — опечатка, но отличить её от растяжения может только человек."""
+    assert orthographic_signals("Участники групппы описывают себя так.") == ("тройная буква",)
