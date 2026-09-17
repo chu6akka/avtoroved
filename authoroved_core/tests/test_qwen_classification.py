@@ -6,9 +6,11 @@ import pytest
 from authoroved_core.core.lt_grouping import UNKNOWN_WORD_CLASSIFICATIONS
 from authoroved_core.core.models import Candidate, Span
 from authoroved_core.core.qwen_classification import (
-    ALLOWED_ANSWERS, CLASSIFICATION_SCHEMA, HintStatus, HintValidator,
-    QwenClassificationService, context_window,
+    ALLOWED_ANSWERS, CLASSIFICATION_EXAMPLES, CLASSIFICATION_KEYS,
+    CLASSIFICATION_SCHEMA, HintStatus, HintValidator, QwenClassificationService,
+    candidate_labels, classification_schema, context_window,
 )
+from authoroved_core.core.word_evidence import FrequencyDictionary, collect
 from authoroved_core.core.qwen_shadow import ProviderCompletion
 
 
@@ -120,3 +122,78 @@ def test_every_expert_label_round_trips(classification):
     assert HintValidator().validate(answer(classification)) == (
         classification, "разговорная оценочная форма",
     )
+
+
+def test_every_label_carries_an_example_and_a_near_miss():
+    """Приём из «Соучастника»: рядом с меткой показан близкий промах."""
+    assert set(CLASSIFICATION_EXAMPLES) == set(CLASSIFICATION_KEYS)
+    for key, (example, counterexample) in CLASSIFICATION_EXAMPLES.items():
+        assert example.strip() and counterexample.strip()
+        assert counterexample.startswith("а вот ")
+        # Пример и контрпример — разные слова, иначе граница не показана.
+        assert example.split(" —")[0] != counterexample.split(" не")[0]
+
+
+def test_examples_reach_the_prompt():
+    service = QwenClassificationService(FakeProvider([answer("colloquial")]))
+
+    service.hint(candidate(), "текст с зачётненько внутри")
+
+    payload = json.loads(service.provider.calls[0]["user_prompt"])
+    entry = next(item for item in payload["classifications"] if item["key"] == "colloquial")
+    assert entry["example"] and entry["counterexample"]
+
+
+def test_repetition_narrows_the_label_set_before_the_model():
+    """Выбор из нескольких кандидатов надёжнее выбора из всех."""
+    text = "Был тимбилдинг, потом ещё тимбилдинг и снова тимбилдинг."
+    start = text.index("тимбилдинг")
+    item = Candidate(
+        "c1", "d1", "Слово не распознано словарём", "Слово не распознано словарём",
+        "пояснение", "тимбилдинг", Span(start, start + len("тимбилдинг")),
+        "MORFOLOGIK_RULE_RU_RU",
+    )
+    evidence = collect(item, text, (), FrequencyDictionary({}))
+
+    labels = candidate_labels(evidence)
+
+    assert evidence.repeats_in_text == 3
+    assert "spelling_error" not in labels
+    assert set(labels) | {"spelling_error"} == set(CLASSIFICATION_KEYS)
+
+
+def test_single_occurrence_keeps_every_label():
+    text = "Ровно один раз слово зачётненько встречается."
+    evidence = collect(candidate(start=text.index("зачётненько")), text, (), FrequencyDictionary({}))
+
+    assert candidate_labels(evidence) == CLASSIFICATION_KEYS
+    assert candidate_labels(None) == CLASSIFICATION_KEYS
+
+
+def test_narrowed_schema_and_validator_agree():
+    labels = candidate_labels(None)[:3]
+
+    schema = classification_schema(labels)
+
+    assert set(schema["properties"]["classification"]["enum"]) == set(labels) | {"unclear"}
+    with pytest.raises(Exception):
+        HintValidator().validate(answer("spelling_error"), labels)
+    assert HintValidator().validate(answer(labels[0]))[0] == labels[0]
+
+
+def test_narrowed_label_is_refused_by_the_service():
+    """Модель не может вернуть метку, которую сняла справка."""
+    text = "Был тимбилдинг, потом ещё тимбилдинг."
+    start = text.index("тимбилдинг")
+    item = Candidate(
+        "c1", "d1", "Слово не распознано словарём", "Слово не распознано словарём",
+        "пояснение", "тимбилдинг", Span(start, start + len("тимбилдинг")),
+        "MORFOLOGIK_RULE_RU_RU",
+    )
+    evidence = collect(item, text, (), FrequencyDictionary({}))
+    service = QwenClassificationService(FakeProvider([answer("spelling_error")]))
+
+    hint = service.hint(item, text, evidence)
+
+    assert hint.status is HintStatus.SYSTEM_REJECTED
+    assert "закрытом списке" in hint.rejection_reason

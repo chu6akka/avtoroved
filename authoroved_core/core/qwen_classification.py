@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from enum import Enum
 import json
 import re
-from typing import Any
+from typing import Any, Iterable
 
 from authoroved_core.core.llm_contract import LLMContractError
 from authoroved_core.core.lt_grouping import (
@@ -53,6 +53,56 @@ CLASSIFICATION_GUIDE = {
     "dictionary_gap": "нормативное слово, которого просто нет в словаре LanguageTool",
     "spelling_error": "ошибка или опечатка без признаков намеренности",
 }
+
+# Пример метки и близкий промах в той же лексике. Приём взят из проекта
+# «Соучастник»: там у каждой группы триггеров лежит чистая фраза того же
+# словаря, чтобы модели была видна не только метка, но и её граница. Примеры
+# подобраны по реальным словам корпуса Pilot 01 и разбору 17 сентября.
+CLASSIFICATION_EXAMPLES = {
+    "authorial": ("охулион — «корм за охулион денег», числительное создано на ходу",
+                  "а вот тимбилдинг не авторское: слово создано не этим автором"),
+    "neologism": ("коворкинг — новое слово, уже вошедшее в общее употребление",
+                  "а вот охулион не неологизм: вне общего употребления"),
+    "professional": ("лемматизация — термин профессионального обихода",
+                     "а вот инфоцыганщина не термин: оценочное слово, не обиход отрасли"),
+    "colloquial": ("движе — «участвую в движе», разговорная форма общего языка",
+                   "а вот баско не разговорное общего языка: форма местная"),
+    "dialect": ("баско — севернорусское «красиво», форма закреплена за местностью",
+                "а вот движе не диалект: разговорное по всей стране"),
+    "name": ("Пикабу — название площадки",
+             "а вот пикабушник уже не имя: нарицательное производное"),
+    "dictionary_gap": ("зверопромышленник — нормативное слово, которого нет в словаре LT",
+                       "а вот брамапутер не пробел словаря: слова нет и в языке"),
+    "spelling_error": ("првиет — перестановка букв, намеренности не видно",
+                       "а вот дааа не ошибка: растяжение воспроизводит произношение"),
+}
+
+
+def candidate_labels(evidence: WordEvidence | None) -> tuple[str, ...]:
+    """Список меток, сужённый справкой до обращения к модели.
+
+    Тот же приём, что и словарь триггеров в «Соучастнике»: выбор из
+    нескольких кандидатов модель делает надёжнее, чем выбор из всех.
+    Сужение опирается только на то, что уже установлено числами, и снимает
+    ровно одну метку: повтор формы в тексте означает, что на опечатку не
+    похоже. У эксперта в выпадающем списке остаются все метки.
+    """
+    if evidence is not None and evidence.repeats_in_text > 1:
+        return tuple(key for key in CLASSIFICATION_KEYS if key != "spelling_error")
+    return CLASSIFICATION_KEYS
+
+
+def classification_schema(labels: Iterable[str]) -> dict[str, Any]:
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["classification", "reason"],
+        "properties": {
+            "classification": {"enum": [*labels, UNCLEAR]},
+            "reason": {"type": "string", "minLength": 3, "maxLength": MAX_REASON},
+        },
+    }
+
 
 CLASSIFICATION_SCHEMA = {
     "type": "object",
@@ -94,7 +144,8 @@ def context_window(text: str, candidate: Candidate, width: int = CONTEXT_WINDOW)
 class HintValidator:
     """Принимает только метку из закрытого списка и осмысленное пояснение."""
 
-    def validate(self, raw_response: str) -> tuple[str, str]:
+    def validate(self, raw_response: str,
+                 allowed: Iterable[str] | None = None) -> tuple[str, str]:
         if not isinstance(raw_response, str):
             raise LLMContractError("Исходный ответ модели должен быть строкой.")
         try:
@@ -104,7 +155,8 @@ class HintValidator:
         if not isinstance(value, dict) or set(value) != {"classification", "reason"}:
             raise LLMContractError("Ответ содержит неизвестные или пропущенные поля.")
         classification, reason = value["classification"], value["reason"]
-        if not isinstance(classification, str) or classification not in ALLOWED_ANSWERS:
+        permitted = ALLOWED_ANSWERS if allowed is None else (frozenset(allowed) | {UNCLEAR})
+        if not isinstance(classification, str) or classification not in permitted:
             raise LLMContractError("Метка отсутствует в закрытом списке классификаций.")
         if not isinstance(reason, str) or not reason.strip():
             raise LLMContractError("Пояснение обязательно.")
@@ -125,13 +177,14 @@ class QwenClassificationService:
 
     def hint(self, candidate: Candidate, text: str,
              evidence: WordEvidence | None = None) -> CandidateHint:
+        labels = candidate_labels(evidence)
         completion = self.provider.complete(
             system_prompt=self._system_prompt(),
-            user_prompt=self._user_prompt(candidate, text, evidence),
-            response_schema=CLASSIFICATION_SCHEMA,
+            user_prompt=self._user_prompt(candidate, text, evidence, labels),
+            response_schema=classification_schema(labels),
         )
         try:
-            classification, reason = self.validator.validate(completion.raw_response)
+            classification, reason = self.validator.validate(completion.raw_response, labels)
         except LLMContractError as exc:
             return CandidateHint(
                 candidate.id, HintStatus.SYSTEM_REJECTED, "", "", "",
@@ -161,7 +214,9 @@ class QwenClassificationService:
         )
 
     def _user_prompt(self, candidate: Candidate, text: str,
-                     evidence: WordEvidence | None = None) -> str:
+                     evidence: WordEvidence | None = None,
+                     labels: Iterable[str] | None = None) -> str:
+        labels = tuple(labels or CLASSIFICATION_KEYS)
         # Детерминированная справка передаётся как факты, чтобы модель судила
         # по числам, а не по догадке. Эксперт видит те же числа на экране.
         facts = {} if evidence is None else {
@@ -178,8 +233,10 @@ class QwenClassificationService:
             "task": "предложить экспертную метку для нераспознанного слова",
             "classifications": [
                 {"key": key, "title": UNKNOWN_WORD_CLASSIFICATION_LABELS[key],
-                 "guide": CLASSIFICATION_GUIDE[key]}
-                for key in CLASSIFICATION_KEYS
+                 "guide": CLASSIFICATION_GUIDE[key],
+                 "example": CLASSIFICATION_EXAMPLES[key][0],
+                 "counterexample": CLASSIFICATION_EXAMPLES[key][1]}
+                for key in labels
             ],
             "abstention": {"key": UNCLEAR, "when": "окружения не хватает для выбора"},
             "format_example": {
