@@ -53,6 +53,11 @@ def shadow_profile_choices(registry):
         (PROFILE_LABELS.get(item.id, f"Кандидаты · {item.name_ru}"), item.id)
         for item in load_shadow_profiles(registry=registry)
     )
+# Окрестность цитаты и общий предел длины строки контекста: подпись под текстом
+# не должна разрастаться на пол-окна при нескольких далёких цитатах.
+CONTEXT_MARGIN = 45
+CONTEXT_LIMIT = 320
+
 REVIEW_LABELS = {
     "new": "Не рассмотрен",
     "accepted": "Подтверждён только в пилоте",
@@ -266,6 +271,9 @@ class QwenPilotDialog(QDialog):
         result_layout.addWidget(self.result_summary)
         self.candidate_list = QListWidget()
         self.candidate_list.setWordWrap(True)
+        # Без нижней границы список сжимался до полутора строк, и кандидат
+        # оказывался обрезан по нижнему краю.
+        self.candidate_list.setMinimumHeight(150)
         self.candidate_list.currentItemChanged.connect(self.select_candidate)
         result_layout.addWidget(self.candidate_list, 1)
 
@@ -511,11 +519,25 @@ class QwenPilotDialog(QDialog):
         )
         spans = tuple(item.span for item in evidence)
         self.text_view.highlight(spans)
-        start = max(0, min(item.span.start for item in evidence) - 45)
-        end = min(len(self.source_text), max(item.span.end for item in evidence) + 45)
-        context = self.source_text[start:end].replace("\r", " ").replace("\n", " ")
-        self.context.setText("Контекст · " + context)
+        self.context.setText("Контекст · " + self.evidence_context(evidence))
         self._set_review_enabled(True)
+
+    def evidence_context(self, evidence) -> str:
+        """Окрестность каждой цитаты отдельно, а не промежуток между ними.
+
+        У тематического кандидата цитаты стоят далеко друг от друга, и окно от
+        первой до последней вырастало до тысячи с лишним знаков, занимая
+        пол-окна. Теперь каждая цитата показывается со своей окрестностью.
+        """
+        pieces = []
+        for span in sorted((item.span for item in evidence), key=lambda x: x.start):
+            start = max(0, span.start - CONTEXT_MARGIN)
+            end = min(len(self.source_text), span.end + CONTEXT_MARGIN)
+            pieces.append(self.source_text[start:end].replace("\r", " ").replace("\n", " ").strip())
+        context = " … ".join(pieces)
+        if len(context) > CONTEXT_LIMIT:
+            context = context[:CONTEXT_LIMIT].rstrip() + "…"
+        return context
 
     def select_stanza_item(self, item):
         value = self.stanza_items[item.data(Qt.ItemDataRole.UserRole)]

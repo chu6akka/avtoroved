@@ -464,3 +464,50 @@ def test_hint_is_marked_as_not_a_conclusion_when_absent(window):
 
     assert "не является выводом" in window.hint_label.text()
     assert not window.hint_apply_button.isEnabled()
+
+
+def test_pilot_context_shows_each_quote_separately_not_the_gap_between_them(app):
+    """Тематический кандидат ставит цитаты далеко, и промежуток между ними
+    вырастал до тысячи с лишним знаков, занимая пол-окна."""
+    from authoroved_core.core.feature_models import FeatureEvidence
+    from authoroved_core.core.models import Span
+    from authoroved_core.ui.qwen_pilot import CONTEXT_LIMIT
+
+    text = "НАЧАЛО первая цитата тут. " + "разделитель " * 200 + "ХВОСТ вторая цитата тут."
+    dialog = QwenPilotDialog(text, "Контекст.txt")
+    first = text.index("первая цитата")
+    second = text.index("вторая цитата")
+    evidence = (
+        FeatureEvidence("первая цитата", Span(first, first + len("первая цитата"))),
+        FeatureEvidence("вторая цитата", Span(second, second + len("вторая цитата"))),
+    )
+
+    context = dialog.evidence_context(evidence)
+
+    assert len(context) <= CONTEXT_LIMIT + 1
+    assert "первая цитата" in context
+    assert "…" in context
+    # Промежуток целиком в подпись не попадает.
+    assert context.count("разделитель") < 20
+    dialog.close()
+
+
+def test_pilot_context_keeps_a_single_quote_readable(app):
+    from authoroved_core.core.feature_models import FeatureEvidence
+    from authoroved_core.core.models import Span
+
+    text = "Обычное начало. Ну что, дааа, договорились о встрече. Обычный конец."
+    dialog = QwenPilotDialog(text, "Контекст.txt")
+    start = text.index("дааа")
+
+    context = dialog.evidence_context((FeatureEvidence("дааа", Span(start, start + 4)),))
+
+    assert "дааа" in context and "…" not in context
+    dialog.close()
+
+
+def test_pilot_candidate_list_does_not_collapse(app):
+    dialog = QwenPilotDialog("Текст для проверки списка кандидатов.", "Список.txt")
+
+    assert dialog.candidate_list.minimumHeight() >= 150
+    dialog.close()
