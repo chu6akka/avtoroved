@@ -1,2 +1,6 @@
 # Validation corpus hashes cover exact input bytes; keep text bytes stable on all OSes.
 avtoroved-main/validation/corpus/**/texts/*.txt text eol=lf
+
+# fixture_sha256 в отчёте о теневом прогоне считается по байтам файла, поэтому
+# окончания строк должны быть одинаковыми на всех ОС, иначе хеш не сравним.
+authoroved_core/tests/fixtures/*.json text eol=lf

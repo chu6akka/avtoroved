@@ -59,7 +59,7 @@ def test_profiles_are_versioned_and_whitelisted():
     assert {item.id for item in profiles} == {
         "overview", "internet_communication", "phonetic_imitation", "internet_lexicon",
     }
-    assert all(item.version == "0.1.2" for item in profiles)
+    assert all(item.version == "0.1.3" for item in profiles)
     whitelists = {item.id: item.allowed_feature_ids for item in profiles}
     assert whitelists["overview"] == frozenset({"GRA_101", "GRA_102", "GRA_103", "LEX_201"})
     assert whitelists["internet_communication"] == frozenset({"GRA_101", "GRA_102"})
@@ -269,3 +269,82 @@ def test_expected_set_metric_is_scoped_to_the_profile_whitelist():
         ) != sorted(set(fixture["expected_feature_ids"]) & profile.allowed_feature_ids)
     ]
     assert not unreachable
+
+
+def test_profile_version_never_reaches_the_model_prompt():
+    """Подъём версии профиля не должен менять вход модели.
+
+    Версия входила в пользовательский промпт, поэтому чисто версионная правка
+    сдвигала детерминированный ответ: после 0.1.1 -> 0.1.2 перестало
+    распознаваться переключение раскладки. Прослеживаемость обеспечивает
+    QwenShadowRun.profile_version, а не текст задания.
+    """
+    registry = FeatureRegistry.load(DEFAULT_SHADOW_REGISTRY)
+    profiles = load_shadow_profiles(registry=registry)
+    raw = '{"status":"INSUFFICIENT_DATA","observations":[]}'
+
+    for profile in profiles:
+        provider = FakeProvider([raw])
+        run = QwenShadowService(
+            provider, registry=registry, profiles=profiles,
+        ).analyze("текст", (profile.id,))[0]
+
+        payload = json.loads(provider.calls[0]["user_prompt"])
+        assert set(payload["profile"]) == {"id", "purpose", "instruction"}
+        assert profile.version not in provider.calls[0]["user_prompt"]
+        # Версия при этом остаётся в результате запуска и попадает в отчёт.
+        assert run.profile_version == profile.version
+
+
+def test_prompt_is_stable_across_a_pure_version_bump():
+    registry = FeatureRegistry.load(DEFAULT_SHADOW_REGISTRY)
+    profiles = load_shadow_profiles(registry=registry)
+    bumped = tuple(
+        QwenShadowProfile(
+            id=item.id, version="9.9.9", name_ru=item.name_ru, purpose=item.purpose,
+            instruction=item.instruction, allowed_feature_ids=item.allowed_feature_ids,
+        )
+        for item in profiles
+    )
+    raw = '{"status":"INSUFFICIENT_DATA","observations":[]}'
+
+    prompts = []
+    for variant in (profiles, bumped):
+        provider = FakeProvider([raw])
+        QwenShadowService(
+            provider, registry=registry, profiles=variant,
+        ).analyze("текст", ("internet_communication",))
+        prompts.append(provider.calls[0])
+
+    assert prompts[0]["user_prompt"] == prompts[1]["user_prompt"]
+    assert prompts[0]["system_prompt"] == prompts[1]["system_prompt"]
+
+
+def test_system_prompt_forbids_observations_next_to_abstention():
+    """Все четыре брака прогона 17 сентября были этой ошибкой."""
+    provider = FakeProvider(['{"status":"INSUFFICIENT_DATA","observations":[]}'])
+    QwenShadowService(provider).analyze("текст", ("overview",))
+
+    system = provider.calls[0]["system_prompt"]
+    assert "observations должно быть пустым массивом" in system
+    assert "Никогда не прикладывай наблюдение к INSUFFICIENT_DATA" in system
+
+
+def test_every_new_feature_has_two_positive_cases_and_two_exclusion_controls():
+    fixtures = json.loads(FIXTURES.read_text(encoding="utf-8"))
+    positives = {"GRA_103": 0, "LEX_201": 0}
+    for fixture in fixtures:
+        for feature_id in fixture["expected_feature_ids"]:
+            if feature_id in positives:
+                positives[feature_id] += 1
+
+    assert positives == {"GRA_103": 2, "LEX_201": 2}
+    assert sum(not item["expected_feature_ids"] for item in fixtures) == 5
+
+    # Каждая цитата обязана быть однозначной, иначе валидатор отвергнет ответ.
+    texts = {item["id"]: item["text"] for item in fixtures}
+    for fixture_id, quote in [
+        ("phonetic_stretch", "дааа"), ("phonetic_reduction", "чё"),
+        ("slang_contextual", "база"), ("slang_fire", "огонь"),
+    ]:
+        assert texts[fixture_id].count(quote) == 1
