@@ -32,7 +32,12 @@ from authoroved_core.metrics.basic import GLOBAL_NOTE, WORD_PATTERN
 from authoroved_core.nlp.settings import LocalSettings
 from authoroved_core.ui.text_view import SourceTextView
 from authoroved_core.ui.appearance import STYLE, METRIC_HIGHLIGHT
-from authoroved_core.ui.qwen_pilot import QwenPilotDialog
+from authoroved_core.core.qwen_classification import (
+    PROFILE_VERSION as QWEN_HINT_PROFILE_VERSION,
+)
+from authoroved_core.ui.qwen_pilot import (
+    DEFAULT_QWEN_MODEL, DEFAULT_QWEN_RUNTIME, LtHintWorker, QwenPilotDialog,
+)
 
 
 
@@ -439,6 +444,26 @@ class MainWindow(QMainWindow):
         self.unknown_classification.currentIndexChanged.connect(self.classification_changed)
         self.unknown_classification.hide()
         review_layout.addWidget(self.unknown_classification)
+        # Подсказка локальной модели. Она ничего не выбирает сама: перенос в
+        # выпадающий список делает эксперт кнопкой, и только для текущего слова.
+        hint_row = QHBoxLayout()
+        self.hint_label = label("", "muted")
+        hint_row.addWidget(self.hint_label, 1)
+        self.hint_apply_button = button("Перенести подсказку", self.apply_llm_hint)
+        self.hint_apply_button.setToolTip(
+            "Подставляет метку подсказки в выбор эксперта. Решение остаётся за вами."
+        )
+        hint_row.addWidget(self.hint_apply_button)
+        self.hint_request_button = button("Подсказки Qwen", self.request_llm_hints)
+        self.hint_request_button.setToolTip(
+            "Локальная модель предложит метки для нераспознанных словоформ. "
+            "Подсказка не является выводом и в заключение не попадает."
+        )
+        hint_row.addWidget(self.hint_request_button)
+        self.hint_widgets = (self.hint_label, self.hint_apply_button, self.hint_request_button)
+        for widget in self.hint_widgets:
+            widget.hide()
+        review_layout.addLayout(hint_row)
         self.comment = QTextEdit()
         self.comment.setObjectName("comment")
         self.comment.setPlaceholderText("Комментарий эксперта (необязательно)")
@@ -1517,9 +1542,12 @@ class MainWindow(QMainWindow):
             self.unknown_classification.blockSignals(False)
             self.unknown_classification.show()
             self.accept_button.setEnabled(bool(candidate.expert_classification))
+            self.show_llm_hint(candidate)
         else:
             self.accept_button.setText("Подтвердить наблюдение")
             self.unknown_classification.hide()
+            for widget in self.hint_widgets:
+                widget.hide()
         self.reject_button.setText("Не учитывать")
         category = UNKNOWN_WORD_CLASSIFICATION_LABELS.get(
             candidate.expert_classification, candidate.category,
@@ -1546,6 +1574,106 @@ class MainWindow(QMainWindow):
             self.unknown_classification.hide()
             self.accept_button.setText("Подтвердить наблюдение")
             self.reject_button.setText("Не учитывать")
+
+    def show_llm_hint(self, candidate):
+        """Подсказка видна только для нераспознанных словоформ текущего кандидата."""
+        for widget in self.hint_widgets:
+            widget.show()
+        if candidate.llm_hint:
+            title = UNKNOWN_WORD_CLASSIFICATION_LABELS.get(
+                candidate.llm_hint, candidate.llm_hint,
+            )
+            reason = f" · {candidate.llm_hint_reason}" if candidate.llm_hint_reason else ""
+            self.hint_label.setText(f"Подсказка Qwen: {title}{reason}")
+            self.hint_apply_button.setEnabled(
+                candidate.llm_hint != candidate.expert_classification
+            )
+        else:
+            self.hint_label.setText(
+                "Подсказка Qwen не запрашивалась · она не является выводом "
+                "и в заключение не попадает"
+            )
+            self.hint_apply_button.setEnabled(False)
+
+    def apply_llm_hint(self):
+        """Переносит метку подсказки в выбор эксперта по его прямому действию."""
+        candidate = self.current_candidate
+        if not candidate or not candidate.llm_hint:
+            return
+        index = self.unknown_classification.findData(candidate.llm_hint)
+        if index < 0:
+            return
+        self.unknown_classification.setCurrentIndex(index)
+        self.record_event("llm_hint_applied", {
+            "document_id": candidate.document_id,
+            "candidate_id": candidate.id,
+            "classification": candidate.llm_hint,
+        })
+        self.status.setText(
+            "Подсказка перенесена в выбор эксперта · решение и ответственность ваши"
+        )
+        self.show_llm_hint(candidate)
+
+    def unknown_word_candidates(self):
+        if not self.result:
+            return []
+        return [item for item in self.result.candidates
+                if candidate_group_key(item) == "unknown_words"]
+
+    def request_llm_hints(self):
+        if self.busy or not self.material:
+            return
+        candidates = self.unknown_word_candidates()
+        if not candidates:
+            self.status.setText("Нераспознанных словоформ нет · подсказки не нужны")
+            return
+        missing = [name for path, name in (
+            (DEFAULT_QWEN_RUNTIME, "исполняемый файл llama.cpp"),
+            (DEFAULT_QWEN_MODEL, "файл модели Qwen"),
+        ) if not Path(path).is_file()]
+        if missing:
+            self.status.setText("Не найден: " + ", ".join(missing))
+            return
+        self.set_busy(True)
+        self.hint_request_button.setEnabled(False)
+        self.hint_worker = LtHintWorker(
+            candidates, self.material.text,
+            runtime=DEFAULT_QWEN_RUNTIME, model=DEFAULT_QWEN_MODEL,
+        )
+        self.hint_worker.progress.connect(self.status.setText)
+        self.hint_worker.completed.connect(self.llm_hints_ready)
+        self.hint_worker.failed.connect(self.llm_hints_failed)
+        self.hint_worker.finished.connect(lambda: self.set_busy(False))
+        self.hint_worker.finished.connect(lambda: self.hint_request_button.setEnabled(True))
+        self.hint_worker.start()
+
+    def llm_hints_ready(self, hints):
+        """Записывает подсказки, никогда не трогая выбор эксперта."""
+        by_id = {item.candidate_id: item for item in hints}
+        applied = 0
+        for candidate in self.unknown_word_candidates():
+            hint = by_id.get(candidate.id)
+            if hint is None or hint.status.value != "VALIDATED_HINT":
+                continue
+            candidate.llm_hint = hint.classification
+            candidate.llm_hint_reason = hint.reason
+            applied += 1
+        if applied:
+            self.mark_dirty()
+            self.record_event("llm_hints_received", {
+                "candidates": len(hints), "hints": applied,
+                "profile_version": QWEN_HINT_PROFILE_VERSION,
+            })
+        self.status.setText(
+            f"Подсказки Qwen: {applied} из {len(hints)} · это не вывод, "
+            "решение по каждой словоформе принимает эксперт"
+        )
+        if self.current_candidate:
+            self.show_llm_hint(self.current_candidate)
+
+    def llm_hints_failed(self, message: str):
+        self.status.setText("Локальная модель не запустилась · подсказки не получены")
+        logging.getLogger(__name__).error("Подсказки Qwen: %s", message)
 
     def classification_changed(self):
         if not self.current_candidate or candidate_group_key(self.current_candidate) != "unknown_words":

@@ -64,6 +64,11 @@ class Candidate:
     status: ReviewStatus = ReviewStatus.NEW
     comment: str = ""
     expert_classification: str = ""
+    # Подсказка локальной модели по кандидату LanguageTool. Хранится отдельно и
+    # никогда не подменяет expert_classification: перенос делает только эксперт.
+    # В заключение не выводится, отчёт собирает поля явным списком.
+    llm_hint: str = ""
+    llm_hint_reason: str = ""
 
     def review(self, status: ReviewStatus, comment: str | None = None) -> None:
         self.status = ReviewStatus(status)

@@ -138,3 +138,33 @@ def test_saved_file_uses_declared_crypto_and_fresh_randomness(repository, tmp_pa
     assert first_envelope["cipher"]["name"] == "AES-256-GCM"
     assert first_envelope["kdf"]["salt"] != second_envelope["kdf"]["salt"]
     assert first_envelope["cipher"]["nonce"] != second_envelope["cipher"]["nonce"]
+
+
+def test_llm_hint_survives_the_encrypted_roundtrip(repository, tmp_path):
+    """Решение пользователя: подсказка хранится в деле для прослеживаемости."""
+    case = populated_case(repository, tmp_path)
+    candidate = case.results[0].candidates[0]
+    candidate.llm_hint = "colloquial"
+    candidate.llm_hint_reason = "разговорная форма общего языка"
+    target = tmp_path / "Дело-с-подсказкой.avedcase"
+
+    repository.save(target, case, "надёжный пароль")
+    restored = repository.open(target, "надёжный пароль")
+
+    restored_candidate = restored.results[0].candidates[0]
+    assert restored_candidate.llm_hint == "colloquial"
+    assert restored_candidate.llm_hint_reason == "разговорная форма общего языка"
+    # Подсказка и решение эксперта — разные поля и не смешиваются при чтении.
+    assert restored_candidate.expert_classification == candidate.expert_classification
+
+
+def test_case_without_hints_loads_with_empty_fields(repository, tmp_path):
+    """Дела, созданные до появления подсказок, читаются без ошибок."""
+    case = populated_case(repository, tmp_path)
+    target = tmp_path / "Дело-без-подсказки.avedcase"
+
+    repository.save(target, case, "надёжный пароль")
+    restored = repository.open(target, "надёжный пароль")
+
+    assert restored.results[0].candidates[0].llm_hint == ""
+    assert restored.results[0].candidates[0].llm_hint_reason == ""

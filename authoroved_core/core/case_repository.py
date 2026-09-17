@@ -137,6 +137,8 @@ def _result(value: AnalysisResult | None):
                 "replacements": list(item.replacements), "source": item.source,
                 "status": item.status.value, "comment": item.comment,
                 "expert_classification": item.expert_classification,
+                "llm_hint": item.llm_hint,
+                "llm_hint_reason": item.llm_hint_reason,
             } for item in value.candidates
         ],
         "metrics": [
@@ -188,6 +190,8 @@ def _result_from(value) -> AnalysisResult | None:
             source=str(item["source"]), status=ReviewStatus(item["status"]),
             comment=str(item["comment"]),
             expert_classification=str(item.get("expert_classification", "")),
+            llm_hint=str(item.get("llm_hint", "")),
+            llm_hint_reason=str(item.get("llm_hint_reason", "")),
         ) for item in value["candidates"]],
         metrics=[Metric(
             name=str(item["name"]), value=str(item["value"]),
