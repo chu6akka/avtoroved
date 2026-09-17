@@ -27,6 +27,7 @@ from authoroved_core.core.lt_grouping import (
 )
 from authoroved_core.core.models import Candidate
 from authoroved_core.core.qwen_shadow import ProviderCompletion, StructuredLocalProvider
+from authoroved_core.core.word_evidence import WordEvidence
 
 
 PROFILE_ID = "lt_unknown_word_hint"
@@ -122,10 +123,11 @@ class QwenClassificationService:
         self.provider = provider
         self.validator = HintValidator()
 
-    def hint(self, candidate: Candidate, text: str) -> CandidateHint:
+    def hint(self, candidate: Candidate, text: str,
+             evidence: WordEvidence | None = None) -> CandidateHint:
         completion = self.provider.complete(
             system_prompt=self._system_prompt(),
-            user_prompt=self._user_prompt(candidate, text),
+            user_prompt=self._user_prompt(candidate, text, evidence),
             response_schema=CLASSIFICATION_SCHEMA,
         )
         try:
@@ -158,8 +160,21 @@ class QwenClassificationService:
             "по заданной схеме. /no_think"
         )
 
-    def _user_prompt(self, candidate: Candidate, text: str) -> str:
+    def _user_prompt(self, candidate: Candidate, text: str,
+                     evidence: WordEvidence | None = None) -> str:
+        # Детерминированная справка передаётся как факты, чтобы модель судила
+        # по числам, а не по догадке. Эксперт видит те же числа на экране.
+        facts = {} if evidence is None else {
+            "frequency_ipm": evidence.frequency_ipm,
+            "repeats_in_text": evidence.repeats_in_text,
+            "nearest_correction": evidence.nearest_replacement,
+            "edits_to_correction": evidence.edit_distance,
+            "has_latin": evidence.has_latin,
+            "note": "частоты нет — слова нет в снимке НКРЯ; повтор означает,"
+                    " что на опечатку не похоже",
+        }
         return json.dumps({
+            "deterministic_facts": facts,
             "task": "предложить экспертную метку для нераспознанного слова",
             "classifications": [
                 {"key": key, "title": UNKNOWN_WORD_CLASSIFICATION_LABELS[key],

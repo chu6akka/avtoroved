@@ -16,6 +16,7 @@ from authoroved_core.core.qwen_shadow import (
 )
 from authoroved_core.core.feature_registry import FeatureRegistry
 from authoroved_core.core.qwen_classification import QwenClassificationService
+from authoroved_core.core.word_evidence import collect as collect_word_evidence
 from authoroved_core.core.qwen_theme import QwenThemeService
 from authoroved_core.core.stanza_russian import explain_stanza_tokens
 from authoroved_core.core.models import Token
@@ -106,9 +107,12 @@ class LtHintWorker(QThread):
     completed = pyqtSignal(object)
     failed = pyqtSignal(str)
 
-    def __init__(self, candidates, text: str, *, runtime: Path, model: Path):
+    def __init__(self, candidates, text: str, *, runtime: Path, model: Path,
+                 tokens=(), dictionary=None):
         super().__init__()
         self.candidates = list(candidates)
+        self.tokens = list(tokens)
+        self.dictionary = dictionary
         self.text = text
         self.runtime = Path(runtime)
         self.model = Path(model)
@@ -132,7 +136,10 @@ class LtHintWorker(QThread):
                     self.progress.emit(
                         f"Подсказка {number} из {len(self.candidates)}: {candidate.fragment}"
                     )
-                    hints.append(service.hint(candidate, self.text))
+                    evidence = collect_word_evidence(
+                        candidate, self.text, self.tokens, self.dictionary,
+                    )
+                    hints.append(service.hint(candidate, self.text, evidence))
             self.completed.emit(hints)
         except Exception as error:
             logging.getLogger(__name__).exception("Подсказки Qwen по LanguageTool не получены")

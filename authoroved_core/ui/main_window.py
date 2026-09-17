@@ -32,6 +32,9 @@ from authoroved_core.metrics.basic import GLOBAL_NOTE, WORD_PATTERN
 from authoroved_core.nlp.settings import LocalSettings
 from authoroved_core.ui.text_view import SourceTextView
 from authoroved_core.ui.appearance import STYLE, METRIC_HIGHLIGHT
+from authoroved_core.core.word_evidence import (
+    FrequencyDictionary, collect as collect_word_evidence, summary_lines,
+)
 from authoroved_core.core.qwen_classification import (
     PROFILE_VERSION as QWEN_HINT_PROFILE_VERSION,
 )
@@ -446,6 +449,12 @@ class MainWindow(QMainWindow):
         review_layout.addWidget(self.unknown_classification)
         # Подсказка локальной модели. Она ничего не выбирает сама: перенос в
         # выпадающий список делает эксперт кнопкой, и только для текущего слова.
+        # Справка считается на Python и не зависит от модели: если модель
+        # выключить совсем, эксперт всё равно видит частоту, повторяемость и
+        # расстояние до исправления LanguageTool.
+        self.evidence_label = label("", "muted")
+        self.evidence_label.hide()
+        review_layout.addWidget(self.evidence_label)
         hint_row = QHBoxLayout()
         self.hint_label = label("", "muted")
         hint_row.addWidget(self.hint_label, 1)
@@ -1542,10 +1551,12 @@ class MainWindow(QMainWindow):
             self.unknown_classification.blockSignals(False)
             self.unknown_classification.show()
             self.accept_button.setEnabled(bool(candidate.expert_classification))
+            self.show_word_evidence(candidate)
             self.show_llm_hint(candidate)
         else:
             self.accept_button.setText("Подтвердить наблюдение")
             self.unknown_classification.hide()
+            self.evidence_label.hide()
             for widget in self.hint_widgets:
                 widget.hide()
         self.reject_button.setText("Не учитывать")
@@ -1574,6 +1585,34 @@ class MainWindow(QMainWindow):
             self.unknown_classification.hide()
             self.accept_button.setText("Подтвердить наблюдение")
             self.reject_button.setText("Не учитывать")
+
+    def frequency_dictionary(self):
+        """Снимок словаря читается один раз и работает офлайн."""
+        if getattr(self, "_frequency", None) is None:
+            try:
+                self._frequency = FrequencyDictionary.load()
+            except (OSError, ValueError):
+                logging.getLogger(__name__).warning("Снимок частотного словаря недоступен")
+                self._frequency = FrequencyDictionary.empty()
+        return self._frequency
+
+    def word_evidence(self, candidate):
+        tokens = self.result.tokens if self.result else ()
+        return collect_word_evidence(
+            candidate, self.material.text, tokens, self.frequency_dictionary(),
+        )
+
+    def show_word_evidence(self, candidate):
+        """Числа по словоформе. Вердикт даётся только когда он следует из них."""
+        evidence = self.word_evidence(candidate)
+        lines = list(summary_lines(evidence))
+        if evidence.verdict:
+            title = UNKNOWN_WORD_CLASSIFICATION_LABELS.get(evidence.verdict, evidence.verdict)
+            lines.append(f"Следует из чисел: {title} — {evidence.verdict_reason}")
+        else:
+            lines.append(f"Числами не решается: {evidence.verdict_reason}")
+        self.evidence_label.setText("Справка · " + " · ".join(lines))
+        self.evidence_label.show()
 
     def show_llm_hint(self, candidate):
         """Подсказка видна только для нераспознанных словоформ текущего кандидата."""
@@ -1639,6 +1678,8 @@ class MainWindow(QMainWindow):
         self.hint_worker = LtHintWorker(
             candidates, self.material.text,
             runtime=DEFAULT_QWEN_RUNTIME, model=DEFAULT_QWEN_MODEL,
+            tokens=self.result.tokens if self.result else (),
+            dictionary=self.frequency_dictionary(),
         )
         self.hint_worker.progress.connect(self.status.setText)
         self.hint_worker.completed.connect(self.llm_hints_ready)

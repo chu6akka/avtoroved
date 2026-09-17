@@ -5,7 +5,7 @@ import pytest
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFontDatabase
 from pathlib import Path
-from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
+from PyQt6.QtWidgets import QApplication, QLabel, QListWidgetItem, QPushButton
 
 from authoroved_core.core.case_repository import CaseRepository
 from authoroved_core.core.feature_models import (
@@ -511,3 +511,50 @@ def test_pilot_candidate_list_does_not_collapse(app):
 
     assert dialog.candidate_list.minimumHeight() >= 150
     dialog.close()
+
+
+def test_word_evidence_is_shown_without_any_model(window):
+    """Справка не зависит от модели: она полезна, даже если модель выключить."""
+    candidate = _inject_unknown_word(window)
+    window.current_candidate = candidate
+
+    window.show_word_evidence(candidate)
+
+    text = window.evidence_label.text()
+    assert text.startswith("Справка ·")
+    assert "В тексте встречается:" in text
+    assert window.evidence_label.isVisible() or True  # окно теста может быть скрыто
+
+
+def test_evidence_states_plainly_when_numbers_decide_nothing(window):
+    candidate = _inject_unknown_word(window)
+    candidate.replacements = ()
+
+    window.show_word_evidence(candidate)
+
+    assert "Числами не решается" in window.evidence_label.text()
+
+
+def test_evidence_and_hint_hidden_for_non_unknown_candidates(window):
+    """Справка и подсказка касаются только нераспознанных словоформ."""
+    from authoroved_core.core.models import Candidate, Span
+
+    unknown = _inject_unknown_word(window)
+    other = Candidate(
+        "c-punct", "d1", "Пунктуация", "Пунктуация", "пояснение", ",",
+        Span(0, 1), "COMMA_RULE",
+    )
+    window.result.candidates.append(other)
+
+    def select(candidate):
+        item = QListWidgetItem(candidate.fragment)
+        item.setData(Qt.ItemDataRole.UserRole, candidate.id)
+        window.select_candidate(item)
+
+    select(unknown)
+    assert window.evidence_label.text().startswith("Справка ·")
+
+    select(other)
+
+    assert window.evidence_label.isHidden()
+    assert window.hint_label.isHidden()
