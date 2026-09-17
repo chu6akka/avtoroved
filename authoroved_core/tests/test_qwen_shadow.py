@@ -59,7 +59,7 @@ def test_profiles_are_versioned_and_whitelisted():
     assert {item.id for item in profiles} == {
         "overview", "internet_communication", "phonetic_imitation", "internet_lexicon",
     }
-    assert all(item.version == "0.1.3" for item in profiles)
+    assert all(item.version == "0.1.4" for item in profiles)
     whitelists = {item.id: item.allowed_feature_ids for item in profiles}
     assert whitelists["overview"] == frozenset({"GRA_101", "GRA_102", "GRA_103", "LEX_201"})
     assert whitelists["internet_communication"] == frozenset({"GRA_101", "GRA_102"})
@@ -348,3 +348,32 @@ def test_every_new_feature_has_two_positive_cases_and_two_exclusion_controls():
         ("slang_contextual", "база"), ("slang_fire", "огонь"),
     ]:
         assert texts[fixture_id].count(quote) == 1
+
+
+def test_new_features_exclude_each_other_by_id():
+    """Прогон 17 сентября показал межпризнаковую путаницу.
+
+    Узкие профили помечали чужой феномен своей меткой: сленг ловил `ghbdtn` и
+    `дааа`, фонетический профиль — `ЗЫ:` и повтор знаков. В реестре уже принят
+    приём перекрёстного исключения по идентификатору, как у GRA_102 про P.S.
+    """
+    registry = FeatureRegistry.load(DEFAULT_SHADOW_REGISTRY)
+    expected_cross = {
+        "GRA_103": {"GRA_101", "GRA_102", "LEX_201"},
+        "LEX_201": {"GRA_102", "GRA_103"},
+    }
+
+    for feature_id, others in expected_cross.items():
+        text = " ".join(registry.get(feature_id).exclusions)
+        for other in others:
+            assert other in text, f"{feature_id} не отсекает {other}"
+        assert feature_id not in text, f"{feature_id} ссылается сам на себя"
+
+
+def test_registry_lists_never_collapse_into_yaml_mappings():
+    """Пункт с двоеточием и пробелом молча становится словарём вместо строки."""
+    registry = FeatureRegistry.load(DEFAULT_SHADOW_REGISTRY)
+
+    for item in registry.features:
+        for value in item.criteria + item.exclusions:
+            assert isinstance(value, str) and value.strip()
