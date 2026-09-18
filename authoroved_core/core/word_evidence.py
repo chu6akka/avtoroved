@@ -4,14 +4,20 @@
 показал, что свободное суждение модели ненадёжно, поэтому решаемое решается
 арифметикой, а модели остаётся только то, что арифметикой не решается.
 
+Справка даёт числа и не даёт вердикта. Автоматические метки здесь были и
+сняты по результатам контрольного набора 18 сентября: из 37 вердиктов верными
+оказались 4. Причина в том, что LanguageTool предлагает исправление любому
+незнакомому слову — фамилии, жаргонизму, окказионализму, — поэтому близость к
+его подсказке не является доводом в пользу опечатки. Ужесточение не помогло:
+лучшая точность 12,5 % ценой потери пяти опечаток из шести.
+
 Что справка даёт и чего не даёт:
 
 * частота леммы по снимку НКРЯ отличает слово, известное общему языку, от
   слова вне его;
-* повторяемость формы в самом тексте отличает **опечатку от не-опечатки**:
-  опечатка случается один раз, устойчивое написание повторяется. Отличить
-  окказионализм от неологизма повтор не может — `тимбилдинг` повторяется так
-  же, как авторское образование;
+* повторяемость формы в самом тексте — довод, а не правило: на контрольном
+  наборе «Мисной» повторяется дважды и при этом остаётся ошибкой, потому что
+  автор цитирует чужую безграмотность;
 * расстояние до исправлений, предложенных самим LanguageTool, показывает,
   похожа ли форма на порчу известного слова. Сравнение со снимком НКРЯ для
   этого не годится: снимок построен по леммам, и словоформа «пришол» даёт
@@ -37,6 +43,8 @@ from authoroved_core.core.models import Candidate, Token
 DEFAULT_FREQUENCY = (Path(__file__).parents[2] / "avtoroved-main" / "data"
                      / "freq" / "freqrnc.json")
 MAX_EDIT_DISTANCE = 2
+# Доля совпадающего начала, ниже которой лемма Stanza не принимается.
+LEMMA_PREFIX_RATIO = 0.6
 
 LATIN = re.compile(r"[A-Za-z]")
 TRIPLED_LETTER = re.compile(r"([^\W\d_])\1\1", re.UNICODE)
@@ -59,8 +67,6 @@ class WordEvidence:
     has_latin: bool
     has_tripled_letter: bool
     capitalized_inside_sentence: bool
-    verdict: str
-    verdict_reason: str
 
     @property
     def known_to_corpus(self) -> bool:
@@ -114,13 +120,26 @@ def damerau_levenshtein(first: str, second: str) -> int:
     return rows[-1][-1]
 
 
+def is_space_split(form: str, replacement: str) -> bool:
+    """LanguageTool разбивает незнакомое сложное слово пробелом.
+
+    «вахтовика» превращается в «вахт овика», «авиаохрана» в «авиа охрана».
+    Это эвристика разбиения, а не исправление: отличие ровно в одном пробеле,
+    поэтому такое предложение стояло в одной правке и давало ложный вердикт
+    «орфографическая ошибка» на совершенно нормальных словах.
+    """
+    return (" " in replacement
+            and replacement.replace(" ", "").casefold() == form.casefold())
+
+
 def nearest_replacement(form: str, replacements: Iterable[str]) -> tuple[str, int | None]:
     """Ближайшее исправление LanguageTool и расстояние до него."""
     best, best_distance = "", None
     for value in replacements:
+        # Нулевое расстояние означает, что предложено само исходное слово.
+        if is_space_split(form, value):
+            continue
         distance = damerau_levenshtein(form, value)
-        # Нулевое расстояние означает, что предложено само исходное слово:
-        # исправлением это не является.
         if distance == 0 or (best_distance is not None and distance >= best_distance):
             continue
         best, best_distance = value, distance
@@ -133,6 +152,23 @@ def count_occurrences(text: str, form: str) -> int:
         return 0
     pattern = re.compile(rf"(?<!\w){re.escape(form)}(?!\w)", re.IGNORECASE | re.UNICODE)
     return len(pattern.findall(text))
+
+
+def plausible_lemma(form: str, lemma: str) -> bool:
+    """Похожа ли лемма на лемму именно этой словоформы.
+
+    Stanza лемматизирует и незнакомое слово, выдавая правдоподобную догадку:
+    «бзди» превращается в «брать», «бля» в «брать». Такая лемма находится в
+    снимке НКРЯ, и слово ошибочно объявляется известным корпусу. Форма и её
+    лемма обязаны совпадать заметной начальной частью.
+    """
+    first, second = form.casefold(), lemma.casefold()
+    if not first or not second:
+        return False
+    shared = 0
+    while shared < min(len(first), len(second)) and first[shared] == second[shared]:
+        shared += 1
+    return shared / min(len(first), len(second)) >= LEMMA_PREFIX_RATIO
 
 
 def lemma_for(candidate: Candidate, tokens: Iterable[Token]) -> str:
@@ -151,41 +187,20 @@ def _capitalized_inside_sentence(text: str, candidate: Candidate) -> bool:
     return not SENTENCE_START.search(text[max(0, candidate.span.start - 40):candidate.span.start])
 
 
-def deterministic_verdict(evidence: "WordEvidence") -> tuple[str, str]:
-    """Метка, выводимая из чисел. Пустая строка — решает эксперт.
-
-    Правила намеренно узкие: лучше промолчать, чем подсказать неверно.
-    """
-    if evidence.known_to_corpus:
-        return "dictionary_gap", (
-            f"лемма «{evidence.lemma or evidence.form}» есть в снимке НКРЯ "
-            f"({evidence.frequency_ipm:.2f} на миллион), словарь LanguageTool её не знает"
-        )
-    if evidence.repeats_in_text > 1:
-        return "", (
-            f"форма повторяется в тексте {evidence.repeats_in_text} раза — "
-            "на опечатку не похоже; окказионализм, неологизм и заимствование "
-            "числами не различаются"
-        )
-    if evidence.edit_distance is not None and evidence.edit_distance <= MAX_EDIT_DISTANCE:
-        правок = "правка" if evidence.edit_distance == 1 else "правки"
-        return "spelling_error", (
-            f"{evidence.edit_distance} {правок} до «{evidence.nearest_replacement}», "
-            "которое предлагает сам LanguageTool; в тексте встречается один раз"
-        )
-    return "", ("числами не решается: слова нет в снимке НКРЯ, "
-                "исправления LanguageTool далеки или отсутствуют")
-
-
 def collect(candidate: Candidate, text: str, tokens: Iterable[Token] = (),
             dictionary: FrequencyDictionary | None = None) -> WordEvidence:
     dictionary = dictionary or FrequencyDictionary.empty()
     form = candidate.fragment
-    lemma = lemma_for(candidate, tokens) or form
-    found = dictionary.lookup(lemma) or dictionary.lookup(form)
+    guessed = lemma_for(candidate, tokens)
+    lemma = guessed if plausible_lemma(form, guessed) else form
+    capitalized = _capitalized_inside_sentence(text, candidate)
+    # Слово с заглавной внутри предложения — обычно имя собственное, и
+    # совпадение его леммы со словарём нарицательных ничего не означает
+    # («Бойе» и «бой»).
+    found = None if capitalized else (dictionary.lookup(lemma) or dictionary.lookup(form))
     replacements = tuple(candidate.replacements[:5])
     nearest, distance = ("", None) if found else nearest_replacement(form, replacements)
-    evidence = WordEvidence(
+    return WordEvidence(
         form=form, lemma=lemma,
         frequency_rank=found[0] if found else None,
         frequency_ipm=found[1] if found else None,
@@ -195,11 +210,9 @@ def collect(candidate: Candidate, text: str, tokens: Iterable[Token] = (),
         lt_replacements=replacements,
         has_latin=bool(LATIN.search(form)),
         has_tripled_letter=bool(TRIPLED_LETTER.search(form)),
-        capitalized_inside_sentence=_capitalized_inside_sentence(text, candidate),
-        verdict="", verdict_reason="",
+        capitalized_inside_sentence=capitalized,
     )
-    verdict, reason = deterministic_verdict(evidence)
-    return WordEvidence(**{**evidence.__dict__, "verdict": verdict, "verdict_reason": reason})
+    return evidence
 
 
 def summary_lines(evidence: WordEvidence) -> tuple[str, ...]:

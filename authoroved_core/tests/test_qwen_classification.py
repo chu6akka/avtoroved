@@ -144,28 +144,17 @@ def test_examples_reach_the_prompt():
     assert entry["example"] and entry["counterexample"]
 
 
-def test_repetition_narrows_the_label_set_before_the_model():
-    """Выбор из нескольких кандидатов надёжнее выбора из всех."""
-    text = "Был тимбилдинг, потом ещё тимбилдинг и снова тимбилдинг."
-    start = text.index("тимбилдинг")
+def test_every_label_stays_available_whatever_the_numbers_say():
+    """Сужение по повторяемости снято: оно сняло бы верную метку у «Мисной»."""
+    text = "Среди безграмотности был и Мисной салат, снова Мисной."
     item = Candidate(
         "c1", "d1", "Слово не распознано словарём", "Слово не распознано словарём",
-        "пояснение", "тимбилдинг", Span(start, start + len("тимбилдинг")),
+        "пояснение", "Мисной", Span(text.index("Мисной"), text.index("Мисной") + 6),
         "MORFOLOGIK_RULE_RU_RU",
     )
     evidence = collect(item, text, (), FrequencyDictionary({}))
 
-    labels = candidate_labels(evidence)
-
-    assert evidence.repeats_in_text == 3
-    assert "spelling_error" not in labels
-    assert set(labels) | {"spelling_error"} == set(CLASSIFICATION_KEYS)
-
-
-def test_single_occurrence_keeps_every_label():
-    text = "Ровно один раз слово зачётненько встречается."
-    evidence = collect(candidate(start=text.index("зачётненько")), text, (), FrequencyDictionary({}))
-
+    assert evidence.repeats_in_text == 2
     assert candidate_labels(evidence) == CLASSIFICATION_KEYS
     assert candidate_labels(None) == CLASSIFICATION_KEYS
 
@@ -179,21 +168,3 @@ def test_narrowed_schema_and_validator_agree():
     with pytest.raises(Exception):
         HintValidator().validate(answer("spelling_error"), labels)
     assert HintValidator().validate(answer(labels[0]))[0] == labels[0]
-
-
-def test_narrowed_label_is_refused_by_the_service():
-    """Модель не может вернуть метку, которую сняла справка."""
-    text = "Был тимбилдинг, потом ещё тимбилдинг."
-    start = text.index("тимбилдинг")
-    item = Candidate(
-        "c1", "d1", "Слово не распознано словарём", "Слово не распознано словарём",
-        "пояснение", "тимбилдинг", Span(start, start + len("тимбилдинг")),
-        "MORFOLOGIK_RULE_RU_RU",
-    )
-    evidence = collect(item, text, (), FrequencyDictionary({}))
-    service = QwenClassificationService(FakeProvider([answer("spelling_error")]))
-
-    hint = service.hint(item, text, evidence)
-
-    assert hint.status is HintStatus.SYSTEM_REJECTED
-    assert "закрытом списке" in hint.rejection_reason

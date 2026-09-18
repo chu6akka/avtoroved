@@ -87,18 +87,18 @@ def test_only_unknown_word_candidates_reach_the_sheet():
     assert [row["word"] for row in rows] == ["пикабушник"]
 
 
-def test_undecided_rows_come_first():
-    """На них и меряется подсказка: остальное решено без модели."""
+def test_rows_are_ordered_by_word():
+    """Автоматических вердиктов нет, поэтому и особого порядка не требуется."""
     text = "Тут беда и пикабушник вместе."
     documents = [("CASE_001/TEXT_A.txt", text)]
     service = FakeAnalysis({
-        "CASE_001/TEXT_A.txt": ([unknown("беда", text), unknown("пикабушник", text)], []),
+        "CASE_001/TEXT_A.txt": ([unknown("пикабушник", text), unknown("беда", text)], []),
     })
 
     rows = build_rows(documents, service, dictionary())
 
-    assert rows[0]["word"] == "пикабушник" and rows[0]["deterministic"] == ""
-    assert rows[1]["word"] == "беда" and rows[1]["deterministic"] == "dictionary_gap"
+    assert [row["word"] for row in rows] == ["беда", "пикабушник"]
+    assert "deterministic" not in rows[0]
 
 
 def test_lemma_from_stanza_reaches_the_frequency_column():
@@ -112,10 +112,9 @@ def test_lemma_from_stanza_reaches_the_frequency_column():
     rows = build_rows(documents, service, dictionary())
 
     assert rows[0]["corpus_ipm"] == "93.45"
-    assert rows[0]["deterministic"] == "dictionary_gap"
 
 
-def test_limit_keeps_the_undecided_rows(tmp_path):
+def test_limit_caps_the_sheet(tmp_path):
     text = "Слова пикабушник, инфоцыганщина и беда тут."
     documents = [("CASE_001/TEXT_A.txt", text)]
     service = FakeAnalysis({"CASE_001/TEXT_A.txt": (
@@ -125,7 +124,7 @@ def test_limit_keeps_the_undecided_rows(tmp_path):
     rows = build_rows(documents, service, dictionary(), limit=2)
 
     assert len(rows) == 2
-    assert all(row["deterministic"] == "" for row in rows)
+    assert [row["row_id"] for row in rows] == ["W0001", "W0002"]
 
 
 def test_written_sheet_is_readable_and_has_empty_expert_columns(tmp_path):

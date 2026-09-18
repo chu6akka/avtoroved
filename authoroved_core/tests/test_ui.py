@@ -525,13 +525,16 @@ def test_word_evidence_is_shown_without_any_model(window):
     assert window.evidence_label.isVisible() or True  # окно теста может быть скрыто
 
 
-def test_evidence_states_plainly_when_numbers_decide_nothing(window):
+def test_evidence_shows_numbers_and_never_a_verdict(window):
+    """Автоматические метки сняты контрольным набором: 4 верных из 37."""
     candidate = _inject_unknown_word(window)
     candidate.replacements = ()
 
     window.show_word_evidence(candidate)
 
-    assert "Числами не решается" in window.evidence_label.text()
+    text = window.evidence_label.text()
+    assert "В тексте встречается:" in text
+    assert "Следует из чисел" not in text
 
 
 def test_evidence_and_hint_hidden_for_non_unknown_candidates(window):

@@ -10,8 +10,8 @@
 * одинаковые словоформы сведены в одну строку с числом вхождений, иначе
   «пикабушник» занял бы десяток строк подряд;
 * контекст укладывается в одну строку, сама словоформа выделена скобками;
-* сначала идут случаи, где числа ничего не решили, — именно они и нужны для
-  замера подсказки, остальные решены без модели;
+* строки упорядочены по слову: автоматических вердиктов больше нет, все
+  случаи одинаково требуют решения;
 * столбец `gold_label` пустой, допустимые значения перечислены в легенде
   рядом с листом.
 
@@ -42,7 +42,7 @@ DEFAULT_CORPUS = Path("avtoroved-main/artifacts/pilot01_corpus")
 CONTEXT_MARGIN = 55
 FIELDS = ["row_id", "word", "context", "occurrences", "documents", "corpus_ipm",
           "repeats_in_document", "nearest_correction", "edits", "flags",
-          "deterministic", "deterministic_reason", "gold_label", "note"]
+          "gold_label", "note"]
 
 
 def one_line(value: str) -> str:
@@ -93,15 +93,12 @@ def build_rows(documents, service, dictionary, *, limit: int = 0):
                 "nearest_correction": evidence.nearest_replacement,
                 "edits": "" if evidence.edit_distance is None else evidence.edit_distance,
                 "flags": ", ".join(flags),
-                "deterministic": evidence.verdict,
-                "deterministic_reason": one_line(evidence.verdict_reason),
                 "gold_label": "", "note": "",
             }
     rows = list(seen.values())
     for row in rows:
         row["documents"] = len(row.pop("_documents"))
-    # Сначала нерешённое: именно на нём и меряется подсказка.
-    rows.sort(key=lambda item: (bool(item["deterministic"]), item["word"].casefold()))
+    rows.sort(key=lambda item: item["word"].casefold())
     if limit:
         rows = rows[:limit]
     for number, row in enumerate(rows, start=1):
@@ -123,8 +120,8 @@ def write_legend(path: Path) -> None:
     lines += [
         "",
         "Оставьте пустым, если не уверены, и напишите почему в столбце note.",
-        "Столбец deterministic — метка, выведенная из чисел без модели.",
-        "Строки с пустым deterministic идут первыми: на них и меряется подсказка.",
+        "Числа в листе — доводы, а не метка: LanguageTool предлагает исправление",
+        "любому незнакомому слову, включая фамилии и жаргонизмы.",
     ]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -151,10 +148,8 @@ def main():
     legend = args.output.with_name(args.output.stem + "_легенда.txt")
     write_legend(legend)
 
-    undecided = sum(not row["deterministic"] for row in rows)
     print(f"текстов: {len(documents)}")
     print(f"различных словоформ в листе: {len(rows)}")
-    print(f"из них числами не решено: {undecided} — это и есть работа для подсказки")
     print(f"лист: {args.output}")
     print(f"легенда: {legend}")
 

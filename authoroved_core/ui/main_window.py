@@ -1603,14 +1603,13 @@ class MainWindow(QMainWindow):
         )
 
     def show_word_evidence(self, candidate):
-        """Числа по словоформе. Вердикт даётся только когда он следует из них."""
-        evidence = self.word_evidence(candidate)
-        lines = list(summary_lines(evidence))
-        if evidence.verdict:
-            title = UNKNOWN_WORD_CLASSIFICATION_LABELS.get(evidence.verdict, evidence.verdict)
-            lines.append(f"Следует из чисел: {title} — {evidence.verdict_reason}")
-        else:
-            lines.append(f"Числами не решается: {evidence.verdict_reason}")
+        """Числа по словоформе. Метку из них не выводим.
+
+        Автоматические вердикты были и сняты контрольным набором: из 37 верными
+        оказались 4, потому что LanguageTool предлагает исправление любому
+        незнакомому слову. Числа остаются доводом для эксперта.
+        """
+        lines = list(summary_lines(self.word_evidence(candidate)))
         self.evidence_label.setText("Справка · " + " · ".join(lines))
         self.evidence_label.show()
 
