@@ -29,6 +29,41 @@ def test_gold_set_is_large_enough_to_measure_on():
     assert len({item["gold_label"] for item in labelled}) >= 6
 
 
+def test_tokenisation_fragments_are_excluded():
+    """«-то», «вают», «ец» — обрезки, а не словоформы.
+
+    Модель отвечала бы по ним наугад и портила бы замер, поэтому из набора
+    они убраны, а сам факт такого мусора у LanguageTool отмечен отдельно.
+    """
+    words = {item["word"] for item in items()}
+
+    assert not ({"-то", "вают", "ец", "здец", "-Почему"} & words)
+
+
+def test_stretched_spellings_are_left_without_a_label_on_purpose():
+    """Восемь классификаций покрывают лексику и не покрывают графику.
+
+    Растянутое написание изображает произношение, а не создаёт слово, поэтому
+    подходящей метки среди восьми нет, и натягивать её на «авторское
+    образование» было бы искажением.
+    """
+    stretched = [item for item in items()
+                 if item["word"] in {"Слууууушай", "ээээ", "оеееей", "аааа"}]
+
+    assert len(stretched) == 4
+    for item in stretched:
+        assert item["gold_label"] == ""
+        assert "не покрывают" in item["note"]
+
+
+def test_a_quoted_error_is_marked_as_someone_elses():
+    """Принцип, уже принятый в реестре для GRA_103."""
+    quoted = next(item for item in items() if item["word"] == "Мисной")
+
+    assert quoted["gold_label"] == "spelling_error"
+    assert "чужая" in quoted["note"]
+
+
 def test_repetition_does_not_rule_out_a_spelling_error():
     """Именно этот случай снял сужение меток по повторяемости."""
     quoted = next(item for item in items() if item["word"] == "Мисной")
