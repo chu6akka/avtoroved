@@ -392,6 +392,12 @@ def test_qwen_pilot_offers_every_shadow_profile_from_the_registry(app):
     dialog.close()
 
 
+def test_no_hint_widgets_remain_in_the_review_panel(window):
+    """Подсказка вырезана: 26,5 % против 27,2 % у вырожденной стратегии."""
+    for name in ("hint_label", "hint_apply_button", "hint_request_button"):
+        assert not hasattr(window, name)
+
+
 def _inject_unknown_word(window):
     """LanguageTool в тестах не запускается, поэтому кандидат подставляется."""
     from authoroved_core.core.models import Candidate, Span
@@ -403,66 +409,6 @@ def _inject_unknown_word(window):
     )
     window.result.candidates.append(candidate)
     return candidate
-
-
-def _hint(candidate, status, classification="colloquial"):
-    from authoroved_core.core.qwen_classification import CandidateHint
-
-    return CandidateHint(
-        candidate.id, status, classification,
-        "Разговорная или жаргонная форма" if classification else "",
-        "разговорная форма", "{}", {},
-    )
-
-
-def test_llm_hint_never_overwrites_the_expert_choice(window):
-    """Подсказка пишется в своё поле и ждёт действия эксперта."""
-    from authoroved_core.core.qwen_classification import HintStatus
-
-    candidate = _inject_unknown_word(window)
-    candidate.expert_classification = "spelling_error"
-
-    window.llm_hints_ready([_hint(candidate, HintStatus.VALIDATED_HINT)])
-
-    assert candidate.llm_hint == "colloquial"
-    assert candidate.llm_hint_reason == "разговорная форма"
-    assert candidate.expert_classification == "spelling_error"
-
-
-@pytest.mark.parametrize("status_name", ["SYSTEM_REJECTED", "MODEL_UNCLEAR"])
-def test_rejected_and_unclear_hints_are_not_written_at_all(window, status_name):
-    from authoroved_core.core.qwen_classification import HintStatus
-
-    candidate = _inject_unknown_word(window)
-
-    window.llm_hints_ready([_hint(candidate, HintStatus[status_name], classification="")])
-
-    assert candidate.llm_hint == ""
-
-
-def test_expert_action_is_required_to_transfer_a_hint(window):
-    from authoroved_core.core.qwen_classification import HintStatus
-
-    candidate = _inject_unknown_word(window)
-    window.llm_hints_ready([_hint(candidate, HintStatus.VALIDATED_HINT)])
-    window.current_candidate = candidate
-    window.show_llm_hint(candidate)
-    assert candidate.expert_classification != "colloquial"
-
-    window.apply_llm_hint()
-
-    assert candidate.expert_classification == "colloquial"
-    assert "Подсказка Qwen" in window.hint_label.text()
-
-
-def test_hint_is_marked_as_not_a_conclusion_when_absent(window):
-    candidate = _inject_unknown_word(window)
-    window.current_candidate = candidate
-
-    window.show_llm_hint(candidate)
-
-    assert "не является выводом" in window.hint_label.text()
-    assert not window.hint_apply_button.isEnabled()
 
 
 def test_pilot_context_shows_each_quote_separately_not_the_gap_between_them(app):
@@ -537,8 +483,8 @@ def test_evidence_shows_numbers_and_never_a_verdict(window):
     assert "Следует из чисел" not in text
 
 
-def test_evidence_and_hint_hidden_for_non_unknown_candidates(window):
-    """Справка и подсказка касаются только нераспознанных словоформ."""
+def test_evidence_hidden_for_non_unknown_candidates(window):
+    """Справка касается только нераспознанных словоформ."""
     from authoroved_core.core.models import Candidate, Span
 
     unknown = _inject_unknown_word(window)
@@ -559,4 +505,3 @@ def test_evidence_and_hint_hidden_for_non_unknown_candidates(window):
     select(other)
 
     assert window.evidence_label.isHidden()
-    assert window.hint_label.isHidden()

@@ -15,8 +15,6 @@ from authoroved_core.core.qwen_shadow import (
     DEFAULT_SHADOW_REGISTRY, QwenShadowService, load_shadow_profiles,
 )
 from authoroved_core.core.feature_registry import FeatureRegistry
-from authoroved_core.core.qwen_classification import QwenClassificationService
-from authoroved_core.core.word_evidence import collect as collect_word_evidence
 from authoroved_core.core.qwen_theme import QwenThemeService
 from authoroved_core.core.stanza_russian import explain_stanza_tokens
 from authoroved_core.core.models import Token
@@ -91,57 +89,6 @@ def cached_model_sha256(path: Path) -> str:
         _MODEL_HASH_CACHE.clear()
         _MODEL_HASH_CACHE[key] = file_sha256(path)
     return _MODEL_HASH_CACHE[key]
-
-
-class LtHintWorker(QThread):
-    """Подсказки по кандидатам LanguageTool одним запуском локальной модели.
-
-    Каждый кандидат отправляется отдельным коротким запросом: координаты уже
-    известны, модель отвечает одной меткой из закрытого списка. Сервер
-    поднимается один раз на весь список.
-    """
-
-    progress = pyqtSignal(str)
-    completed = pyqtSignal(object)
-    failed = pyqtSignal(str)
-
-    def __init__(self, candidates, text: str, *, runtime: Path, model: Path,
-                 tokens=(), dictionary=None):
-        super().__init__()
-        self.candidates = list(candidates)
-        self.tokens = list(tokens)
-        self.dictionary = dictionary
-        self.text = text
-        self.runtime = Path(runtime)
-        self.model = Path(model)
-
-    def run(self):
-        try:
-            model_hash = cached_model_sha256(self.model)
-            settings = QwenServerSettings(self.runtime.resolve(), self.model.resolve())
-            server = LocalQwenServer(settings, DEFAULT_QWEN_LOG)
-            runtime_version = server.version()
-            self.progress.emit("Запускаю Qwen на этом компьютере…")
-            hints = []
-            with server:
-                provider = LlamaCppLocalProvider(LocalQwenConfig(
-                    endpoint=server.endpoint, model_name=self.model.name,
-                    model_sha256=model_hash, runtime_version=runtime_version,
-                    api_key=server.api_key,
-                ))
-                service = QwenClassificationService(provider)
-                for number, candidate in enumerate(self.candidates, start=1):
-                    self.progress.emit(
-                        f"Подсказка {number} из {len(self.candidates)}: {candidate.fragment}"
-                    )
-                    evidence = collect_word_evidence(
-                        candidate, self.text, self.tokens, self.dictionary,
-                    )
-                    hints.append(service.hint(candidate, self.text, evidence))
-            self.completed.emit(hints)
-        except Exception as error:
-            logging.getLogger(__name__).exception("Подсказки Qwen по LanguageTool не получены")
-            self.failed.emit(str(error))
 
 
 class QwenPilotWorker(QThread):

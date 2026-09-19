@@ -1,0 +1,1427 @@
+{
+  "kind": "Замер подсказки по эталону; не оценка авторства",
+  "generated_at": "2026-09-19T16:28:11.099630+00:00",
+  "total_seconds": 71.047,
+  "gold_items": 145,
+  "measured": 136,
+  "skipped_without_label": [
+    "куша-а-ть",
+    "Ма-а-поч-ка-а-а",
+    "оеееей",
+    "пожа-а-а-луйста",
+    "Слууууушай",
+    "ээээ",
+    "Ааа-ад",
+    "аааа",
+    "зы"
+  ],
+  "answered": 132,
+  "correct": 36,
+  "unclear": 4,
+  "system_rejected": 0,
+  "precision_when_answered": 0.273,
+  "share_of_all_items": 0.265,
+  "by_label": {
+    "authorial": {
+      "total": 33,
+      "correct": 0,
+      "unclear": 1
+    },
+    "colloquial": {
+      "total": 24,
+      "correct": 10,
+      "unclear": 0
+    },
+    "dictionary_gap": {
+      "total": 23,
+      "correct": 3,
+      "unclear": 0
+    },
+    "name": {
+      "total": 37,
+      "correct": 21,
+      "unclear": 2
+    },
+    "neologism": {
+      "total": 9,
+      "correct": 1,
+      "unclear": 1
+    },
+    "professional": {
+      "total": 4,
+      "correct": 0,
+      "unclear": 0
+    },
+    "spelling_error": {
+      "total": 6,
+      "correct": 1,
+      "unclear": 0
+    }
+  },
+  "confusions": [
+    {
+      "gold": "authorial",
+      "answer": "name",
+      "count": 13
+    },
+    {
+      "gold": "dictionary_gap",
+      "answer": "name",
+      "count": 13
+    },
+    {
+      "gold": "name",
+      "answer": "dictionary_gap",
+      "count": 11
+    },
+    {
+      "gold": "authorial",
+      "answer": "dictionary_gap",
+      "count": 8
+    },
+    {
+      "gold": "authorial",
+      "answer": "colloquial",
+      "count": 7
+    },
+    {
+      "gold": "colloquial",
+      "answer": "dictionary_gap",
+      "count": 6
+    },
+    {
+      "gold": "neologism",
+      "answer": "name",
+      "count": 5
+    },
+    {
+      "gold": "dictionary_gap",
+      "answer": "dialect",
+      "count": 3
+    },
+    {
+      "gold": "name",
+      "answer": "dialect",
+      "count": 3
+    },
+    {
+      "gold": "colloquial",
+      "answer": "name",
+      "count": 3
+    },
+    {
+      "gold": "colloquial",
+      "answer": "spelling_error",
+      "count": 3
+    },
+    {
+      "gold": "professional",
+      "answer": "dictionary_gap",
+      "count": 2
+    },
+    {
+      "gold": "dictionary_gap",
+      "answer": "colloquial",
+      "count": 2
+    },
+    {
+      "gold": "spelling_error",
+      "answer": "dictionary_gap",
+      "count": 2
+    },
+    {
+      "gold": "colloquial",
+      "answer": "authorial",
+      "count": 2
+    },
+    {
+      "gold": "dictionary_gap",
+      "answer": "neologism",
+      "count": 2
+    },
+    {
+      "gold": "professional",
+      "answer": "name",
+      "count": 1
+    },
+    {
+      "gold": "spelling_error",
+      "answer": "colloquial",
+      "count": 1
+    },
+    {
+      "gold": "neologism",
+      "answer": "professional",
+      "count": 1
+    },
+    {
+      "gold": "authorial",
+      "answer": "neologism",
+      "count": 1
+    },
+    {
+      "gold": "professional",
+      "answer": "spelling_error",
+      "count": 1
+    },
+    {
+      "gold": "neologism",
+      "answer": "colloquial",
+      "count": 1
+    },
+    {
+      "gold": "authorial",
+      "answer": "professional",
+      "count": 1
+    },
+    {
+      "gold": "authorial",
+      "answer": "spelling_error",
+      "count": 1
+    },
+    {
+      "gold": "spelling_error",
+      "answer": "neologism",
+      "count": 1
+    },
+    {
+      "gold": "authorial",
+      "answer": "dialect",
+      "count": 1
+    },
+    {
+      "gold": "spelling_error",
+      "answer": "name",
+      "count": 1
+    }
+  ],
+  "rows": [
+    {
+      "word": "ашкеназской",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "dialect",
+      "reason": "форма, закреплённая за определённой местностью",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "бада",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "colloquial",
+      "reason": "разговорное слово, возможно, жаргонное",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "бандеровского",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "близ-сидящими",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "colloquial",
+      "reason": "разговорная форма общего языка",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Блюк",
+      "gold": "name",
+      "status": "MODEL_UNCLEAR",
+      "answer": "",
+      "reason": "окружения не хватает для выбора",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Блюка",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Блюку",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Гастарбайтер-узбек",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название, никнейм или иноязычное вкрапление",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "гвонометин",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "говнодол",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название, никнейм или иноязычное вкрапление",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "говнодола",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название, никнейм или иноязычное вкрапление",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "говноперидола",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "друзьям-разведчикам",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "еврея-художника",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название, никнейм или иноязычное вкрапление",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "жидомасонского",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "заказ-наряда",
+      "gold": "professional",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "заказ-наряды",
+      "gold": "professional",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "землю-невидимку",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Исреэль",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "иссиня-зелёный",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "colloquial",
+      "reason": "разговорная оценочная форма общего языка",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Йорктауном",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "какие-никакие",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Кардозо",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "dialect",
+      "reason": "форма, закреплённая за определённой местностью",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "коитуспрофен",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Ланселот",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "ЛГБТ-активистов",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название, никнейм или иноязычное вкрапление",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Леттланд",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Маген",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "маген-давид",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "магниево-перманганатной",
+      "gold": "professional",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "маньяка-серийного",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название, никнейм или иноязычное вкрапление",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Мапа",
+      "gold": "authorial",
+      "status": "MODEL_UNCLEAR",
+      "answer": "",
+      "reason": "окружения не хватает для выбора",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Мапочка",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, прозвище или никнейм",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "мапу",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "colloquial",
+      "reason": "разговорная форма общего языка",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "матрос-радист",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Мисной",
+      "gold": "spelling_error",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Мухторзода",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "наркоконтроль",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название, никнейм или иноязычное вкрапление",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Немига",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "название станции метрополитена",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Немиге",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "нифига",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "ништяцкие",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "colloquial",
+      "reason": "разговорная оценочная форма общего языка",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Нуриллохон",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "ой-ой-ой",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "colloquial",
+      "reason": "разговорное восклицание общего употребления",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Оська",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "охереваете",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "authorial",
+      "reason": "слово создано самим автором по случаю",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "охуеваю",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "authorial",
+      "reason": "слово создано самим автором по случаю",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "пикабушник",
+      "gold": "neologism",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Плов-нефть",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "по-наследству",
+      "gold": "spelling_error",
+      "status": "VALIDATED_HINT",
+      "answer": "colloquial",
+      "reason": "разговорная форма общего языка",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "полиамория",
+      "gold": "neologism",
+      "status": "VALIDATED_HINT",
+      "answer": "professional",
+      "reason": "специфический термин, связанный с социальными отношениями",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Полиаморные",
+      "gold": "neologism",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "название или термин, связанный с тематикой текста",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "полиаморы",
+      "gold": "neologism",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название, никнейм или иноязычное вкрапление",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "проэсэмэсила",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "проэсэмэсь",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "colloquial",
+      "reason": "разговорная форма с элементами сокращения",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "пыщпыщпыщ",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "colloquial",
+      "reason": "разговорное восклицание или имитация звука",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Ронду",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "название места или события",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "секспрофен",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "neologism",
+      "reason": "новое слово, возможно, вошедшее в узкий употребление",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "семь-восемь",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "neologism",
+      "reason": "новое слово, уже вошедшее в общее употребление",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "сефардской",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "dialect",
+      "reason": "форма, закреплённая за определённой местностью",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "слендермен",
+      "gold": "name",
+      "status": "MODEL_UNCLEAR",
+      "answer": "",
+      "reason": "окружения не хватает для выбора",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "смотри-смотри",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "colloquial",
+      "reason": "разговорная форма общего языка",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "сослуживца-земляка",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Сява",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Сявы",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, возможно, никнейм или иноязычное вкрапление",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "та-та-та-та",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "colloquial",
+      "reason": "разговорное восклицание с повторением",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "та-тата",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "colloquial",
+      "reason": "разговорная форма с повторяющимся звуком",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Такаради",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "тату-салон",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название, никнейм или иноязычное вкрапление",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Точикистоне",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "dialect",
+      "reason": "форма, закреплённая за определённой местностью",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "трахеостомы",
+      "gold": "professional",
+      "status": "VALIDATED_HINT",
+      "answer": "spelling_error",
+      "reason": "орфографическая ошибка без признаков намеренности",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "тремя-четырьмя",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "neologism",
+      "reason": "число создано на ходу и не является стандартным",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "тристаписят",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "туда-обратно",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "название или обозначение направления",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "фейсбучная",
+      "gold": "neologism",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "френдесса",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "хипстерским",
+      "gold": "neologism",
+      "status": "VALIDATED_HINT",
+      "answer": "colloquial",
+      "reason": "разговорная форма общего языка",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "холодняка",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "центрально-наркотические",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "professional",
+      "reason": "термин профессионального обихода",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Цигельгаузена",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "чекпоинтах",
+      "gold": "neologism",
+      "status": "VALIDATED_HINT",
+      "answer": "neologism",
+      "reason": "чекпоинт — новое слово, уже вошедшее в общее употребление",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Швамбрания",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "название книги или произведения",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Швамбраныч",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "шкаф-секретер",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Штефан",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Ыхыхыхы",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "colloquial",
+      "reason": "разговорное выражение эмоционального восклицания",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "юрист-онлайн",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "авиаохрана",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название, никнейм или иноязычное вкрапление",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Альбертиниума",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название, никнейм или иноязычное вкрапление",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "баянометр",
+      "gold": "neologism",
+      "status": "MODEL_UNCLEAR",
+      "answer": "",
+      "reason": "окружения не хватает для выбора",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Беннетта",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название, никнейм или иноязычное вкрапление",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "бзди",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "colloquial",
+      "reason": "разговорная форма общего языка",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "близлежайшие",
+      "gold": "spelling_error",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Блюком",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "бля",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "colloquial",
+      "reason": "разговорное выражение общего употребления",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Бойе",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название, никнейм или иноязычное вкрапление",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Бойярд",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "название игры или иноязычное вкрапление",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "брамапутер",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "бульков",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "вахтовика",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название, никнейм или иноязычное вкрапление",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "вахтовиков",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название, никнейм или иноязычное вкрапление",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "ваххабит",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "dialect",
+      "reason": "форма, закреплённая за определённой местностью",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "велосипый",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "spelling_error",
+      "reason": "ошибка или опечатка без признаков намеренности",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "во-он",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "colloquial",
+      "reason": "разговорное обращение или указательное местоимение",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "враскоряку",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "colloquial",
+      "reason": "разговорная форма общего языка",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "выебать",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "spelling_error",
+      "reason": "ошибка или опечатка без признаков намеренности",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "выехивает",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Вынгапур",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "название места или иноязычное вкрапление",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "гавно",
+      "gold": "spelling_error",
+      "status": "VALIDATED_HINT",
+      "answer": "spelling_error",
+      "reason": "орфографическая ошибка, подобная 'говно'",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "галактеко",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "говнометин",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "говнометина",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "говноспирина",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "графья",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "групппы",
+      "gold": "spelling_error",
+      "status": "VALIDATED_HINT",
+      "answer": "neologism",
+      "reason": "слово создано самим автором по случаю, вне общего употребления",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Грюгнер",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Гуммера",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "деба",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "десантирован",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "десантура",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Джамшут",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "долбоеб",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "spelling_error",
+      "reason": "орфографическая ошибка без признаков намеренности",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "дёрганности",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "dialect",
+      "reason": "форма, закреплённая за определённой местностью",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "еб",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "spelling_error",
+      "reason": "орфографическая ошибка или опечатка",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "ее-его",
+      "gold": "authorial",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя или иноязычное вкрапление",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "задолбали",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "colloquial",
+      "reason": "разговорное выражение, используемое в общении",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "заебал",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "colloquial",
+      "reason": "разговорная форма общего языка",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "звездюлей",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "зож",
+      "gold": "neologism",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "название или никнейм, связанное с образом жизни",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "ибупрофена",
+      "gold": "dictionary_gap",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Иллиг",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "истерю",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "colloquial",
+      "reason": "разговорная форма общего языка",
+      "correct": true,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Исусе",
+      "gold": "spelling_error",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "имя, название или заимствование",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Калушский",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "dictionary_gap",
+      "reason": "нормативное слово, которого нет в словаре LT",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "капучины",
+      "gold": "colloquial",
+      "status": "VALIDATED_HINT",
+      "answer": "name",
+      "reason": "название напитка, возможно, иноязычное вкрапление",
+      "correct": false,
+      "rejection_reason": ""
+    },
+    {
+      "word": "Карлсбад",
+      "gold": "name",
+      "status": "VALIDATED_HINT",
+      "answer": "dialect",
+      "reason": "форма, закреплённая за определённой местностью",
+      "correct": false,
+      "rejection_reason": ""
+    }
+  ],
+  "model_name": "Qwen3-8B-Q5_K_M.gguf",
+  "model_sha256": "068bae163faa96ad48032daf4e071a6a28fe67d8dcc95367609c2ff165e52738",
+  "runtime_version": "version: 0.4.0-dev (build 10955, commit 2f539596c)\nbuilt with Clang 20.1.8 for Windows x86_64"
+}

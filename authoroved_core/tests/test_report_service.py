@@ -146,24 +146,3 @@ def test_export_requires_two_analyzed_texts(tmp_path):
     case = repository.create()
     with pytest.raises(ReportError, match="два текста"):
         ReportService(repository).export_docx(tmp_path / "Проект.docx", case)
-
-
-def test_llm_hint_never_reaches_the_report(tmp_path, ready_case):
-    """Подсказка хранится в деле, но доказательной частью не становится."""
-    repository, case = ready_case
-    for result_item in case.results:
-        for candidate in result_item.candidates:
-            candidate.llm_hint = "colloquial"
-            candidate.llm_hint_reason = "подсказка модели про разговорную форму"
-    service = ReportService(repository)
-
-    package = service.export_verification_package(tmp_path / "Проверка.zip", case)
-    document = service.export_docx(tmp_path / "Проект.docx", case)
-
-    with ZipFile(package) as archive:
-        blob = b"".join(archive.read(name) for name in archive.namelist())
-    blob += document.read_bytes()
-
-    assert b"llm_hint" not in blob
-    assert "подсказка модели про разговорную форму".encode("utf-8") not in blob
-    assert b"colloquial" not in blob
