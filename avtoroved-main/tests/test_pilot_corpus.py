@@ -214,3 +214,19 @@ def test_short_username_does_not_disqualify_a_text():
     selected, _ = _authors_with_six_blind_safe(connection, 1)
 
     assert len(selected) == 1
+
+
+def test_finalize_creates_the_directories_it_writes_into(tmp_path):
+    """Каталог отчётов раньше доставался от шага сканирования.
+
+    В свежей папке сборка падала на последнем шаге, уже разложив все тексты:
+    каталог reports отсутствовал, а код его не создавал.
+    """
+    import inspect
+
+    from pilot_corpus.finalize import finalize_approved_corpus
+
+    source = inspect.getsource(finalize_approved_corpus)
+    assert '(root / "reports").mkdir(parents=True, exist_ok=True)' in source
+    # Каталог создаётся до открытия базы, то есть до любой длительной работы.
+    assert source.index('"reports"') < source.index("_connect(database)")

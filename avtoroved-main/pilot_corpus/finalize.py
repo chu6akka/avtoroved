@@ -184,6 +184,11 @@ def finalize_approved_corpus(
         raise FileNotFoundError(f"scan state is missing: {database}")
     _ensure_final_targets_absent(root)
 
+    # Каталоги отчётов и шаблонов раньше доставались от шага сканирования.
+    # Финализация обязана создавать то, во что пишет: иначе сборка в свежей
+    # папке падает на последнем шаге, уже разложив все тексты.
+    (root / "reports").mkdir(parents=True, exist_ok=True)
+
     connection = _connect(database)
     try:
         authors, skipped = _authors_with_six_blind_safe(connection, author_count)
