@@ -134,17 +134,21 @@ def test_a_broken_pair_does_not_stop_the_whole_check(tmp_path):
 
 
 def test_a_missing_text_is_reported_as_a_failed_pair(tmp_path):
+    class Idle:
+        def analyze(self, document):
+            return AnalysisResult(document_id=document.id)
+
     cases = [{"case_id": "CASE_001", "relation": "SAME",
               "document_a": "нет.txt", "document_b": "нет.txt"}]
 
-    report = run(tmp_path, None, cases)
+    report = run(tmp_path, Idle(), cases)
 
     assert report["cases"] == 0 and len(report["failures"]) == 1
     assert "FileNotFoundError" in report["failures"][0]["error"]
 
 
 def test_report_states_that_it_is_not_an_authorship_conclusion():
-    report = run(None, None, [])
+    report = run(None, object(), [])
 
     assert "не оценка авторства" in report["kind"]
     assert "Порогов отсюда не выводится" in report["measure"]
