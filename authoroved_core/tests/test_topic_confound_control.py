@@ -99,6 +99,19 @@ def test_the_value_before_selection_is_kept_beside_the_new_one():
     assert report["by_feature"]["LEX_001"]["above_chance_all_pairs"] is True
 
 
+def test_the_strict_threshold_is_reported_beside_the_single_one():
+    """Признаков проверяется несколько сразу, и об этом должно быть сказано."""
+    same = [("S%d" % n, "SAME", {"LEX_001": float(n), "PUN_002": float(n)}) for n in range(12)]
+    different = [("D%d" % n, "DIFFERENT", {"LEX_001": n + 1.0, "PUN_002": n + 1.0})
+                 for n in range(12)]
+    overlaps = {case_id: 0.0 for case_id, _, _ in same + different}
+
+    report = control(_features(same + different), _topics(overlaps))
+
+    assert report["tests"] == 2
+    assert report["family_threshold"] > report["significance_threshold"]
+
+
 def test_a_summary_without_per_pair_data_is_refused(tmp_path):
     """Сводка прогона для этого не годится: нужны расстояния по парам."""
     path = tmp_path / "summary.json"
