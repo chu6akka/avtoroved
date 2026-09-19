@@ -80,26 +80,64 @@ def test_insufficient_observations_are_left_out():
     assert observations_by_feature(result) == {"LEX_005": {"mattr": 0.7}}
 
 
-def _corpus(tmp_path, rows):
+def _corpus(tmp_path, rows, public=None):
+    """Ключ и публичный список: в ключе стоят идентификаторы, пути — в списке."""
     with (tmp_path / "cases_gold_private.csv").open("w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.DictWriter(
             handle, fieldnames=["case_id", "document_a", "document_b", "expected_relation"])
         writer.writeheader()
         writer.writerows(rows)
+    public = public if public is not None else [
+        {"case_id": row["case_id"],
+         "document_a": f"blind/{row['case_id']}/TEXT_A.txt",
+         "document_b": f"blind/{row['case_id']}/TEXT_B.txt"}
+        for row in rows
+    ]
+    with (tmp_path / "cases_public.csv").open("w", encoding="utf-8-sig", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=["case_id", "document_a", "document_b"])
+        writer.writeheader()
+        writer.writerows(public)
     return tmp_path
 
 
-def test_cases_come_from_the_private_answer_key(tmp_path):
+def test_paths_come_from_the_public_list_and_relation_from_the_key(tmp_path):
+    """В ключе в столбцах document_* стоят идентификаторы, а не пути.
+
+    Первый прогон открывал по ним файлы и не разобрал ни одной из 20 пар.
+    """
     corpus = _corpus(tmp_path, [
-        {"case_id": "CASE_001", "document_a": "blind/CASE_001/TEXT_A.txt",
-         "document_b": "blind/CASE_001/TEXT_B.txt", "expected_relation": "SAME"},
-        {"case_id": "CASE_002", "document_a": "blind/CASE_002/TEXT_A.txt",
-         "document_b": "blind/CASE_002/TEXT_B.txt", "expected_relation": "DIFFERENT"},
+        {"case_id": "CASE_001", "document_a": "A001_003", "document_b": "A001_005",
+         "expected_relation": "SAME"},
+        {"case_id": "CASE_002", "document_a": "A002_001", "document_b": "A007_004",
+         "expected_relation": "DIFFERENT"},
     ])
 
     cases = read_cases(corpus)
 
     assert [item["relation"] for item in cases] == ["SAME", "DIFFERENT"]
+    assert cases[0]["document_a"] == "blind/CASE_001/TEXT_A.txt"
+    assert cases[1]["document_b"] == "blind/CASE_002/TEXT_B.txt"
+
+
+def test_missing_public_list_is_reported_plainly(tmp_path):
+    _corpus(tmp_path, [{"case_id": "CASE_001", "document_a": "A001_003",
+                        "document_b": "A001_005", "expected_relation": "SAME"}])
+    (tmp_path / "cases_public.csv").unlink()
+
+    with pytest.raises(FileNotFoundError, match="список пар"):
+        read_cases(tmp_path)
+
+
+def test_case_absent_from_the_public_list_is_refused(tmp_path):
+    corpus = _corpus(
+        tmp_path,
+        [{"case_id": "CASE_001", "document_a": "A001_003", "document_b": "A001_005",
+          "expected_relation": "SAME"}],
+        public=[],
+    )
+
+    with pytest.raises(ValueError, match="отсутствует в списке пар"):
+        read_cases(corpus)
 
 
 def test_missing_answer_key_is_reported_plainly(tmp_path):
@@ -108,7 +146,8 @@ def test_missing_answer_key_is_reported_plainly(tmp_path):
 
 
 def test_unknown_relation_is_refused(tmp_path):
-    corpus = _corpus(tmp_path, [{"case_id": "CASE_001", "document_a": "a", "document_b": "b",
+    corpus = _corpus(tmp_path, [{"case_id": "CASE_001", "document_a": "A001_003",
+                                 "document_b": "A001_005",
                                  "expected_relation": "МОЖЕТ БЫТЬ"}])
 
     with pytest.raises(ValueError, match="Неизвестное отношение"):

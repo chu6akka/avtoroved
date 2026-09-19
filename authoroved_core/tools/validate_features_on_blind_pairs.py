@@ -79,26 +79,45 @@ def separation(same: list[float], different: list[float]) -> float | None:
     return round(wins / (len(same) * len(different)), 4)
 
 
+def _rows(path: Path) -> list[dict]:
+    with path.open(encoding="utf-8-sig", newline="") as handle:
+        return list(csv.DictReader(handle))
+
+
 def read_cases(corpus: Path) -> list[dict]:
     """Слепые пары вместе с эталонным ответом.
+
+    Пути к текстам лежат в `cases_public.csv`, а в `cases_gold_private.csv`
+    в тех же столбцах стоят внутренние идентификаторы документов, а не пути:
+    ключ описывает, что за документы сравниваются, но файлы называет только
+    публичный список. Поэтому пути берутся из публичного списка, отношение —
+    из ключа, связываются по `case_id`.
 
     Ключ служебный: эксперту в слепой работе он не передаётся. Здесь он
     используется разработчиком для проверки признаков, а не для разбора дела.
     """
     gold_path = corpus / "cases_gold_private.csv"
+    public_path = corpus / "cases_public.csv"
     if not gold_path.is_file():
         raise FileNotFoundError(
             f"Не найден эталонный ключ {gold_path}. Без него проверка невозможна."
         )
-    with gold_path.open(encoding="utf-8-sig", newline="") as handle:
-        rows = list(csv.DictReader(handle))
+    if not public_path.is_file():
+        raise FileNotFoundError(
+            f"Не найден список пар {public_path}: в нём лежат пути к текстам."
+        )
+    paths = {row["case_id"]: row for row in _rows(public_path)}
     cases = []
-    for row in rows:
+    for row in _rows(gold_path):
+        case_id = row["case_id"]
+        if case_id not in paths:
+            raise ValueError(f"Пара {case_id} есть в ключе, но отсутствует в списке пар.")
         relation = row["expected_relation"].strip().upper()
         if relation not in {SAME, DIFFERENT}:
-            raise ValueError(f"Неизвестное отношение {relation!r} в {row['case_id']}.")
-        cases.append({"case_id": row["case_id"], "relation": relation,
-                      "document_a": row["document_a"], "document_b": row["document_b"]})
+            raise ValueError(f"Неизвестное отношение {relation!r} в {case_id}.")
+        cases.append({"case_id": case_id, "relation": relation,
+                      "document_a": paths[case_id]["document_a"],
+                      "document_b": paths[case_id]["document_b"]})
     return cases
 
 
