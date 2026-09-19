@@ -145,3 +145,72 @@ def test_one_same_author_pair_per_author():
     # Пара «тот же автор» строится из первых двух текстов, а не из всех сочетаний.
     assert "docs[0], docs[1]" in source
     assert "combinations" not in source
+
+
+def _memory_scan_state(authors):
+    """База сканирования в памяти: authors — {id: (ник, сколько постов с ником)}."""
+    import sqlite3
+
+    connection = sqlite3.connect(":memory:")
+    connection.row_factory = sqlite3.Row
+    connection.execute(
+        """CREATE TABLE posts (
+            source_post_id TEXT PRIMARY KEY, source_author_id TEXT, username TEXT,
+            text_markdown TEXT, status TEXT, date TEXT, priority_score REAL,
+            word_count INTEGER, tags TEXT)"""
+    )
+    for author_id, (username, self_named) in authors.items():
+        for index in range(6):
+            text = (f"Текст номер {index} автора, тут упомянут {username}."
+                    if index < self_named else f"Обычный текст номер {index}.")
+            connection.execute(
+                "INSERT INTO posts VALUES (?,?,?,?,?,?,?,?,?)",
+                (f"{author_id}_{index}", author_id, username, text, "candidate",
+                 "2019-05-01", 1.0, 500, '["моё"]'),
+            )
+    connection.commit()
+    return connection
+
+
+def test_author_without_six_blind_safe_texts_is_skipped_not_fatal():
+    """Пост, где автор назван своим ником, раскрыл бы слепое соответствие.
+
+    Такой текст выбрасывается, и автор мог пройти отбор по числу чистых
+    постов, но не дать шести пригодных. Прежде это роняло сборку целиком.
+    """
+    from pilot_corpus.finalize import _authors_with_six_blind_safe
+
+    connection = _memory_scan_state({
+        "1000": ("ivanov", 0),      # все шесть пригодны
+        "1908276": ("petrov", 2),   # два текста называют автора
+        "1002": ("sidorov", 0),
+    })
+
+    # Просим всех, чтобы обход дошёл до непригодного независимо от порядка.
+    selected, skipped = _authors_with_six_blind_safe(connection, 3)
+
+    assert sorted(str(row["source_author_id"]) for row in selected) == ["1000", "1002"]
+    assert skipped == ["1908276"]
+    # Сборка не падает: непригодный автор просто не попал в выборку.
+    assert len(selected) == 2
+
+
+def test_shortfall_names_how_many_were_skipped():
+    from pilot_corpus.finalize import _authors_with_six_blind_safe
+
+    connection = _memory_scan_state({"1000": ("ivanov", 0), "1001": ("petrov", 1)})
+
+    selected, skipped = _authors_with_six_blind_safe(connection, 5)
+
+    assert len(selected) == 1 and skipped == ["1001"]
+
+
+def test_short_username_does_not_disqualify_a_text():
+    """Ник короче четырёх знаков слишком част в обычных словах."""
+    from pilot_corpus.finalize import _authors_with_six_blind_safe
+
+    connection = _memory_scan_state({"1000": ("ох", 6)})
+
+    selected, _ = _authors_with_six_blind_safe(connection, 1)
+
+    assert len(selected) == 1

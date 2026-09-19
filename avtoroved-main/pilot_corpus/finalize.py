@@ -65,6 +65,28 @@ def pseudonym_codes(count: int) -> list[str]:
     return [f"A{index:03d}" for index in range(1, count + 1)]
 
 
+def _authors_with_six_blind_safe(connection, author_count: int) -> tuple[list[Any], list[str]]:
+    """Авторы, у которых шесть текстов проходят и очистку, и слепой протокол.
+
+    Признак `eligible_six_clean` считает отобранные посты, но из них ещё
+    выбрасываются те, где автор назван своим же ником: такой текст раскрыл бы
+    слепое соответствие. Поэтому автор мог пройти отбор и не дать шести
+    пригодных текстов. Прежде это роняло сборку целиком; теперь такой автор
+    пропускается, и берётся следующий, а число пропущенных записывается.
+    """
+    selected, skipped = [], []
+    for row in _author_rows(connection):
+        if not row["eligible_six_clean"]:
+            continue
+        if len(_read_selected_rows(connection, str(row["source_author_id"]))) >= 6:
+            selected.append(row)
+            if len(selected) == author_count:
+                break
+        else:
+            skipped.append(str(row["source_author_id"]))
+    return selected, skipped
+
+
 def _read_selected_rows(connection, author_id: str) -> list[Any]:
     rows = connection.execute(
         """
@@ -164,10 +186,12 @@ def finalize_approved_corpus(
 
     connection = _connect(database)
     try:
-        authors = [row for row in _author_rows(connection) if row["eligible_six_clean"]]
+        authors, skipped = _authors_with_six_blind_safe(connection, author_count)
         if len(authors) < author_count:
-            raise RuntimeError(f"only {len(authors)} authors have six clean documents")
-        authors = authors[:author_count]
+            raise RuntimeError(
+                f"нашлось {len(authors)} авторов с шестью безопасными для слепого "
+                f"протокола текстами, требуется {author_count}; пропущено {len(skipped)}"
+            )
         codes = pseudonym_codes(author_count)
         selected: list[SelectedDocument] = []
         private_rows = []
@@ -284,6 +308,7 @@ def finalize_approved_corpus(
             "seed": seed,
             "author_count": author_count,
             "case_author_count": case_author_count,
+            "authors_skipped_not_blind_safe": len(skipped),
             "main_document_count": sum(not doc.is_reserve for doc in selected),
             "reserve_document_count": sum(doc.is_reserve for doc in selected),
             "case_count": len(case_summary["public_rows"]),
