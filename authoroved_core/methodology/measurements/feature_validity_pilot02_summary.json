@@ -1,0 +1,102 @@
+{
+  "kind": "Проверка пригодности AUTO-признаков на слепых парах; не оценка авторства",
+  "source": "Сводка прогона Pilot 02, перенесённая из вывода authoroved_core.tools.validate_features_on_blind_pairs. Расстояния по отдельным парам здесь не приводятся: полный отчёт остался на машине, где выполнялся прогон, и должен быть добавлен сюда отдельно.",
+  "corpus": "pilot02c_corpus (Pikabu, 80 авторов, по одной паре одного автора на автора)",
+  "cases": 160,
+  "same_pairs": 80,
+  "different_pairs": 80,
+  "significance_threshold": 0.5897,
+  "by_feature": {
+    "SYN_001": {
+      "same_pairs": 80,
+      "different_pairs": 80,
+      "median_same": 6.512805,
+      "median_different": 13.886403,
+      "separation": 0.758,
+      "significance_threshold": 0.5897,
+      "above_chance": true
+    },
+    "PUN_001": {
+      "same_pairs": 80,
+      "different_pairs": 80,
+      "median_same": 103.127864,
+      "median_different": 155.868361,
+      "separation": 0.7292,
+      "significance_threshold": 0.5897,
+      "above_chance": true
+    },
+    "MOR_001": {
+      "same_pairs": 80,
+      "different_pairs": 80,
+      "median_same": 18.860588,
+      "median_different": 22.477861,
+      "separation": 0.6691,
+      "significance_threshold": 0.5897,
+      "above_chance": true
+    },
+    "LEX_001": {
+      "same_pairs": 80,
+      "different_pairs": 80,
+      "median_same": 166.547334,
+      "median_different": 184.933253,
+      "separation": 0.663,
+      "significance_threshold": 0.5897,
+      "above_chance": true
+    },
+    "MOR_003": {
+      "same_pairs": 80,
+      "different_pairs": 80,
+      "median_same": 146.512939,
+      "median_different": 169.352192,
+      "separation": 0.6361,
+      "significance_threshold": 0.5897,
+      "above_chance": true
+    },
+    "MOR_004": {
+      "same_pairs": 80,
+      "different_pairs": 80,
+      "median_same": 121.446961,
+      "median_different": 140.150384,
+      "separation": 0.6358,
+      "significance_threshold": 0.5897,
+      "above_chance": true
+    },
+    "PUN_002": {
+      "same_pairs": 80,
+      "different_pairs": 80,
+      "median_same": 8.904095,
+      "median_different": 14.620567,
+      "separation": 0.6245,
+      "significance_threshold": 0.5897,
+      "above_chance": true
+    },
+    "LEX_005": {
+      "same_pairs": 80,
+      "different_pairs": 80,
+      "median_same": 0.015291,
+      "median_different": 0.022283,
+      "separation": 0.6021,
+      "significance_threshold": 0.5897,
+      "above_chance": true
+    },
+    "LEX_002": {
+      "same_pairs": 80,
+      "different_pairs": 80,
+      "median_same": 290.529267,
+      "median_different": 320.5224,
+      "separation": 0.5984,
+      "significance_threshold": 0.5897,
+      "above_chance": true
+    },
+    "GRA_001": {
+      "same_pairs": 80,
+      "different_pairs": 80,
+      "median_same": 4.628078,
+      "median_different": 5.508508,
+      "separation": 0.5726,
+      "significance_threshold": 0.5897,
+      "above_chance": false
+    }
+  },
+  "measure": "Доля пар, в которых расстояние между разными авторами больше, чем между текстами одного автора. 0,5 — признак сведений о тождестве не несёт. Порогов отсюда не выводится."
+}
