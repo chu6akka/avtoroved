@@ -28,6 +28,7 @@ import argparse
 import csv
 from datetime import datetime, timezone
 import json
+from math import sqrt
 from pathlib import Path
 from statistics import median
 from time import perf_counter
@@ -77,6 +78,25 @@ def separation(same: list[float], different: list[float]) -> float | None:
     wins = sum(1.0 if value > other else 0.5 if value == other else 0.0
                for value in different for other in same)
     return round(wins / (len(same) * len(different)), 4)
+
+
+def significance_threshold(same_count: int, different_count: int) -> float | None:
+    """Значение разделения, ниже которого случайный разброс не исключён.
+
+    Стандартная ошибка меры при отсутствии разделения равна
+    sqrt((n1 + n2 + 1) / (12 * n1 * n2)); порог — 0,5 плюс 1,96 такой ошибки,
+    то есть двусторонний уровень 0,05. На десяти парах против десяти порог
+    равен 0,76: там от случайности не отличается ничто. На восьмидесяти против
+    восьмидесяти — 0,59.
+
+    Считается по числу пар, но пары одного автора между собой независимы не
+    вполне: одна пара на автора — это n авторов, несколько пар от одного автора
+    порог занижают. Корпус собирается по одной паре на автора именно поэтому.
+    """
+    if not same_count or not different_count:
+        return None
+    error = sqrt((same_count + different_count + 1) / (12 * same_count * different_count))
+    return round(0.5 + 1.96 * error, 4)
 
 
 def _rows(path: Path) -> list[dict]:
@@ -138,11 +158,15 @@ def summarize(distances_by_case: list[dict]) -> dict:
             if value is None:
                 continue
             (same if case["relation"] == SAME else different).append(value)
+        value = separation(same, different)
+        threshold = significance_threshold(len(same), len(different))
         summary[name] = {
             "same_pairs": len(same), "different_pairs": len(different),
             "median_same": round(median(same), 6) if same else None,
             "median_different": round(median(different), 6) if different else None,
-            "separation": separation(same, different),
+            "separation": value,
+            "significance_threshold": threshold,
+            "above_chance": None if value is None or threshold is None else value >= threshold,
         }
     ordered = sorted(summary.items(),
                      key=lambda item: (item[1]["separation"] is None,
@@ -153,11 +177,23 @@ def summarize(distances_by_case: list[dict]) -> dict:
 def print_report(report: dict) -> None:
     print(f"\nпар: {report['cases']} "
           f"(один автор {report['same_pairs']}, разные {report['different_pairs']})")
-    print("\nразделение: 0,50 — признак сведений о тождестве не несёт, 1,00 — полное\n")
+    print("\nразделение: 0,50 — признак сведений о тождестве не несёт, 1,00 — полное")
+    thresholds = {item["significance_threshold"] for item in report["by_feature"].values()
+                  if item["significance_threshold"] is not None}
+    if thresholds:
+        print(f"порог случайного разброса при таком числе пар: "
+              f"{', '.join(str(item) for item in sorted(thresholds))}")
+    print()
     print(f"  {'признак':10} {'разделение':>11} {'медиана один':>14} {'медиана разные':>16}")
     for name, value in report["by_feature"].items():
-        mark = "" if value["separation"] is None else (
-            "   <-- ниже случайного" if value["separation"] < 0.5 else "")
+        if value["separation"] is None:
+            mark = ""
+        elif value["separation"] < 0.5:
+            mark = "   <-- ниже случайного"
+        elif not value["above_chance"]:
+            mark = "   <-- от случайности не отличается"
+        else:
+            mark = ""
         print(f"  {name:10} {str(value['separation'] or '—'):>11} "
               f"{str(value['median_same'] or '—'):>14} "
               f"{str(value['median_different'] or '—'):>16}{mark}")

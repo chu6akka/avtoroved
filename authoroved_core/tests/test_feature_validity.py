@@ -9,7 +9,7 @@ from authoroved_core.core.feature_models import (
 from authoroved_core.core.models import AnalysisResult
 from authoroved_core.tools.validate_features_on_blind_pairs import (
     feature_distance, flatten_numeric, observations_by_feature, read_cases,
-    run, separation, summarize,
+    run, separation, significance_threshold, summarize,
 )
 
 
@@ -48,6 +48,43 @@ def test_separation_is_half_when_the_feature_carries_nothing(same, different, ex
 def test_separation_counts_ties_as_half():
     assert separation([1.0], [1.0]) == 0.5
     assert separation([1.0, 1.0], [1.0, 3.0]) == 0.75
+
+
+def test_ten_pairs_against_ten_cannot_show_anything_below_three_quarters():
+    """Порог первого прогона: на 10 против 10 ниже 0,76 всё объяснимо случаем.
+
+    В Pilot 01 наибольшее разделение было 0,73 — то есть от случайного
+    разброса не отличалось ни одно значение, и это была не таблица признаков,
+    а шум. Порог считается здесь, чтобы этого нельзя было не заметить.
+    """
+    assert significance_threshold(10, 10) == 0.7593
+    assert significance_threshold(8, 10) == 0.7757
+
+
+def test_eighty_pairs_against_eighty_lower_the_threshold_to_point_five_nine():
+    assert significance_threshold(80, 80) == 0.5897
+
+
+def test_threshold_is_absent_without_both_groups():
+    assert significance_threshold(0, 10) is None
+    assert significance_threshold(10, 0) is None
+
+
+def test_summary_marks_a_value_the_sample_cannot_support():
+    """Разделение 0,72 на 10 парах против 10 — ниже порога, а не признак.
+
+    Ровно так выглядел лучший результат Pilot 01 (0,73 у MOR_003).
+    """
+    cases = [{"case_id": f"S{n}", "relation": "SAME", "distances": {"MOR_003": float(n)}}
+             for n in range(10)]
+    cases += [{"case_id": f"D{n}", "relation": "DIFFERENT", "distances": {"MOR_003": n + 2.6}}
+              for n in range(10)]
+
+    summary = summarize(cases)["MOR_003"]
+
+    assert summary["separation"] == 0.72
+    assert summary["significance_threshold"] == 0.7593
+    assert summary["above_chance"] is False
 
 
 def test_summary_orders_features_by_separation():
