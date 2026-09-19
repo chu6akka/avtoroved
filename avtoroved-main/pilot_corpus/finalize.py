@@ -135,13 +135,28 @@ def _ensure_final_targets_absent(root: Path) -> None:
         raise FileExistsError("final corpus targets already exist: " + ", ".join(existing))
 
 
+MAX_AUTHORS = 200
+
+
 def finalize_approved_corpus(
     root: Path,
     author_count: int = 15,
     seed: int = SEED,
+    case_author_count: int | None = None,
 ) -> dict[str, Any]:
-    if author_count < 10 or author_count > 15:
-        raise ValueError("Pilot 01 requires 10 to 15 authors")
+    """Собрать утверждённую выборку и слепые пары.
+
+    `case_author_count` — сколько авторов участвует в парах; по умолчанию 10,
+    как в Pilot 01. Пар «тот же автор» получается ровно столько же, поскольку с
+    каждого автора берётся одна пара: пары от одного автора построены из одних
+    и тех же текстов и независимыми наблюдениями не являются, поэтому объём
+    выборки считается по авторам, а не по парам.
+    """
+    if author_count < 10 or author_count > MAX_AUTHORS:
+        raise ValueError(f"требуется от 10 до {MAX_AUTHORS} авторов")
+    case_author_count = 10 if case_author_count is None else case_author_count
+    if case_author_count < 2 or case_author_count > author_count:
+        raise ValueError("авторов в парах не может быть больше, чем отобрано")
     database = root / ".scan_state.sqlite3"
     if not database.exists():
         raise FileNotFoundError(f"scan state is missing: {database}")
@@ -257,10 +272,10 @@ def finalize_approved_corpus(
             ["document_id", "operation", "details", "before_chars", "after_chars"],
             [],
         )
-        case_summary = _write_cases(root, selected, seed)
+        case_summary = _write_cases(root, selected, seed, case_author_count)
         _write_templates(root, case_summary["public_rows"])
         _write_final_selection_report(root, authors, selected)
-        _write_final_readme(root, author_count, len(selected), seed)
+        _write_final_readme(root, author_count, len(selected), seed, case_author_count)
         verification = validate_manifest(root)
         metadata = {
             "dataset_id": DATASET_ID,
@@ -268,6 +283,7 @@ def finalize_approved_corpus(
             "finalized_at_utc": datetime.now(timezone.utc).isoformat(),
             "seed": seed,
             "author_count": author_count,
+            "case_author_count": case_author_count,
             "main_document_count": sum(not doc.is_reserve for doc in selected),
             "reserve_document_count": sum(doc.is_reserve for doc in selected),
             "case_count": len(case_summary["public_rows"]),
@@ -287,12 +303,13 @@ def _write_cases(
     root: Path,
     selected: list[SelectedDocument],
     seed: int,
+    case_author_count: int = 10,
 ) -> dict[str, Any]:
     main = [doc for doc in selected if not doc.is_reserve]
     by_author: dict[str, list[SelectedDocument]] = {}
     for doc in main:
         by_author.setdefault(doc.author_code, []).append(doc)
-    pilot_authors = sorted(by_author)[:10]
+    pilot_authors = sorted(by_author)[:case_author_count]
     public_rows = []
     gold_rows = []
     case_number = 1
@@ -430,10 +447,11 @@ def _write_final_selection_report(root: Path, authors: list[dict[str, Any]], doc
     (root / "reports" / "selection_report.md").write_text("\n".join(lines), encoding="utf-8")
 
 
-def _write_final_readme(root: Path, author_count: int, document_count: int, seed: int) -> None:
+def _write_final_readme(root: Path, author_count: int, document_count: int, seed: int,
+                        case_author_count: int = 10) -> None:
     text = f"""# Pilot 01 — исследовательский корпус
 
-Статус: утверждённая выборка для пилотной апробации. Включено {author_count} авторов, {document_count} исходных документов: по четыре основных и два резервных на автора. Pilot cases используют только первые 10 авторов и основные документы; резервные тексты в cases не входят. Seed: `{seed}`.
+Статус: утверждённая выборка для пилотной апробации. Включено {author_count} авторов, {document_count} исходных документов: по четыре основных и два резервных на автора. Pilot cases используют первых {case_author_count} авторов и основные документы; резервные тексты в cases не входят. Seed: `{seed}`.
 
 `raw/` и `reserve_raw/` содержат точный UTF-8 текст поля `text_markdown` без добавления завершающего перевода строки. `analysis/` и `reserve_analysis/` в этой версии байтово совпадают с RAW: языковая и техническая нормализация не выполнялась. Поэтому `processing_log.csv` содержит только заголовок.
 

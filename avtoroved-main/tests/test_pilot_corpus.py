@@ -98,3 +98,50 @@ def test_csv_writer_is_utf8_bom_and_atomic(tmp_path: Path):
     with target.open(encoding="utf-8-sig", newline="") as handle:
         assert list(csv.DictReader(handle))[0]["title"] == "История"
     assert not target.with_suffix(".csv.new").exists()
+
+
+def test_author_cap_allows_a_larger_sample():
+    """Потолок в 15 авторов делал невозможной статистически значимую проверку.
+
+    При десяти авторах мера разделения признаков отличима от случайной лишь
+    выше 0,76; наблюдаемые значения до неё не дотягивали.
+    """
+    import inspect
+
+    from pilot_corpus.finalize import MAX_AUTHORS, finalize_approved_corpus
+
+    assert MAX_AUTHORS >= 60
+    signature = inspect.signature(finalize_approved_corpus)
+    assert "case_author_count" in signature.parameters
+    # Прежнее поведение сохраняется: Pilot 01 остаётся воспроизводимым.
+    assert signature.parameters["case_author_count"].default is None
+
+
+def test_author_count_outside_the_range_is_refused(tmp_path):
+    from pilot_corpus.finalize import MAX_AUTHORS, finalize_approved_corpus
+
+    for value in (9, MAX_AUTHORS + 1):
+        with pytest.raises(ValueError, match="от 10 до"):
+            finalize_approved_corpus(tmp_path, value)
+
+
+def test_cases_cannot_use_more_authors_than_selected(tmp_path):
+    from pilot_corpus.finalize import finalize_approved_corpus
+
+    with pytest.raises(ValueError, match="не может быть больше"):
+        finalize_approved_corpus(tmp_path, 20, case_author_count=25)
+
+    with pytest.raises(ValueError, match="не может быть больше"):
+        finalize_approved_corpus(tmp_path, 20, case_author_count=1)
+
+
+def test_one_same_author_pair_per_author():
+    """Пары от одного автора не независимы, поэтому с каждого берётся одна."""
+    import inspect
+
+    from pilot_corpus.finalize import _write_cases
+
+    source = inspect.getsource(_write_cases)
+    # Пара «тот же автор» строится из первых двух текстов, а не из всех сочетаний.
+    assert "docs[0], docs[1]" in source
+    assert "combinations" not in source
