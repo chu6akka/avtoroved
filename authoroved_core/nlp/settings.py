@@ -41,17 +41,32 @@ class LocalSettings:
 
     @classmethod
     def load(cls):
-        if SETTINGS_PATH.is_file():
-            return cls(**json.loads(SETTINGS_PATH.read_text(encoding="utf-8")))
+        detected = cls.detect()
+        if not SETTINGS_PATH.is_file():
+            return detected
+        saved = cls(**json.loads(SETTINGS_PATH.read_text(encoding="utf-8")))
+        # Сохранённый путь мог устареть (например, после переноса папки на другой диск).
+        if not (Path(saved.stanza_dir) / "resources.json").is_file():
+            saved.stanza_dir = detected.stanza_dir
+        if not (Path(saved.languagetool_dir) / "languagetool-commandline.jar").is_file():
+            saved.languagetool_dir = detected.languagetool_dir
+        if not Path(saved.java_executable).is_file():
+            saved.java_executable = detected.java_executable
+        return saved
+
+    @classmethod
+    def detect(cls):
         lt_dir = ""
-        try:
-            cache = Path.home() / ".cache" / "language_tool_python"
-            for directory in sorted(cache.glob("LanguageTool-*"), reverse=True):
-                if (directory / "languagetool-commandline.jar").is_file():
-                    lt_dir = str(directory)
-                    break
-        except OSError:
-            pass
+        for root in (SETTINGS_PATH.parent / "languagetool", Path.home() / ".cache" / "language_tool_python"):
+            try:
+                for directory in sorted(root.glob("LanguageTool-*"), reverse=True):
+                    if (directory / "languagetool-commandline.jar").is_file():
+                        lt_dir = str(directory)
+                        break
+            except OSError:
+                continue
+            if lt_dir:
+                break
         bundled = SETTINGS_PATH.parent / "stanza_resources"
         stanza_dir = bundled if (bundled / "resources.json").is_file() else Path.home() / "stanza_resources"
         return cls(str(stanza_dir), lt_dir, find_java())
