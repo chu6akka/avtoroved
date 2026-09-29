@@ -5,7 +5,7 @@ from pathlib import Path
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
-    QComboBox, QDialog, QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit,
+    QApplication, QComboBox, QDialog, QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit,
     QListWidget, QListWidgetItem, QMainWindow, QMessageBox, QProgressBar, QLayout,
     QPushButton, QScrollArea, QSplitter, QStackedWidget, QTextEdit, QToolBox,
     QVBoxLayout, QWidget,
@@ -120,7 +120,9 @@ class ResourceDialog(QDialog):
         self.setMinimumWidth(650)
         layout = QVBoxLayout(self)
         layout.addWidget(label("Тексты остаются на этом компьютере", "sectionTitle"))
-        layout.addWidget(label("Укажите уже установленные ресурсы. Программа ничего не скачивает и не использует внешние сервисы.", "muted"))
+        layout.addWidget(label("Программа сама ищет установленные ресурсы на дисках этого компьютера; "
+                               "путь можно исправить вручную. Ничего не скачивается, внешние сервисы "
+                               "не используются.", "muted"))
         self.fields = []
         for title, value, is_file in [
             ("Папка моделей Stanza (с resources.json)", settings.stanza_dir, False),
@@ -135,6 +137,7 @@ class ResourceDialog(QDialog):
             layout.addLayout(row)
             self.fields.append(field)
         row = QHBoxLayout()
+        row.addWidget(button("Найти автоматически", self.autodetect))
         row.addStretch()
         row.addWidget(button("Отмена", self.reject))
         row.addWidget(button("Сохранить настройки", self.accept, True))
@@ -145,6 +148,17 @@ class ResourceDialog(QDialog):
                     if is_file else QFileDialog.getExistingDirectory(self, "Выберите папку", field.text()))
         if selected:
             field.setText(selected)
+
+    def autodetect(self):
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            detected = LocalSettings.detect()
+        finally:
+            QApplication.restoreOverrideCursor()
+        for field, value in zip(self.fields, (detected.stanza_dir, detected.languagetool_dir,
+                                              detected.java_executable)):
+            if value:
+                field.setText(value)
 
     def settings(self):
         return LocalSettings(*(field.text().strip() for field in self.fields))
