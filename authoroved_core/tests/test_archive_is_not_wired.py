@@ -22,7 +22,7 @@ def test_archive_is_not_a_package():
 
 def test_no_live_module_imports_the_archive():
     live = [path for path in CORE.rglob("*.py") if ARCHIVE not in path.parents
-            and path.parent != ARCHIVE]
+            and path.parent != ARCHIVE and ".venv" not in path.parts]
     offenders = [path.name for path in live
                  if "archive" in path.read_text(encoding="utf-8")
                  and "import" in path.read_text(encoding="utf-8").split("archive")[0][-40:]]

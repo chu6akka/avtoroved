@@ -29,6 +29,7 @@ from authoroved_core.core.lt_grouping import (
 from authoroved_core.core.models import ReviewStatus, STATUS_LABELS
 from authoroved_core.core.report_service import ReportError, ReportService
 from authoroved_core.metrics.basic import GLOBAL_NOTE, WORD_PATTERN
+from authoroved_core.metrics.morphology import MORPHOLOGY_GROUPS
 from authoroved_core.nlp.settings import LocalSettings
 from authoroved_core.ui.text_view import SourceTextView
 from authoroved_core.ui.appearance import STYLE, METRIC_HIGHLIGHT
@@ -1346,7 +1347,8 @@ class MainWindow(QMainWindow):
             page = self.toolbox.widget(0)
             self.toolbox.removeItem(0)
             page.deleteLater()
-        for group in ["Количественные показатели", "Лексика", "Морфология", "Предложения", "Структура"]:
+        for group in ["Количественные показатели", "Лексика", "Морфология", *MORPHOLOGY_GROUPS,
+                      "Предложения", "Структура"]:
             page = QListWidget()
             page.setWordWrap(True)
             for metric in self.result.metrics:

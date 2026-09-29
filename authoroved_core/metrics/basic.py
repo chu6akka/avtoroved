@@ -4,6 +4,7 @@ from collections import Counter, defaultdict
 from statistics import mean, median
 
 from authoroved_core.core.models import Metric, Span, Token
+from authoroved_core.metrics.morphology import morphology_metrics
 from authoroved_core.core.russian_word_classes import (
     WORD_CLASSES,
     russian_word_class_key,
@@ -89,4 +90,5 @@ def calculate_metrics(text: str, tokens: list[Token]) -> list[Metric]:
             if located:
                 spans.append(Span(min(s.start for s in located), max(s.end for s in located)))
         metrics.append(Metric(label, str(len(matching)), "Предложения Stanza, содержащие соответствующий знак. Это подсчёт формы, а не коммуникативного намерения.", "Структура", tuple(spans)))
+    metrics.extend(morphology_metrics(tokens))
     return metrics
