@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import re
 
 from authoroved_core.core.lt_grouping import (
+    CLASSIFIED_GROUPS,
     GROUP_BY_KEY,
     UNKNOWN_WORD_CLASSIFICATION_LABELS,
     candidate_group_key,
@@ -214,7 +215,7 @@ def _function_word_metrics(first: AnalysisResult, second: AnalysisResult) -> lis
 def _accepted_key(candidate: Candidate):
     group = candidate_group_key(candidate)
     fragment = " ".join(candidate.fragment.casefold().split())
-    if fragment and group == "unknown_words":
+    if fragment and group in CLASSIFIED_GROUPS:
         return (group, "fragment", fragment, candidate.expert_classification)
     return (group, "fragment", fragment) if fragment else (group, "rule", candidate.rule_id)
 
@@ -243,6 +244,10 @@ def _accepted_groups(first: AnalysisResult, second: AnalysisResult) -> tuple[Acc
                 )
                 label = f"{classification}: «{sample}»"
                 basis = "одинаковая словоформа вне словаря LT без различия регистра"
+            elif exemplar.expert_classification in UNKNOWN_WORD_CLASSIFICATION_LABELS:
+                classification = UNKNOWN_WORD_CLASSIFICATION_LABELS[exemplar.expert_classification]
+                label = f"{classification}: «{sample}»"
+                basis = "одинаковый фрагмент и одинаковая экспертная классификация без различия регистра"
             else:
                 label = f"{definition.title}: «{sample}»"
                 basis = "одинаковая словоформа или фрагмент без различия регистра"

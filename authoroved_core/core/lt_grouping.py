@@ -65,8 +65,21 @@ UNKNOWN_WORD_CLASSIFICATIONS = (
     ("name", "Имя, название или заимствование"),
     ("dictionary_gap", "Нормативная словоформа, которой нет в словаре LT"),
     ("spelling_error", "Орфографическая ошибка"),
+    ("typo", "Опечатка"),
 )
+# Для рекомендаций о правописании эксперт различает ошибку и опечатку: ошибка —
+# нарушение правила, которое автор, вероятно, не знает; опечатка — случайный сбой
+# набора (пропуск, перестановка, лишняя или соседняя буква) при знании нормы.
+SPELLING_CLASSIFICATIONS = (
+    ("spelling_error", "Орфографическая ошибка"),
+    ("typo", "Опечатка"),
+)
+CLASSIFICATION_HINTS = {
+    "spelling_error": "нарушение правила написания; вероятно, автор не знает нормы",
+    "typo": "случайный сбой набора: пропуск, перестановка, лишняя или соседняя буква",
+}
 UNKNOWN_WORD_CLASSIFICATION_LABELS = dict(UNKNOWN_WORD_CLASSIFICATIONS)
+CLASSIFIED_GROUPS = {"unknown_words", "spelling"}
 
 
 def candidate_group_key(candidate: Candidate) -> str:

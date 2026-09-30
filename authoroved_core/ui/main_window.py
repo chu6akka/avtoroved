@@ -21,6 +21,9 @@ from authoroved_core.core.feature_models import (
     Applicability, ExpertFeatureStatus, FeatureObservation,
 )
 from authoroved_core.core.lt_grouping import (
+    CLASSIFICATION_HINTS,
+    CLASSIFIED_GROUPS,
+    SPELLING_CLASSIFICATIONS,
     UNKNOWN_WORD_CLASSIFICATIONS,
     UNKNOWN_WORD_CLASSIFICATION_LABELS,
     candidate_group_key,
@@ -455,9 +458,7 @@ class MainWindow(QMainWindow):
         detail_layout.addWidget(self.explanation)
         review_layout.addWidget(review_card)
         self.unknown_classification = QComboBox()
-        self.unknown_classification.addItem("Выберите, что это за словоформа", "")
-        for key, title in UNKNOWN_WORD_CLASSIFICATIONS:
-            self.unknown_classification.addItem(title, key)
+        self.fill_classifications("unknown_words")
         self.unknown_classification.currentIndexChanged.connect(self.classification_changed)
         self.unknown_classification.hide()
         review_layout.addWidget(self.unknown_classification)
@@ -476,16 +477,32 @@ class MainWindow(QMainWindow):
         self.comment.textChanged.connect(self.comment_changed)
         review_layout.addWidget(self.comment)
         actions = QHBoxLayout()
-        self.accept_button = button("Принять", lambda: self.decide(ReviewStatus.ACCEPTED), True)
+        self.accept_button = button("Принять", self.accept_current, True)
         self.reject_button = button("Отклонить", lambda: self.decide(ReviewStatus.REJECTED))
+        # Для правописания эксперт одним нажатием различает ошибку и опечатку.
+        self.typo_button = button("Опечатка", lambda: self.decide_spelling("typo"), True)
+        self.typo_button.setToolTip("Опечатка: " + CLASSIFICATION_HINTS["typo"])
+        self.typo_button.hide()
         actions.addWidget(self.accept_button)
+        actions.addWidget(self.typo_button)
         actions.addWidget(self.reject_button)
         review_layout.addLayout(actions)
         self.reset_button = button("Вернуть на рассмотрение", lambda: self.decide(ReviewStatus.NEW))
         self.reset_button.setObjectName("quiet")
         review_layout.addWidget(self.reset_button)
-        self.next_button = button("Следующий нерассмотренный →", self.next_candidate)
-        review_layout.addWidget(self.next_button)
+        # После решения программа сама открывает следующего нерассмотренного
+        # кандидата; «Назад» возвращает к только что рассмотренному, чтобы
+        # проверить или изменить решение.
+        navigation = QHBoxLayout()
+        self.previous_button = button("← Назад", self.previous_candidate)
+        self.previous_button.setToolTip("Вернуться к предыдущему кандидату и при необходимости изменить решение")
+        self.previous_button.setEnabled(False)
+        self.next_button = button("Следующий →", lambda: self.next_candidate())
+        self.next_button.setToolTip("Перейти к следующему нерассмотренному кандидату")
+        navigation.addWidget(self.previous_button, 1)
+        navigation.addWidget(self.next_button, 2)
+        review_layout.addLayout(navigation)
+        self.candidate_history: list[str] = []
         self.review_continue_button = button("Добавить второй текст →", self.continue_workflow, True)
         review_layout.addWidget(self.review_continue_button)
         review_layout.addWidget(label("Принять — сохранить наблюдение в этом сеансе. Это не вывод об авторстве.", "muted"))
@@ -1475,7 +1492,7 @@ class MainWindow(QMainWindow):
             category = (
                 UNKNOWN_WORD_CLASSIFICATION_LABELS.get(
                     candidate.expert_classification, candidate.category,
-                ) if candidate_group_key(candidate) == "unknown_words" else candidate.category
+                ) if candidate_group_key(candidate) in CLASSIFIED_GROUPS else candidate.category
             )
             item = QListWidgetItem(f"{category} · {STATUS_LABELS[candidate.status]}\n«{fragment}»" if fragment else f"{category} · {STATUS_LABELS[candidate.status]}\nМесто возможной вставки")
             item.setData(Qt.ItemDataRole.UserRole, candidate.id)
@@ -1495,6 +1512,9 @@ class MainWindow(QMainWindow):
         self.update_review_summary()
 
     def populate_candidate_groups(self):
+        # Другой текст или новый результат — история переходов прежнего списка не нужна.
+        self.candidate_history.clear()
+        self.previous_button.setEnabled(False)
         current = self.candidate_group_filter.currentData()
         groups = group_candidates(self.result.candidates) if self.result else ()
         self.candidate_group_filter.blockSignals(True)
@@ -1540,15 +1560,24 @@ class MainWindow(QMainWindow):
         self.current_candidate = next(c for c in self.result.candidates if c.id == item.data(Qt.ItemDataRole.UserRole))
         candidate = self.current_candidate
         self.set_candidate_enabled(True)
-        if candidate_group_key(candidate) == "unknown_words":
-            self.accept_button.setText("Сохранить особую словоформу")
-            self.unknown_classification.blockSignals(True)
+        group = candidate_group_key(candidate)
+        self.typo_button.setVisible(group == "spelling")
+        self.accept_button.setToolTip("")
+        if group == "unknown_words":
+            self.fill_classifications(group)
             index = self.unknown_classification.findData(candidate.expert_classification)
+            self.unknown_classification.blockSignals(True)
             self.unknown_classification.setCurrentIndex(max(0, index))
             self.unknown_classification.blockSignals(False)
             self.unknown_classification.show()
+            self.accept_button.setText("Сохранить особую словоформу")
             self.accept_button.setEnabled(bool(candidate.expert_classification))
             self.show_word_evidence(candidate)
+        elif group == "spelling":
+            self.accept_button.setText("Ошибка")
+            self.accept_button.setToolTip("Орфографическая ошибка: " + CLASSIFICATION_HINTS["spelling_error"])
+            self.unknown_classification.hide()
+            self.evidence_label.hide()
         else:
             self.accept_button.setText("Подтвердить наблюдение")
             self.unknown_classification.hide()
@@ -1573,10 +1602,11 @@ class MainWindow(QMainWindow):
         self.highlight_note.setText(("Место вставки · " if candidate.span.start == candidate.span.end else "Контекст · ") + context)
 
     def set_candidate_enabled(self, enabled):
-        for widget in [self.accept_button, self.reject_button, self.reset_button, self.comment]:
+        for widget in [self.accept_button, self.typo_button, self.reject_button, self.reset_button, self.comment]:
             widget.setEnabled(enabled)
         if not enabled:
             self.unknown_classification.hide()
+            self.typo_button.hide()
             self.accept_button.setText("Подтвердить наблюдение")
             self.reject_button.setText("Не учитывать")
 
@@ -1607,13 +1637,30 @@ class MainWindow(QMainWindow):
         self.evidence_label.setText("Справка · " + " · ".join(lines))
         self.evidence_label.show()
 
+    def fill_classifications(self, group):
+        """Для слов вне словаря — полный перечень, для правописания — ошибка или опечатка."""
+        options = UNKNOWN_WORD_CLASSIFICATIONS if group == "unknown_words" else SPELLING_CLASSIFICATIONS
+        placeholder = ("Выберите, что это за словоформа" if group == "unknown_words"
+                       else "Ошибка или опечатка? (необязательно)")
+        self.unknown_classification.blockSignals(True)
+        self.unknown_classification.clear()
+        self.unknown_classification.addItem(placeholder, "")
+        for key, title in options:
+            self.unknown_classification.addItem(title, key)
+            if key in CLASSIFICATION_HINTS:
+                self.unknown_classification.setItemData(
+                    self.unknown_classification.count() - 1,
+                    CLASSIFICATION_HINTS[key], Qt.ItemDataRole.ToolTipRole)
+        self.unknown_classification.blockSignals(False)
+
     def classification_changed(self):
-        if not self.current_candidate or candidate_group_key(self.current_candidate) != "unknown_words":
+        if not self.current_candidate or candidate_group_key(self.current_candidate) not in CLASSIFIED_GROUPS:
             return
         previous = self.current_candidate.expert_classification
         current = str(self.unknown_classification.currentData() or "")
         self.current_candidate.expert_classification = current
-        self.accept_button.setEnabled(bool(current))
+        if candidate_group_key(self.current_candidate) == "unknown_words":
+            self.accept_button.setEnabled(bool(current))
         title = UNKNOWN_WORD_CLASSIFICATION_LABELS.get(
             current, self.current_candidate.category,
         )
@@ -1634,6 +1681,27 @@ class MainWindow(QMainWindow):
             self.current_candidate.comment = self.comment.toPlainText()
             self.mark_dirty()
 
+    def decide_spelling(self, classification):
+        """«Ошибка» или «Опечатка»: классификация и принятие одним нажатием."""
+        candidate = self.current_candidate
+        if not candidate or candidate_group_key(candidate) != "spelling":
+            return
+        if candidate.expert_classification != classification:
+            self.record_event("candidate_classified", {
+                "document_id": candidate.document_id, "candidate_id": candidate.id,
+                "from": candidate.expert_classification, "to": classification,
+            })
+            candidate.expert_classification = classification
+            self.mark_dirty()
+        self.decide(ReviewStatus.ACCEPTED)
+
+    def accept_current(self):
+        """Кнопка «Принять»: для правописания она означает «Ошибка»."""
+        if self.current_candidate and candidate_group_key(self.current_candidate) == "spelling":
+            self.decide_spelling("spelling_error")
+        else:
+            self.decide(ReviewStatus.ACCEPTED)
+
     def decide(self, status):
         if self.current_candidate:
             if (status is ReviewStatus.ACCEPTED
@@ -1651,24 +1719,70 @@ class MainWindow(QMainWindow):
                 "expert_classification": self.current_candidate.expert_classification,
                 "from": previous.value, "to": status.value,
             })
-            self.populate_candidates()
+            if status is ReviewStatus.NEW:
+                self.populate_candidates()
+            else:
+                # Решение принято — сразу к следующему нерассмотренному.
+                self.next_candidate(after_decision=True)
 
-    def next_candidate(self):
+    def _show_candidate(self, target):
+        self.current_candidate = target
+        wanted = [None, ReviewStatus.NEW, ReviewStatus.ACCEPTED, ReviewStatus.REJECTED][self.filter.currentIndex()]
+        group = self.candidate_group_filter.currentData()
+        if (wanted is not None and target.status != wanted) or (
+                group is not None and candidate_group_key(target) != group):
+            # Кандидат скрыт фильтром: показываем все, чтобы он был виден в списке.
+            self.filter.blockSignals(True)
+            self.filter.setCurrentIndex(0)
+            self.filter.blockSignals(False)
+            if group is not None and candidate_group_key(target) != group:
+                self.candidate_group_filter.blockSignals(True)
+                self.candidate_group_filter.setCurrentIndex(0)
+                self.candidate_group_filter.blockSignals(False)
+                self.candidate_group_changed()
+                return
+        self.populate_candidates()
+
+    def next_candidate(self, after_decision=False):
         if not self.result:
             return
         self.record_comment_if_changed()
         candidates = self.result.candidates
         current = next((i for i, c in enumerate(candidates) if c is self.current_candidate), -1)
         ordered = candidates[current + 1:] + candidates[:current + 1]
-        target = next((c for c in ordered if c.status == ReviewStatus.NEW), None)
+        group = self.candidate_group_filter.currentData()
+        # Сначала — в выбранной группе, затем в остальных.
+        target = next((c for c in ordered if c.status == ReviewStatus.NEW
+                       and (group is None or candidate_group_key(c) == group)), None)
         if target is None:
-            self.status.setText("Все кандидаты рассмотрены. Вы можете изменить любое решение.")
+            target = next((c for c in ordered if c.status == ReviewStatus.NEW), None)
+        if target is None:
+            self.populate_candidates()
+            self.status.setText("Все кандидаты рассмотрены. Вы можете изменить любое решение "
+                                "или вернуться к предыдущему кнопкой «← Назад».")
             return
-        self.current_candidate = target
-        self.filter.blockSignals(True)
-        self.filter.setCurrentIndex(0)
-        self.filter.blockSignals(False)
-        self.populate_candidates()
+        if self.current_candidate is not None:
+            self.candidate_history.append(self.current_candidate.id)
+        self.previous_button.setEnabled(bool(self.candidate_history))
+        if after_decision:
+            self.status.setText("Решение сохранено · открыт следующий нерассмотренный кандидат.")
+        self._show_candidate(target)
+
+    def previous_candidate(self):
+        if not self.result or not self.candidate_history:
+            return
+        self.record_comment_if_changed()
+        by_id = {candidate.id: candidate for candidate in self.result.candidates}
+        while self.candidate_history:
+            target = by_id.get(self.candidate_history.pop())
+            if target is not None:
+                break
+        else:
+            target = None
+        self.previous_button.setEnabled(bool(self.candidate_history))
+        if target is not None:
+            self.status.setText("Открыт предыдущий кандидат · решение можно изменить.")
+            self._show_candidate(target)
 
     def configure(self):
         dialog = ResourceDialog(self.settings, self)

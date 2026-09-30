@@ -158,3 +158,17 @@ def test_comparison_reports_material_limitations():
     limitations = compare_results(first, second).limitations
     assert any("полтора раза" in item for item in limitations)
     assert any("не завершена" in item for item in limitations)
+
+
+def test_typo_and_spelling_error_are_compared_separately():
+    typo = candidate("t", "a", "Орфография", ReviewStatus.ACCEPTED, Span(0, 5), "првиет")
+    typo.expert_classification = "typo"
+    error = candidate("e", "b", "Орфография", ReviewStatus.ACCEPTED, Span(0, 5), "првиет")
+    error.expert_classification = "spelling_error"
+
+    groups = compare_results(base_result("a", 10, 1, candidates=[typo]),
+                             base_result("b", 10, 1, candidates=[error])).accepted_groups
+
+    labels = sorted(group.label for group in groups)
+    assert labels == ["Опечатка: «првиет»", "Орфографическая ошибка: «првиет»"]
+    assert {group.relation for group in groups} == {"Только в тексте 1", "Только в тексте 2"}

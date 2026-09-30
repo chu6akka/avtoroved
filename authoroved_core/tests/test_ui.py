@@ -126,6 +126,70 @@ def test_no_english_statuses_or_active_future_stages(window):
     assert all(not b.isEnabled() for b in window.stage_buttons[3:])
 
 
+def _three_candidates(window):
+    text_id = window.material.id
+    candidates = [
+        Candidate("s1", text_id, "Ошибка", "Орфография", "Проверить", "пришол", Span(6, 12), "RULE"),
+        Candidate("g1", text_id, "Грамматика", "Грамматика", "Проверить", "Он", Span(3, 5), "GRAMMAR_RULE"),
+        Candidate("s2", text_id, "Ошибка", "Орфография", "Проверить", "домой", Span(13, 18), "RULE"),
+    ]
+    window.display_result(AnalysisResult(text_id, candidates=candidates,
+                                         metadata={"languagetool": {"mode": "local-cli"}}))
+    window.show_stage(2)
+    return candidates
+
+
+def test_decision_opens_next_unreviewed_candidate_and_back_returns(window, app):
+    first, second, third = _three_candidates(window)
+    assert window.current_candidate is first
+    assert not window.previous_button.isEnabled()
+
+    window.reject_button.click()
+    assert first.status == ReviewStatus.REJECTED
+    assert window.current_candidate is second  # переход без нажатия «Следующий»
+
+    window.accept_button.click()
+    assert window.current_candidate is third
+    assert window.previous_button.isEnabled()
+
+    window.previous_button.click()
+    assert window.current_candidate is second
+    window.previous_button.click()
+    assert window.current_candidate is first
+    window.accept_button.click()  # решение можно изменить после возврата
+    assert first.status == ReviewStatus.ACCEPTED
+    assert window.current_candidate is third  # единственный нерассмотренный
+
+
+def test_spelling_candidate_is_marked_as_error_or_typo_in_one_click(window, app):
+    first, _, third = _three_candidates(window)
+    assert window.typo_button.isVisible()
+    assert window.accept_button.text() == "Ошибка"
+
+    window.typo_button.click()
+    assert first.status == ReviewStatus.ACCEPTED
+    assert first.expert_classification == "typo"
+    assert not window.typo_button.isVisible()  # у грамматики опечатки нет
+
+    window.reject_button.click()
+    assert window.current_candidate is third
+    window.accept_button.click()
+    assert third.expert_classification == "spelling_error"
+    assert "Все кандидаты рассмотрены" in window.status.text()
+    items = [window.candidate_list.item(row).text() for row in range(window.candidate_list.count())]
+    assert any(text.startswith("Опечатка") for text in items)
+
+
+def test_status_filter_keeps_working_with_auto_advance(window, app):
+    first, second, _ = _three_candidates(window)
+    window.filter.setCurrentIndex(1)  # «Не рассмотрены»
+    window.reject_button.click()
+    assert window.current_candidate is second
+    window.previous_button.click()
+    assert window.current_candidate is first  # фильтр снят, чтобы показать рассмотренного
+    assert window.filter.currentIndex() == 0
+
+
 def test_second_text_has_separate_analysis_and_opens_comparison(window, app, tmp_path):
     window.result.candidates[0].review(ReviewStatus.ACCEPTED)
     second_path = tmp_path / "Второй текст.txt"
