@@ -109,8 +109,31 @@ def _lemma(token: Token) -> str:
     return (token.lemma or token.text).casefold().replace("ё", "е")
 
 
-def morph_class(token: Token) -> str:
-    """Часть речи в традиционной русской грамматике на основе UPOS и признаков."""
+def _is_predicative(token: Token, has_subject: bool) -> bool:
+    """Слово категории состояния: «нужно», «жаль», «холодно» в безличном предложении.
+
+    Stanza размечает такие слова как ADV или как краткое прилагательное среднего рода
+    («Нужно» → лемма «нужный»), поэтому проверяется словоформа, а не только лемма.
+    """
+    form = token.text.casefold().replace("ё", "е")
+    if token.pos not in {"ADV", "ADJ"}:
+        return False
+    if form in PREDICATIVE_ONLY:
+        return True
+    if form not in PREDICATIVE_LEMMAS or has_subject:
+        return False
+    if token.pos == "ADJ":
+        return (token.feats.get("Variant") == "Short" and token.feats.get("Gender") == "Neut"
+                and token.feats.get("Number", "Sing") == "Sing")
+    return token.dependency.split(":", 1)[0] in {"root", "conj", "ccomp", "advcl", "parataxis"}
+
+
+def morph_class(token: Token, has_subject: bool = True) -> str:
+    """Часть речи в традиционной русской грамматике на основе UPOS и признаков.
+
+    has_subject — есть ли у слова зависимое-подлежащее (nsubj); без него сказуемое
+    «холодно», «интересно» понимается как слово категории состояния.
+    """
     pos, feats = token.pos, token.feats
     verb_form = feats.get("VerbForm")
     dependency = token.dependency.split(":", 1)[0] if token.dependency else ""
@@ -120,8 +143,7 @@ def morph_class(token: Token) -> str:
         return "gerund"
     if pos in {"VERB", "AUX"}:
         return "infinitive" if verb_form == "Inf" else "verb"
-    if pos in {"ADV", "ADJ"} and _lemma(token) in PREDICATIVE_LEMMAS and (
-            _lemma(token) in PREDICATIVE_ONLY or (pos == "ADV" and dependency == "root")):
+    if _is_predicative(token, has_subject):
         return "predicative"
     if pos in {"NOUN", "PROPN"}:
         return "noun"
@@ -143,6 +165,8 @@ def morph_class(token: Token) -> str:
         return "interjection"
     return "other"
 
+
+_classify = morph_class
 
 PART_OF_SPEECH = (
     ("noun", "Существительные", "UD NOUN и PROPN"),
@@ -208,6 +232,15 @@ def morphology_metrics(tokens: list[Token]) -> list[Metric]:
     total = len(words)
     if not total:
         return []
+    with_subject = {(token.sentence, token.head) for token in tokens
+                    if token.dependency.split(":", 1)[0] in {"nsubj", "csubj"}
+                    and token.pos not in {"VERB", "AUX"}}
+    classes = {id(token): _classify(token, (token.sentence, token.index) in with_subject)
+               for token in words}
+
+    def morph_class(token: Token) -> str:
+        return classes[id(token)]
+
     by_class: dict[str, list[Token]] = defaultdict(list)
     for token in words:
         by_class[morph_class(token)].append(token)
