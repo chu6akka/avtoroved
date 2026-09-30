@@ -13,7 +13,7 @@ QLabel { background: transparent; }
 QWidget#reviewPage { background: #ffffff; }
 QWidget#comparisonPage { background: #edf0f6; }
 QLabel#brand { font-size: 28px; font-weight: 700; letter-spacing: -1px; }
-QLabel#brandMark { background: #4356c8; color: white; border-radius: 14px; font-size: 28px; font-weight: 600; }
+QLabel#brandMark { background: transparent; }
 QLabel#muted { color: #5f6b80; font-size: 12px; }
 QLabel#eyebrow { color: #66738b; font-size: 11px; font-weight: 600; letter-spacing: 2px; }
 QLabel#sectionTitle { font-size: 21px; font-weight: 600; }

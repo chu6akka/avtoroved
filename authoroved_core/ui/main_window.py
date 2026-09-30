@@ -30,6 +30,7 @@ from authoroved_core.core.models import ReviewStatus, STATUS_LABELS
 from authoroved_core.core.report_service import ReportError, ReportService
 from authoroved_core.metrics.basic import GLOBAL_NOTE, WORD_PATTERN
 from authoroved_core.metrics.morphology import MORPHOLOGY_GROUPS
+from authoroved_core.ui.branding import app_icon, logo_pixmap
 from authoroved_core.nlp.settings import LocalSettings
 from authoroved_core.ui.text_view import SourceTextView
 from authoroved_core.ui.appearance import STYLE, METRIC_HIGHLIGHT
@@ -234,6 +235,7 @@ class MainWindow(QMainWindow):
     def __init__(self, settings=None, service=None, case_repository=None):
         super().__init__()
         self.setWindowTitle("Авторовед Core — новый анализ")
+        self.setWindowIcon(app_icon())
         self.resize(1280, 900)
         self.setMinimumSize(1060, 760)
         self.setStyleSheet(STYLE)
@@ -261,9 +263,11 @@ class MainWindow(QMainWindow):
 
         header = QHBoxLayout()
         header.setSpacing(14)
-        mark = label("А", "brandMark")
+        mark = QLabel()
+        mark.setObjectName("brandMark")
         mark.setFixedSize(52, 52)
-        mark.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        mark.setPixmap(logo_pixmap(52, self.devicePixelRatioF()))
+        mark.setToolTip("Авторовед")
         header.addWidget(mark)
         branding = QVBoxLayout()
         branding.setSpacing(1)

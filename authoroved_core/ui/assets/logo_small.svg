@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Авторовед — упрощённый знак для 16–24 px</title>
+  <rect width="64" height="64" rx="15" fill="#4356c8"/>
+  <g stroke="#ffffff" stroke-width="7" stroke-linecap="round">
+    <line x1="26" y1="17" x2="38" y2="17"/>
+    <line x1="18" y1="47" x2="46" y2="47"/>
+  </g>
+  <line x1="21" y1="32" x2="43" y2="32" stroke="#f5b83d" stroke-width="7" stroke-linecap="round"/>
+</svg>
