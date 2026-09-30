@@ -1,7 +1,7 @@
 from authoroved_core.core.models import Span, Token
 from authoroved_core.core.stanza_russian import explain_stanza_tokens
 from authoroved_core.metrics.morphology import (
-    GROUP_SAE, GROUP_SOKOLOVA, morphology_metrics, pronoun_class,
+    GROUP_SAE, GROUP_SOKOLOVA, category_scope, morphology_metrics, pronoun_class,
 )
 
 
@@ -36,8 +36,9 @@ def test_russian_parts_of_speech_follow_traditional_grammar():
     assert metrics["Краткие прилагательные"].value.startswith("1 ")  # «рад», но не «нужно»
     assert metrics["Причастия"].value.startswith("1 ")
     assert metrics["Деепричастия"].value.startswith("1 ")
-    assert metrics["Инфинитивы"].value.startswith("1 ")
-    assert metrics["Глаголы в спрягаемой форме"].value.startswith("2 ")
+    assert metrics["Глаголы"].value.startswith("3 ")  # «было», «был» и инфинитив «успеть»
+    assert metrics["Глаголы: в т. ч. инфинитив (начальная форма)"].value.startswith("1 ")
+    assert not any("спрягаем" in name for name in metrics)
     assert metrics["Местоимения"].value.startswith("2 ")
 
 
@@ -67,12 +68,24 @@ def test_pronoun_classes_use_russian_grammar_categories():
     assert pronoun_class(token("себя", "себя", "PRON", {}, "obj", 1, 1, 0)) == "reflexive"
 
 
-def test_grammatical_categories_are_named_in_russian():
-    names = by_name()
+def test_grammatical_categories_are_split_by_part_of_speech():
+    metrics = morphology_metrics(TOKENS)
+    names = {metric.name: metric for metric in metrics}
 
-    assert "Падеж: именительный" in names
-    assert "Форма глагола: деепричастие" in names
-    assert "Залог: страдательный" in names
+    # Падеж существительных считается только по существительным: «Письмо» — одно из одного.
+    assert names["Существительные · падеж: именительный"].value == "1 · 100 %"
+    # Падеж местоимений — отдельно: «Он» (им.) и «мной» (тв.).
+    assert names["Местоимения · падеж: именительный"].value == "1 · 50 %"
+    assert names["Причастия · залог: страдательный"].value == "1 · 100 %"
+    assert names["Глаголы · форма глагола: инфинитив (начальная форма)"].value.startswith("1 ")
+    # Сводные — факультативно, отдельной группой.
+    assert "Все части речи · падеж: именительный" in names
+    assert category_scope(names["Все части речи · падеж: именительный"].group) == "Все части речи"
+    assert category_scope(names["Существительные · падеж: именительный"].group) == "Существительные"
+    # У существительного нет времени, у глагола нет падежа.
+    assert not any(name.startswith("Существительные · время") for name in names)
+    assert not any(name.startswith("Глаголы · падеж") for name in names)
+    assert len(names) == len(metrics)  # имена показателей не повторяются
 
 
 def test_stanza_labels_get_approximate_school_grammar_terms():

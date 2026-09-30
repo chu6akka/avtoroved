@@ -5,10 +5,7 @@ from statistics import mean, median
 
 from authoroved_core.core.models import Metric, Span, Token
 from authoroved_core.metrics.morphology import morphology_metrics
-from authoroved_core.core.russian_word_classes import (
-    WORD_CLASSES,
-    russian_word_class_key,
-)
+from authoroved_core.core.russian_word_classes import russian_word_class_key
 WORD_PATTERN = re.compile(r"[^\W\d_]+(?:[-’'][^\W\d_]+)*", re.UNICODE)
 GLOBAL_NOTE = "Этот показатель относится ко всему тексту и не имеет одного конкретного фрагмента."
 
@@ -55,20 +52,8 @@ def calculate_metrics(text: str, tokens: list[Token]) -> list[Metric]:
             metrics.append(Metric(f"{title}: {form}", str(count),
                                   "Число употреблений словоформы без различия регистра. Знаменательные слова отбираются по части речи, без словаря.", "Лексика",
                                   tuple(t.span for t in selected if t.text.casefold() == form and t.span is not None)))
-    class_counts = Counter(russian_word_class_key(token) for token in words)
-    for item in WORD_CLASSES:
-        count = class_counts[item.key]
-        if not count:
-            continue
-        metrics.append(Metric(
-            item.title, f"{count} · {number(count / total * 100)} %",
-            "Укрупнённая русскоязычная группа для чтения автоматической разметки: "
-            f"{item.technical_basis}. Это не ручной морфологический разбор; модель может "
-            "ошибочно классифицировать отдельные словоформы.",
-            "Морфология",
-            tuple(token.span for token in words
-                  if russian_word_class_key(token) == item.key and token.span is not None),
-        ))
+    # Части речи и все морфологические показатели — в metrics/morphology.py
+    # (прежний укрупнённый список «Морфология» давал одноимённые дубли).
     sentences = defaultdict(list)
     for token in tokens:
         sentences[token.sentence].append(token)

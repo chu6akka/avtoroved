@@ -51,6 +51,7 @@ QListWidget::item { background: #f5f7fc; border: 1px solid #e8ecf4; border-radiu
 QListWidget::item:hover { background: #eff2ff; border-color: #c8d1f2; }
 QListWidget::item:selected { color: #2f4196; background: #eaf0ff; border-color: #9cace5; }
 QListWidget::item:focus { border-color: #4356c8; }
+QListWidget#compactList::item { padding: 5px 10px; margin: 1px 0px; border-radius: 6px; }
 QComboBox { padding: 8px 12px; }
 QComboBox QAbstractItemView { background: white; selection-background-color: #e9edff; selection-color: #233364; }
 QToolBox::tab { background: #f0f3fa; border-radius: 8px; padding: 2px 12px; color: #53617c; }

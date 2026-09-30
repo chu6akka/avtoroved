@@ -16,6 +16,7 @@ from authoroved_core.core.models import Metric, Span, Token
 
 GROUP_PARTS = "Морфология: части речи"
 GROUP_CATEGORIES = "Морфология: грамматические категории"
+CATEGORY_SEPARATOR = " — "
 GROUP_PRONOUNS = "Морфология: разряды местоимений"
 GROUP_SOKOLOVA = "Морфологические индексы идиостиля"
 GROUP_SAE = "Морфологические коэффициенты"
@@ -23,9 +24,7 @@ GROUP_BIGRAMS = "Морфология: сочетания частей речи"
 MORPHOLOGY_GROUPS = (GROUP_PARTS, GROUP_CATEGORIES, GROUP_PRONOUNS,
                      GROUP_SOKOLOVA, GROUP_SAE, GROUP_BIGRAMS)
 
-MACHINE_NOTE = ("Основание — автоматическая разметка Stanza (Universal Dependencies), "
-                "переведённая в категории русской грамматики; это не ручной "
-                "морфологический разбор, отдельные словоформы требуют проверки.")
+MACHINE_NOTE = "Автоматическая разметка Stanza, не ручной разбор: словоформы требуют проверки."
 
 # Слова категории состояния: Stanza размечает их как ADV (реже ADJ, VERB).
 PREDICATIVE_LEMMAS = frozenset({
@@ -88,7 +87,7 @@ CATEGORY_VALUES = (
     ("Person", "Лицо", {"1": "1-е лицо", "2": "2-е лицо", "3": "3-е лицо"}),
     ("Voice", "Залог", {"Act": "действительный", "Pass": "страдательный",
                         "Mid": "возвратная форма на -ся (средний залог)"}),
-    ("VerbForm", "Форма глагола", {"Fin": "спрягаемая (личная) форма", "Inf": "инфинитив",
+    ("VerbForm", "Форма глагола", {"Fin": "личная форма", "Inf": "инфинитив (начальная форма)",
                                    "Part": "причастие", "Conv": "деепричастие"}),
     ("Degree", "Степень сравнения", {"Pos": "положительная", "Cmp": "сравнительная",
                                      "Sup": "превосходная"}),
@@ -99,6 +98,36 @@ CATEGORY_VALUES = (
     ("Foreign", "Иноязычная запись", {"Yes": "иноязычное слово"}),
     ("Abbr", "Сокращение", {"Yes": "сокращённое написание"}),
 )
+
+
+# Какие категории присущи части речи в русской грамматике. None — все размеченные.
+CATEGORY_SCOPES = (
+    ("noun", "Существительные", {"noun"}, ("Case", "Number", "Gender", "Animacy")),
+    ("adjective", "Прилагательные", {"adjective"}, ("Case", "Number", "Gender", "Degree", "Variant")),
+    ("pronoun", "Местоимения", {"pronoun"}, ("Case", "Number", "Gender", "Person")),
+    ("numeral", "Числительные", {"numeral"}, ("Case", "Gender", "NumType")),
+    ("verb", "Глаголы", {"verb", "infinitive"},
+     ("VerbForm", "Aspect", "Tense", "Mood", "Person", "Number", "Gender", "Voice")),
+    ("participle", "Причастия", {"participle"},
+     ("Aspect", "Tense", "Voice", "Case", "Number", "Gender", "Variant")),
+    ("gerund", "Деепричастия", {"gerund"}, ("Aspect", "Voice")),
+    ("adverb", "Наречия", {"adverb"}, ("Degree",)),
+    ("all", "Все части речи", None, None),
+)
+DEFAULT_CATEGORY_SCOPE = "Существительные"
+
+
+def category_group(scope_title: str) -> str:
+    return f"{GROUP_CATEGORIES}{CATEGORY_SEPARATOR}{scope_title.casefold()}"
+
+
+def category_scope(group: str) -> str | None:
+    """Часть речи по названию группы грамматических категорий (или None)."""
+    prefix = GROUP_CATEGORIES + CATEGORY_SEPARATOR
+    if not group.startswith(prefix):
+        return None
+    key = group[len(prefix):]
+    return next((title for _, title, _, _ in CATEGORY_SCOPES if title.casefold() == key), None)
 
 
 def _number(value: float, digits: int = 3) -> str:
@@ -173,8 +202,9 @@ PART_OF_SPEECH = (
     ("adjective", "Прилагательные", "UD ADJ без слов категории состояния"),
     ("numeral", "Числительные", "UD NUM"),
     ("pronoun", "Местоимения", "UD PRON и DET (в русской грамматике — одна часть речи)"),
-    ("verb", "Глаголы в спрягаемой форме", "UD VERB и AUX с VerbForm=Fin или без формы"),
-    ("infinitive", "Инфинитивы", "UD VERB/AUX с VerbForm=Inf"),
+    ("verb", "Глаголы",
+     "UD VERB и AUX в личной форме и в инфинитиве (начальной форме); причастия и деепричастия "
+     "считаются отдельно"),
     ("participle", "Причастия", "признак VerbForm=Part"),
     ("gerund", "Деепричастия", "признак VerbForm=Conv"),
     ("adverb", "Наречия", "UD ADV без слов категории состояния"),
@@ -244,7 +274,11 @@ def morphology_metrics(tokens: list[Token]) -> list[Metric]:
     by_class: dict[str, list[Token]] = defaultdict(list)
     for token in words:
         by_class[morph_class(token)].append(token)
+    infinitives = by_class.pop("infinitive", [])
+    # Инфинитив — начальная форма глагола, а не отдельная часть речи.
+    by_class["verb"] = by_class.get("verb", []) + infinitives
     count = {key: len(value) for key, value in by_class.items()}
+    count["infinitive"] = 0
 
     def n(*keys: str) -> int:
         return sum(count.get(key, 0) for key in keys)
@@ -261,6 +295,11 @@ def morphology_metrics(tokens: list[Token]) -> list[Metric]:
         metrics.append(_counts_metric(
             title, by_class[key], total,
             f"Количество и доля от всех слов текста. Основание: {basis}. {MACHINE_NOTE}", GROUP_PARTS))
+    if infinitives:
+        metrics.append(_counts_metric(
+            "Глаголы: в т. ч. инфинитив (начальная форма)", infinitives, total,
+            "Инфинитивы входят в число глаголов; здесь они показаны отдельно. Доля от всех слов "
+            f"текста; признак UD VerbForm=Inf. {MACHINE_NOTE}", GROUP_PARTS))
     propn = select(lambda t: t.pos == "PROPN")
     if propn:
         metrics.append(_counts_metric(
@@ -288,39 +327,52 @@ def morphology_metrics(tokens: list[Token]) -> list[Metric]:
         f"Предлоги, союзы и частицы. {MACHINE_NOTE}", GROUP_PARTS,
         _spans(by_class["preposition"] + by_class["conjunction"] + by_class["particle"])))
 
-    # 2. Грамматические категории: распределение значений среди слов, у которых категория размечена.
-    for feature, title, values in CATEGORY_VALUES:
-        bearing = [token for token in words if token.feats.get(feature) in values]
-        if not bearing:
+    # 2. Грамматические категории — отдельно для каждой части речи: падеж существительного
+    # и падеж прилагательного — разные показатели. «Все части речи» — сводный, факультативный.
+    for scope_key, scope_title, classes_in_scope, features in CATEGORY_SCOPES:
+        scoped = words if classes_in_scope is None else [
+            token for token in words if morph_class(token) in classes_in_scope]
+        if not scoped:
             continue
-        distribution = Counter(token.feats[feature] for token in bearing)
-        for code, value_title in values.items():
-            if not distribution.get(code):
+        group = category_group(scope_title)
+        for feature, title, values in CATEGORY_VALUES:
+            if features is not None and feature not in features:
                 continue
-            selected = [token for token in bearing if token.feats[feature] == code]
-            metrics.append(Metric(
-                f"{title}: {value_title}", _share(len(selected), len(bearing)),
-                f"Доля от всех {len(bearing)} словоформ, у которых Stanza указала категорию "
-                f"«{title.casefold()}» (признак UD {feature}={code}). {MACHINE_NOTE}",
-                GROUP_CATEGORIES, _spans(selected)))
-    nominal = [token for token in words if morph_class(token) in {"noun", "pronoun"} and "Case" in token.feats]
-    if nominal:
-        cases = Counter(token.feats["Case"] for token in nominal)
-        direct = cases.get("Nom", 0) + cases.get("Acc", 0)
-        metrics.append(Metric(
-            "Прямые падежи существительных и местоимений", _share(direct, len(nominal)),
-            "Именительный и винительный падежи среди всех падежных форм существительных и "
-            f"местоимений; остальные падежи — косвенные. {MACHINE_NOTE}", GROUP_CATEGORIES,
-            _spans([t for t in nominal if t.feats["Case"] in {"Nom", "Acc"}])))
-    reflexive_verbs = select(lambda t: morph_class(t) in {"verb", "infinitive", "participle", "gerund"}
-                             and t.text.casefold().endswith(("ся", "сь")))
-    verbs_all = select(lambda t: morph_class(t) in {"verb", "infinitive", "participle", "gerund"})
-    if verbs_all:
-        metrics.append(Metric(
-            "Возвратные глагольные формы (-ся/-сь)", _share(len(reflexive_verbs), len(verbs_all)),
-            "Доля глагольных форм (включая инфинитив, причастие и деепричастие), оканчивающихся "
-            f"на -ся или -сь. Определяется по написанию. {MACHINE_NOTE}", GROUP_CATEGORIES,
-            _spans(reflexive_verbs)))
+            bearing = [token for token in scoped if token.feats.get(feature) in values]
+            if not bearing:
+                continue
+            distribution = Counter(token.feats[feature] for token in bearing)
+            for code, value_title in values.items():
+                if not distribution.get(code):
+                    continue
+                selected = [token for token in bearing if token.feats[feature] == code]
+                if feature == "VerbForm" and code == "Inf":
+                    value_title = "инфинитив (начальная форма)"
+                metrics.append(Metric(
+                    f"{scope_title} · {title.casefold()}: {value_title}",
+                    _share(len(selected), len(bearing)),
+                    f"Доля от {len(bearing)} словоформ части речи «{scope_title.casefold()}», у которых "
+                    f"Stanza указала категорию «{title.casefold()}» (признак UD {feature}={code}). "
+                    f"{MACHINE_NOTE}", group, _spans(selected)))
+        if scope_key == "noun":
+            cased = [token for token in scoped if "Case" in token.feats]
+            if cased:
+                direct = [token for token in cased if token.feats["Case"] in {"Nom", "Acc"}]
+                metrics.append(Metric(
+                    f"{scope_title} · прямые падежи (именительный и винительный)",
+                    _share(len(direct), len(cased)),
+                    "Доля прямых падежей среди всех падежных форм существительных; остальные "
+                    f"падежи — косвенные. {MACHINE_NOTE}", group, _spans(direct)))
+        if scope_key in {"verb", "all"}:
+            verbal = [token for token in scoped
+                      if morph_class(token) in {"verb", "infinitive", "participle", "gerund"}]
+            reflexive = [token for token in verbal if token.text.casefold().endswith(("ся", "сь"))]
+            if verbal:
+                metrics.append(Metric(
+                    f"{scope_title} · возвратные формы (-ся/-сь)", _share(len(reflexive), len(verbal)),
+                    "Доля глагольных форм, оканчивающихся на -ся или -сь (по написанию)"
+                    + (", включая причастия и деепричастия" if scope_key == "all" else "")
+                    + f". {MACHINE_NOTE}", group, _spans(reflexive)))
 
     # 3. Разряды местоимений.
     pronouns = by_class["pronoun"]
@@ -396,7 +448,7 @@ def morphology_metrics(tokens: list[Token]) -> list[Metric]:
                               explanation + MACHINE_NOTE, GROUP_SOKOLOVA))
 
     # 5. Двадцать коэффициентов по методике судебной автороведческой экспертизы (С. М. Вул, Е. И. Галяшина).
-    verbs_personal = n("verb")
+    verbs_personal = n("verb") - len(infinitives)
     short_all = len(short_adj)
     possessive = len([t for t in pronouns if pronoun_class(t) == "possessive"])
     sae = (
@@ -425,7 +477,7 @@ def morphology_metrics(tokens: list[Token]) -> list[Metric]:
         metrics.append(Metric(
             f"Коэффициент {index:02d}. {title}", _ratio(numerator, denominator),
             "Морфологический коэффициент по методике судебной автороведческой экспертизы "
-            "(С. М. Вул, Е. И. Галяшина). «Текст» — число слов; «глаголы» — спрягаемые формы и "
+            "(С. М. Вул, Е. И. Галяшина). «Текст» — число слов; «глаголы» — личные формы и "
             f"инфинитив без причастий и деепричастий (личных форм: {verbs_personal}). {MACHINE_NOTE}",
             GROUP_SAE))
     ratios = (
@@ -457,7 +509,8 @@ def morphology_metrics(tokens: list[Token]) -> list[Metric]:
     pair_spans: dict[tuple[str, str], list[Span]] = defaultdict(list)
     for sentence in by_sentence.values():
         for left, right in zip(sentence, sentence[1:]):
-            key = (morph_class(left), morph_class(right))
+            key = tuple("verb" if item == "infinitive" else item
+                        for item in (morph_class(left), morph_class(right)))
             pairs[key] += 1
             if left.span is not None and right.span is not None:
                 pair_spans[key].append(Span(left.span.start, right.span.end))

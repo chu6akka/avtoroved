@@ -25,6 +25,7 @@ _WORD_CLASS_NAMES = {
     "Союзы": {"Союзы", "Сочинительные союзы", "Подчинительные союзы"},
 }
 _LEGACY_WORD_CLASS_NAMES = set().union(*_WORD_CLASS_NAMES.values())
+_LEGACY_WORD_CLASS_GROUP = "Морфология"
 
 
 @dataclass(frozen=True)
@@ -84,12 +85,14 @@ def _metric_map(result: AnalysisResult) -> dict[str, Metric]:
         metric.name: metric for metric in result.metrics
         if not metric.name.startswith(_DYNAMIC_LEXICAL_PREFIXES)
         and metric.group != _STANZA_DEPENDENCY_GROUP
-        and metric.name not in _LEGACY_WORD_CLASS_NAMES
+        and not (metric.group == _LEGACY_WORD_CLASS_GROUP and metric.name in _LEGACY_WORD_CLASS_NAMES)
     }
     total_metric = next((item for item in result.metrics if item.name == "Слова"), None)
     total = _number(total_metric.value) if total_metric else None
+    # Укрупнение нужно только для дел, сохранённых до появления подробной морфологии.
     for title, source_names in _WORD_CLASS_NAMES.items():
-        source = [item for item in result.metrics if item.name in source_names]
+        source = [item for item in result.metrics
+                  if item.group == _LEGACY_WORD_CLASS_GROUP and item.name in source_names]
         if not source:
             continue
         count = sum(_number(item.value) or 0 for item in source)

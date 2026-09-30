@@ -145,9 +145,9 @@ def test_ud_codes_are_merged_into_russian_groups_and_dependencies_are_not_expose
 
     assert metrics["Существительные"].value.startswith("1 ·")
     assert metrics["Глаголы"].value.startswith("1 ·")
-    assert metrics["Местоименные слова"].value.startswith("1 ·")
+    assert metrics["Местоимения"].value.startswith("1 ·")
     assert metrics["Союзы"].value.startswith("1 ·")
-    assert "метки Stanza VERB и AUX" in metrics["Глаголы"].explanation
+    assert "UD VERB и AUX" in metrics["Глаголы"].explanation
     assert not any("код Stanza" in name for name in metrics)
     assert not any(metric.group == "Служебная синтаксическая разметка Stanza"
                    for metric in metrics.values())

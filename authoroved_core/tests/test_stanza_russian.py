@@ -23,7 +23,7 @@ def test_stanza_codes_are_presented_as_russian_language_categories():
     assert all("вспомогатель" not in text.casefold() for text in values[1].morphology)
     assert "связано со словом «писать»" in values[1].relation
     assert "AUX не показывается как отдельная часть речи" in values[1].technical
-    assert values[2].word_class == "Инфинитив — неопределённая форма глагола"
+    assert values[2].word_class == "Глагол — инфинитив (начальная форма)"
     assert "форма глагола: инфинитив" in values[2].morphology
     assert "служебная машинная разметка" in values[2].technical
 

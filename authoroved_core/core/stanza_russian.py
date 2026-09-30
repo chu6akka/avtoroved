@@ -185,7 +185,7 @@ def _display_word_class(token: Token, has_subject: bool = True) -> str:
     if token.feats.get("VerbForm") == "Conv":
         return "Деепричастие — особая форма глагола"
     if token.feats.get("VerbForm") == "Inf":
-        return "Инфинитив — неопределённая форма глагола"
+        return "Глагол — инфинитив (начальная форма)"
     if morph_class(token, has_subject) == "predicative":
         return "Слово категории состояния"
     if token.pos == "ADJ" and token.feats.get("Variant") == "Short":

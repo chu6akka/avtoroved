@@ -32,7 +32,9 @@ from authoroved_core.core.lt_grouping import (
 from authoroved_core.core.models import ReviewStatus, STATUS_LABELS
 from authoroved_core.core.report_service import ReportError, ReportService
 from authoroved_core.metrics.basic import GLOBAL_NOTE, WORD_PATTERN
-from authoroved_core.metrics.morphology import MORPHOLOGY_GROUPS
+from authoroved_core.metrics.morphology import (
+    CATEGORY_SCOPES, DEFAULT_CATEGORY_SCOPE, GROUP_CATEGORIES, MORPHOLOGY_GROUPS, category_scope,
+)
 from authoroved_core.ui.branding import app_icon, logo_pixmap
 from authoroved_core.nlp.settings import LocalSettings
 from authoroved_core.ui.text_view import SourceTextView
@@ -455,6 +457,7 @@ class MainWindow(QMainWindow):
         self.explanation.setObjectName("explanation")
         self.explanation.setReadOnly(True)
         self.explanation.setFixedHeight(72)
+        self.explanation.document().documentLayout().documentSizeChanged.connect(self.fit_explanation)
         detail_layout.addWidget(self.explanation)
         review_layout.addWidget(review_card)
         self.unknown_classification = QComboBox()
@@ -1382,8 +1385,12 @@ class MainWindow(QMainWindow):
             page = self.toolbox.widget(0)
             self.toolbox.removeItem(0)
             page.deleteLater()
-        for group in ["Количественные показатели", "Лексика", "Морфология", *MORPHOLOGY_GROUPS,
-                      "Предложения", "Структура"]:
+        for group in ["Количественные показатели", "Лексика", "Морфология", "Предложения", "Структура"]:
+            if group == "Морфология":
+                page = self.build_morphology_page()
+                if page is not None:
+                    self.toolbox.addItem(page, group)
+                continue
             page = QListWidget()
             page.setWordWrap(True)
             for metric in self.result.metrics:
@@ -1414,6 +1421,70 @@ class MainWindow(QMainWindow):
                 page.addItem(item)
             page.currentItemChanged.connect(self.select_metric)
             self.toolbox.addItem(page, "Методические AUTO-показатели")
+
+    def build_morphology_page(self):
+        """Вся морфология на одной вкладке: раздел, а для категорий — ещё часть речи.
+
+        Падеж, число, род и т. д. показываются отдельно для выбранной части речи;
+        по умолчанию — существительные, сводно по всем частям речи — факультативно.
+        """
+        sections: dict[str, list] = {}
+        scopes: dict[str, list] = {}
+        for metric in self.result.metrics:
+            scope = category_scope(metric.group)
+            if scope:
+                scopes.setdefault(scope, []).append(metric)
+            elif metric.group in MORPHOLOGY_GROUPS or metric.group == "Морфология":
+                # «Морфология» без подраздела есть только в делах, сохранённых раньше.
+                sections.setdefault(metric.group, []).append(metric)
+        if not sections and not scopes:
+            return None
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+        section = QComboBox()
+        for group in ["Морфология", *MORPHOLOGY_GROUPS]:
+            if group == GROUP_CATEGORIES and scopes:
+                section.addItem("Грамматические категории по частям речи", GROUP_CATEGORIES)
+            elif group in sections:
+                section.addItem(group.removeprefix("Морфология: ").capitalize(), group)
+        part_of_speech = QComboBox()
+        for title in [title for _, title, _, _ in CATEGORY_SCOPES if title in scopes]:
+            part_of_speech.addItem(
+                title + (" (сводно, факультативно)" if title == "Все части речи" else ""), title)
+        part_of_speech.setCurrentIndex(max(0, part_of_speech.findData(DEFAULT_CATEGORY_SCOPE)))
+        metrics_list = QListWidget()
+        metrics_list.setWordWrap(True)
+        metrics_list.setObjectName("compactList")
+        metrics_list.setMinimumHeight(170)
+        metrics_list.currentItemChanged.connect(self.select_metric)
+
+        def show(*_):
+            metrics_list.clear()
+            is_categories = section.currentData() == GROUP_CATEGORIES
+            part_of_speech.setVisible(is_categories)
+            if is_categories:
+                prefix = part_of_speech.currentData() + " · "
+                selected = [(m.name.removeprefix(prefix), m) for m in scopes.get(part_of_speech.currentData(), [])]
+            else:
+                selected = [(m.name, m) for m in sections.get(section.currentData(), [])]
+            for name, metric in selected:
+                # Одна строка на показатель: в разделе их десятки.
+                item = QListWidgetItem(f"{name} — {metric.value}")
+                item.setData(Qt.ItemDataRole.UserRole, metric)
+                metrics_list.addItem(item)
+
+        section.currentIndexChanged.connect(show)
+        part_of_speech.currentIndexChanged.connect(show)
+        show()
+        layout.addWidget(section)
+        layout.addWidget(part_of_speech)
+        layout.addWidget(metrics_list, 1)
+        self.morphology_section = section
+        self.category_selector = part_of_speech
+        self.morphology_list = metrics_list
+        return page
 
     def select_metric(self, item, previous=None):
         if item is None:
@@ -1592,14 +1663,26 @@ class MainWindow(QMainWindow):
             heading = ("Автоматические догадки словаря LT — не варианты исправления: "
                        if candidate.rule_id == "MORFOLOGIK_RULE_RU_RU"
                        else "Предлагаемые варианты: ")
-            message += "\n\n" + heading + ", ".join(candidate.replacements[:5])
+            # Варианты — первой строкой: их эксперт смотрит чаще всего.
+            message = heading + ", ".join(candidate.replacements[:5]) + "\n\n" + message
         self.explanation.setPlainText(message)
+        self.fit_explanation()
         self.comment.blockSignals(True)
         self.comment.setPlainText(candidate.comment)
         self.comment.blockSignals(False)
         self.text_view.highlight((candidate.span,))
         context = self.material.text[max(0, candidate.span.start - 35):candidate.span.end + 35].replace("\n", " ").replace("\r", " ")
         self.highlight_note.setText(("Место вставки · " if candidate.span.start == candidate.span.end else "Контекст · ") + context)
+
+    def fit_explanation(self, *_):
+        """Поле пояснения растёт по тексту, чтобы начало и варианты не обрезались.
+
+        Вызывается и при смене текста, и при изменении ширины поля: высота документа
+        зависит от переноса строк, а окончательная ширина известна только после вёрстки.
+        """
+        height = int(self.explanation.document().size().height()) + 2 * self.explanation.frameWidth() + 6
+        self.explanation.setFixedHeight(max(56, min(height, 220)))
+        self.explanation.verticalScrollBar().setValue(0)
 
     def set_candidate_enabled(self, enabled):
         for widget in [self.accept_button, self.typo_button, self.reject_button, self.reset_button, self.comment]:
