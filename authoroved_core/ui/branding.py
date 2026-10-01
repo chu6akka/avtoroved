@@ -3,7 +3,7 @@ from pathlib import Path
 import struct
 
 from PyQt6.QtCore import QBuffer, QByteArray, QIODevice, QRectF, Qt
-from PyQt6.QtGui import QIcon, QImage, QPainter, QPixmap
+from PyQt6.QtGui import QFontDatabase, QIcon, QImage, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 
 ASSETS = Path(__file__).resolve().parent / "assets"
@@ -12,6 +12,23 @@ LOGO_SMALL = ASSETS / "logo_small.svg"
 # До 24 px полная буква сливается, поэтому для мелких размеров — упрощённый знак.
 SMALL_LIMIT = 24
 ICON_SIZES = (16, 20, 24, 32, 40, 48, 64, 128, 256)
+
+
+FONTS = ASSETS / "fonts"
+_fonts_loaded = False
+
+
+def load_fonts() -> None:
+    """Встроенные шрифты (OFL): Golos Text для интерфейса, PT Serif для исследуемого текста.
+
+    Работают без интернета и без установки в систему; повторный вызов ничего не делает.
+    """
+    global _fonts_loaded
+    if _fonts_loaded:
+        return
+    for path in sorted(FONTS.glob("*.ttf")):
+        QFontDatabase.addApplicationFont(str(path))
+    _fonts_loaded = True
 
 
 def logo_image(size: int) -> QImage:

@@ -3,10 +3,11 @@ import json
 from pathlib import Path
 
 from PyQt6.QtCore import QSize, Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QKeySequence, QShortcut
+from PyQt6.QtGui import QBrush, QColor, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
-    QApplication, QComboBox, QDialog, QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit,
-    QListWidget, QListWidgetItem, QMainWindow, QMessageBox, QProgressBar, QLayout,
+    QApplication, QComboBox, QDialog, QFileDialog, QFrame, QGraphicsDropShadowEffect, QGridLayout,
+    QHBoxLayout, QLabel, QLineEdit,
+    QListView, QListWidget, QListWidgetItem, QMainWindow, QMessageBox, QProgressBar, QLayout,
     QPushButton, QScrollArea, QSizePolicy, QSplitter, QStackedWidget, QTextEdit, QToolBox,
     QVBoxLayout, QWidget,
 )
@@ -36,7 +37,7 @@ from authoroved_core.metrics.basic import GLOBAL_NOTE, WORD_PATTERN
 from authoroved_core.metrics.morphology import (
     CATEGORY_SCOPES, DEFAULT_CATEGORY_SCOPE, GROUP_CATEGORIES, MORPHOLOGY_GROUPS, category_scope,
 )
-from authoroved_core.ui.branding import app_icon, logo_pixmap
+from authoroved_core.ui.branding import app_icon, load_fonts, logo_pixmap
 from authoroved_core.nlp.settings import LocalSettings
 from authoroved_core.ui.text_view import SourceTextView
 from authoroved_core.ui.appearance import STYLE, METRIC_HIGHLIGHT
@@ -118,6 +119,46 @@ class AnalysisWorker(QThread):
             import logging
             logging.exception("Analysis worker failed")
             self.failed.emit()
+
+
+# Самые частые классификации слов вне словаря — чипами; остальные в списке.
+QUICK_CLASSIFICATIONS = (
+    ("colloquial", "Разговорное"),
+    ("obscene", "Мат"),
+    ("typo", "Опечатка"),
+    ("spelling_error", "Ошибка"),
+)
+RIBBON_CATEGORY = {"Слово не распознано словарём": "Вне словаря",
+                   "Стилистическая рекомендация": "Стиль",
+                   "Рекомендация по словоупотреблению": "Словоупотребление",
+                   "Другая рекомендация LanguageTool": "Другое"}
+STATUS_COLORS = {
+    ReviewStatus.ACCEPTED: ("#1d3b31", "#a6dcbb"),
+    ReviewStatus.REJECTED: ("#232a45", "#8d95ad"),
+    ReviewStatus.NEW: ("#1f2747", "#e3e7f2"),
+}
+
+
+def elevated(widget, shadow_name, blur=36, offset=10, alpha=55):
+    """Кладёт панель на подложку с мягкой тенью — «лист» или «карточка» над столом.
+
+    Эффект тени висит на пустой подложке того же размера, а не на самой панели:
+    иначе Qt перерисовывал бы через растровый буфер весь текст при каждой прокрутке.
+    Поля держателя оставляют тени место, чтобы её не обрезали края.
+    """
+    holder = QWidget()
+    grid = QGridLayout(holder)
+    grid.setContentsMargins(10, 4, 10, 18)
+    shadow = QFrame()
+    shadow.setObjectName(shadow_name)
+    effect = QGraphicsDropShadowEffect(shadow)
+    effect.setBlurRadius(blur)
+    effect.setOffset(0, offset)
+    effect.setColor(QColor(22, 29, 51, alpha))
+    shadow.setGraphicsEffect(effect)
+    grid.addWidget(shadow, 0, 0)
+    grid.addWidget(widget, 0, 0)
+    return holder
 
 
 class GrowingList(QListWidget):
@@ -255,6 +296,7 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(app_icon())
         self.resize(1280, 900)
         self.setMinimumSize(1060, 760)
+        load_fonts()
         self.setStyleSheet(STYLE)
         self.settings = settings or LocalSettings.load()
         self.service = service or AnalysisService(self.settings)
@@ -274,41 +316,53 @@ class MainWindow(QMainWindow):
         self.current_feature = None
         central = QWidget()
         self.setCentralWidget(central)
-        layout = QVBoxLayout(central)
-        layout.setContentsMargins(28, 22, 28, 16)
-        layout.setSpacing(12)
+        root_layout = QVBoxLayout(central)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
 
+        # Тёмная шапка: логотип и дело, файловые действия; ниже — утопленные этапы.
+        top_bar = QFrame()
+        top_bar.setObjectName("topBar")
+        top_layout = QVBoxLayout(top_bar)
+        top_layout.setContentsMargins(20, 10, 20, 10)
+        top_layout.setSpacing(9)
         header = QHBoxLayout()
-        header.setSpacing(14)
+        header.setSpacing(10)
         mark = QLabel()
         mark.setObjectName("brandMark")
-        mark.setFixedSize(52, 52)
-        mark.setPixmap(logo_pixmap(52, self.devicePixelRatioF()))
+        mark.setFixedSize(34, 34)
+        mark.setPixmap(logo_pixmap(34, self.devicePixelRatioF()))
         mark.setToolTip("Авторовед")
         header.addWidget(mark)
-        branding = QVBoxLayout()
-        branding.setSpacing(1)
-        branding.addWidget(label("Авторовед", "brand"))
-        subtitle = label("Пространство исследования текста", "muted")
-        subtitle.setWordWrap(False)
-        branding.addWidget(subtitle)
-        header.addLayout(branding)
-        header.addStretch()
+        header.addWidget(label("Авторовед", "brand"))
+        header.addSpacing(6)
+        self.case_notice = label("Предварительная версия · до двух документов · файл дела защищается паролем", "headerNote")
+        self.case_notice.setWordWrap(False)
+        self.case_notice.setMinimumWidth(80)
+        self.case_notice.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        header.addWidget(self.case_notice, 1)
         self.settings_button = button("Локальные анализаторы", self.configure)
         self.open_case_button = button("Открыть дело", self.open_case_dialog)
         self.save_button = button("Сохранить", self.save_case)
         self.save_button.setEnabled(False)
         self.audit_button = button("Журнал", self.show_audit)
-        self.open_button = button("Новый анализ", self.open_file, True)
+        self.open_button = button("Новый анализ", self.open_file)
         self.open_button.setToolTip("Начать новое исследование (Ctrl+N)")
         self.open_case_button.setToolTip("Открыть сохранённое дело (Ctrl+O)")
         self.save_button.setToolTip("Сохранить зашифрованное дело (Ctrl+S)")
-        header.addWidget(self.settings_button)
-        header.addWidget(self.open_case_button)
-        header.addWidget(self.save_button)
-        header.addWidget(self.audit_button)
+        for widget in (self.settings_button, self.open_case_button, self.save_button, self.audit_button):
+            widget.setObjectName("headerButton")
+            header.addWidget(widget)
+        self.open_button.setObjectName("headerAccent")
         header.addWidget(self.open_button)
-        layout.addLayout(header)
+        top_layout.addLayout(header)
+        root_layout.addWidget(top_bar)
+        desk = QWidget()
+        desk.setObjectName("desk")
+        layout = QVBoxLayout(desk)
+        layout.setContentsMargins(24, 14, 24, 8)
+        layout.setSpacing(10)
+        root_layout.addWidget(desk, 1)
         self.shortcuts = []
         for sequence, callback in (
             ("Ctrl+N", self.open_file),
@@ -322,8 +376,8 @@ class MainWindow(QMainWindow):
         navigation = QFrame()
         navigation.setObjectName("navigation")
         stages = QHBoxLayout(navigation)
-        stages.setContentsMargins(6, 5, 6, 5)
-        stages.setSpacing(4)
+        stages.setContentsMargins(3, 3, 3, 3)
+        stages.setSpacing(2)
         for index, title in enumerate(["1  Материал", "2  Анализ", "3  Проверка", "4  Сравнение", "5  Итог"]):
             item = button(title, lambda _=False, i=index: self.show_stage(i))
             item.setObjectName("stage")
@@ -333,10 +387,10 @@ class MainWindow(QMainWindow):
                 item.setToolTip("Сначала проанализируйте два текста")
             self.stage_buttons.append(item)
             stages.addWidget(item)
-        stages.addStretch()
-        layout.addWidget(navigation)
-        self.case_notice = label("Предварительная версия · до двух документов · файл дела защищается паролем", "notice")
-        layout.addWidget(self.case_notice)
+        stage_row = QHBoxLayout()
+        stage_row.addWidget(navigation)
+        stage_row.addStretch()
+        top_layout.addLayout(stage_row)
         self.error_label = label("", "error")
         self.error_label.hide()
         layout.addWidget(self.error_label)
@@ -344,10 +398,10 @@ class MainWindow(QMainWindow):
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.splitter.setHandleWidth(18)
         left = QFrame()
-        left.setObjectName("panel")
-        left.setMinimumWidth(480)
+        left.setObjectName("paper")
+        left.setMinimumWidth(430)
         left_layout = QVBoxLayout(left)
-        left_layout.setContentsMargins(22, 18, 22, 12)
+        left_layout.setContentsMargins(40, 16, 40, 12)
         left_layout.setSpacing(9)
         left_layout.addWidget(label("ИСХОДНЫЙ ДОКУМЕНТ", "eyebrow"))
         self.material_selector = QComboBox()
@@ -355,7 +409,7 @@ class MainWindow(QMainWindow):
         self.material_selector.currentIndexChanged.connect(self.switch_material)
         left_layout.addWidget(self.material_selector)
         title_row = QHBoxLayout()
-        self.filename = label("Материал исследования", "sectionTitle")
+        self.filename = label("Материал исследования", "paperTitle")
         title_row.addWidget(self.filename, 1)
         self.qwen_button = button("Qwen · пилот", self.open_qwen_pilot)
         self.qwen_button.setEnabled(False)
@@ -373,12 +427,12 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(self.text_view, 1)
         self.highlight_note = label("Нажмите на результат справа, чтобы увидеть связанный фрагмент.", "muted")
         left_layout.addWidget(self.highlight_note)
-        self.splitter.addWidget(left)
+        self.splitter.addWidget(elevated(left, "paperShadow"))
 
         right = QFrame()
-        right.setObjectName("panel")
-        right.setMinimumWidth(400)
-        right.setMaximumWidth(510)
+        right.setObjectName("card")
+        right.setMinimumWidth(450)
+        right.setMaximumWidth(540)
         right_layout = QVBoxLayout(right)
         right_layout.setContentsMargins(18, 18, 18, 14)
         right_layout.setSpacing(9)
@@ -436,29 +490,27 @@ class MainWindow(QMainWindow):
         review_layout.setSizeConstraints(QLayout.SizeConstraint.SetNoConstraint,
                                          QLayout.SizeConstraint.SetMinimumSize)
         review_layout.setContentsMargins(0, 4, 0, 0)
+        # Фильтры и сам список кандидатов живут в тёмной ленте внизу окна (ribbon):
+        # так текст занимает середину, а очередь всегда видна целиком.
         self.candidate_group_filter = QComboBox()
         self.candidate_group_filter.addItem("Все группы", None)
         self.candidate_group_filter.currentIndexChanged.connect(self.candidate_group_changed)
-        filters = QHBoxLayout()
-        filters.addWidget(self.candidate_group_filter, 2)
         self.filter = QComboBox()
         self.filter.addItems(["Все кандидаты", "Не рассмотрены", "Приняты", "Отклонены"])
         self.filter.currentIndexChanged.connect(self.populate_candidates)
-        filters.addWidget(self.filter, 1)
-        review_layout.addLayout(filters)
         self.candidate_group_help = label(
             "Кандидаты разделены по типу автоматической рекомендации.", "muted",
         )
-        self.candidate_group_help.setMinimumHeight(34)
         self.candidate_group_help.setMaximumHeight(42)
-        review_layout.addWidget(self.candidate_group_help)
-        self.candidate_list = GrowingList()
-        self.candidate_list.setWordWrap(True)
-        # Свободное место на большом экране получает список кандидатов, а не карточка:
-        # иначе карточка растягивалась и текст в ней «плавал» посередине пустоты.
-        self.candidate_list.setMinimumHeight(100)
+        self.candidate_group_help.hide()
+        self.candidate_list = QListWidget()
+        self.candidate_list.setObjectName("ribbonList")
+        self.candidate_list.setFlow(QListView.Flow.LeftToRight)
+        self.candidate_list.setWrapping(False)
+        self.candidate_list.setHorizontalScrollMode(QListView.ScrollMode.ScrollPerPixel)
+        self.candidate_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.candidate_list.setFixedHeight(66)
         self.candidate_list.currentItemChanged.connect(self.select_candidate)
-        review_layout.addWidget(self.candidate_list, 1)
         review_card = QFrame()
         review_card.setObjectName("reviewCard")
         review_card.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
@@ -466,7 +518,10 @@ class MainWindow(QMainWindow):
         detail_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         detail_layout.setContentsMargins(12, 8, 12, 8)
         detail_layout.setSpacing(5)
-        self.candidate_detail = label("Выберите кандидата в списке.", "candidateDetail")
+        self.candidate_word = label("", "candidateWord")
+        self.candidate_word.hide()
+        detail_layout.addWidget(self.candidate_word)
+        self.candidate_detail = label("Выберите кандидата в ленте внизу.", "candidateDetail")
         detail_layout.addWidget(self.candidate_detail)
         self.explanation = QTextEdit()
         self.explanation.setObjectName("explanation")
@@ -475,7 +530,29 @@ class MainWindow(QMainWindow):
         self.explanation.document().documentLayout().documentSizeChanged.connect(self.fit_explanation)
         detail_layout.addWidget(self.explanation)
         review_layout.addWidget(review_card)
+        # Частые классификации — кнопками-чипами в одно нажатие; полный перечень
+        # остаётся в выпадающем списке под ними («другое»). Чипы лишь выбирают
+        # пункт этого списка, поэтому модель одна.
+        self.classification_chips = QWidget()
+        chips_layout = QHBoxLayout(self.classification_chips)
+        chips_layout.setContentsMargins(0, 0, 0, 0)
+        chips_layout.setSpacing(6)
+        self.chip_buttons = {}
+        for key, title in QUICK_CLASSIFICATIONS:
+            chip = button(title, lambda _=False, k=key: self.choose_classification(k))
+            chip.setObjectName("chip")
+            chip.setCheckable(True)
+            chip.setToolTip(UNKNOWN_WORD_CLASSIFICATION_LABELS[key])
+            chips_layout.addWidget(chip)
+            self.chip_buttons[key] = chip
+        chips_layout.addStretch()
+        self.classification_chips.hide()
+        review_layout.addWidget(self.classification_chips)
         self.unknown_classification = QComboBox()
+        # Ширина — по панели, а не по самому длинному пункту: иначе панель уезжала вправо.
+        self.unknown_classification.setSizeAdjustPolicy(
+            QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.unknown_classification.setMinimumContentsLength(18)
         self.fill_classifications("unknown_words")
         self.unknown_classification.currentIndexChanged.connect(self.classification_changed)
         self.unknown_classification.hide()
@@ -498,7 +575,8 @@ class MainWindow(QMainWindow):
         self.accept_button = button("Принять", self.accept_current, True)
         self.reject_button = button("Отклонить", lambda: self.decide(ReviewStatus.REJECTED))
         # Для правописания эксперт одним нажатием различает ошибку и опечатку.
-        self.typo_button = button("Опечатка", lambda: self.decide_spelling("typo"), True)
+        self.typo_button = button("Опечатка", lambda: self.decide_spelling("typo"))
+        self.typo_button.setObjectName("typo")
         self.typo_button.setToolTip("Опечатка: " + CLASSIFICATION_HINTS["typo"])
         self.typo_button.hide()
         actions.addWidget(self.accept_button)
@@ -530,7 +608,7 @@ class MainWindow(QMainWindow):
         self.review_scroll.setWidget(self.review_page)
         self.pages.addWidget(self.review_scroll)
         right_layout.addWidget(self.pages, 1)
-        self.splitter.addWidget(right)
+        self.splitter.addWidget(elevated(right, "cardShadow"))
         self.splitter.setSizes([730, 460])
         self.splitter.setChildrenCollapsible(False)
         self.workspace = QStackedWidget()
@@ -546,8 +624,28 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.progress_bar)
         self.status = label("Готово к работе · анализ выполняется на вашем компьютере", "muted")
         layout.addWidget(self.status)
+        # Лента кандидатов: видна только на этапе «Проверка».
+        self.ribbon = QFrame()
+        self.ribbon.setObjectName("ribbon")
+        ribbon_layout = QHBoxLayout(self.ribbon)
+        ribbon_layout.setContentsMargins(20, 8, 20, 8)
+        ribbon_layout.setSpacing(10)
+        ribbon_filters = QVBoxLayout()
+        ribbon_filters.setSpacing(4)
+        self.candidate_group_filter.setFixedWidth(230)
+        self.filter.setFixedWidth(230)
+        ribbon_filters.addWidget(self.candidate_group_filter)
+        ribbon_filters.addWidget(self.filter)
+        ribbon_layout.addLayout(ribbon_filters)
+        ribbon_layout.addWidget(self.candidate_list, 1)
+        self.ribbon.hide()
+        root_layout.addWidget(self.ribbon)
+        for widget in (*self.stage_buttons, self.settings_button, self.open_case_button,
+                       self.save_button, self.audit_button, self.open_button):
+            widget.setFocusPolicy(Qt.FocusPolicy.TabFocus)
         self.show_stage(0)
         self.set_candidate_enabled(False)
+        self.text_view.setFocus()
         self.update_case_controls()
 
     def build_comparison_page(self):
@@ -1182,6 +1280,7 @@ class MainWindow(QMainWindow):
                 return
             self.populate_final_summary()
             self.workspace.setCurrentIndex(2)
+            self.ribbon.hide()
             for i, item in enumerate(self.stage_buttons):
                 item.setChecked(i == 4)
             self.status.setText("Материалы готовы к экспорту · вывод об авторстве не формируется")
@@ -1192,6 +1291,7 @@ class MainWindow(QMainWindow):
                 return
             self.populate_comparison()
             self.workspace.setCurrentIndex(1)
+            self.ribbon.hide()
             for i, item in enumerate(self.stage_buttons):
                 item.setChecked(i == 3)
             self.status.setText("Сравнение построено · интерпретацию выполняет эксперт")
@@ -1202,6 +1302,7 @@ class MainWindow(QMainWindow):
         for i, item in enumerate(self.stage_buttons):
             item.setChecked(i == index)
         self.pages.setCurrentIndex(index)
+        self.ribbon.setVisible(index == 2)
         self.right_title.setText(["Материал", "Измерения текста", "Проверка кандидатов"][index])
         if index == 2:
             self.update_review_summary()
@@ -1399,6 +1500,9 @@ class MainWindow(QMainWindow):
         while self.toolbox.count():
             page = self.toolbox.widget(0)
             self.toolbox.removeItem(0)
+            # Снятая страница остаётся дочерней и видимой до отложенного удаления —
+            # без hide() она просвечивала под первой вкладкой.
+            page.hide()
             page.deleteLater()
         for group in ["Количественные показатели", "Лексика", "Морфология", "Предложения", "Структура"]:
             if group == "Морфология":
@@ -1580,8 +1684,14 @@ class MainWindow(QMainWindow):
                     candidate.expert_classification, candidate.category,
                 ) if candidate.expert_classification else candidate.category
             )
-            item = QListWidgetItem(f"{category} · {STATUS_LABELS[candidate.status]}\n«{fragment}»" if fragment else f"{category} · {STATUS_LABELS[candidate.status]}\nМесто возможной вставки")
+            # В ленте — коротко: тип и фрагмент; статус передаёт цвет и подсказка.
+            short = RIBBON_CATEGORY.get(category, category)
+            item = QListWidgetItem(f"{short}\n«{fragment}»" if fragment else f"{short}\nМесто вставки")
+            item.setToolTip(f"{category} · {STATUS_LABELS[candidate.status]}")
             item.setData(Qt.ItemDataRole.UserRole, candidate.id)
+            background, foreground = STATUS_COLORS[candidate.status]
+            item.setBackground(QBrush(QColor(background)))
+            item.setForeground(QBrush(QColor(foreground)))
             self.candidate_list.addItem(item)
             if candidate.id == selected_id:
                 selected_item = item
@@ -1628,6 +1738,7 @@ class MainWindow(QMainWindow):
             help_text = group.definition.description if group else ""
         self.candidate_group_help.setText(help_text)
         self.candidate_group_help.setToolTip(help_text)
+        self.candidate_group_filter.setToolTip(help_text)
         self.populate_candidates()
 
     def update_review_summary(self):
@@ -1648,6 +1759,10 @@ class MainWindow(QMainWindow):
         self.set_candidate_enabled(True)
         group = candidate_group_key(candidate)
         self.typo_button.setVisible(group != "unknown_words")
+        fragment = " ".join(candidate.fragment.split())
+        self.candidate_word.setText(fragment if len(fragment) <= 40 else fragment[:38] + "…")
+        self.candidate_word.setVisible(bool(fragment))
+        self.classification_chips.setVisible(group == "unknown_words")
         self.accept_button.setToolTip("")
         if group == "unknown_words":
             self.fill_classifications(group)
@@ -1698,6 +1813,7 @@ class MainWindow(QMainWindow):
         self.text_view.highlight((candidate.span,))
         context = self.material.text[max(0, candidate.span.start - 35):candidate.span.end + 35].replace("\n", " ").replace("\r", " ")
         self.highlight_note.setText(("Место вставки · " if candidate.span.start == candidate.span.end else "Контекст · ") + context)
+        self.sync_chips()
 
     def fit_explanation(self, *_):
         """Поле пояснения растёт по тексту, чтобы начало и варианты не обрезались.
@@ -1709,11 +1825,23 @@ class MainWindow(QMainWindow):
         self.explanation.setFixedHeight(max(56, min(height, 220)))
         self.explanation.verticalScrollBar().setValue(0)
 
+    def choose_classification(self, key):
+        """Чип выбирает пункт выпадающего списка; сохранение идёт обычным путём."""
+        self.unknown_classification.setCurrentIndex(self.unknown_classification.findData(key))
+        self.sync_chips()
+
+    def sync_chips(self):
+        current = self.unknown_classification.currentData()
+        for key, chip in self.chip_buttons.items():
+            chip.setChecked(key == current)
+
     def set_candidate_enabled(self, enabled):
         for widget in [self.accept_button, self.typo_button, self.reject_button, self.reset_button, self.comment]:
             widget.setEnabled(enabled)
         if not enabled:
             self.unknown_classification.hide()
+            self.classification_chips.hide()
+            self.candidate_word.hide()
             self.typo_button.hide()
             self.accept_button.setText("Подтвердить наблюдение")
             self.reject_button.setText("Не учитывать")
@@ -1767,6 +1895,7 @@ class MainWindow(QMainWindow):
         previous = self.current_candidate.expert_classification
         current = str(self.unknown_classification.currentData() or "")
         self.current_candidate.expert_classification = current
+        self.sync_chips()
         if candidate_group_key(self.current_candidate) == "unknown_words":
             self.accept_button.setEnabled(bool(current))
         title = UNKNOWN_WORD_CLASSIFICATION_LABELS.get(
