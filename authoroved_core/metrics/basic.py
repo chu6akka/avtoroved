@@ -4,6 +4,7 @@ from collections import Counter, defaultdict
 from statistics import mean, median
 
 from authoroved_core.core.models import Metric, Span, Token
+from authoroved_core.core.obscene import find_obscene
 from authoroved_core.metrics.morphology import morphology_metrics
 from authoroved_core.core.russian_word_classes import russian_word_class_key
 WORD_PATTERN = re.compile(r"[^\W\d_]+(?:[-’'][^\W\d_]+)*", re.UNICODE)
@@ -14,9 +15,26 @@ def number(value: float) -> str:
     return f"{value:.2f}".rstrip("0").rstrip(".").replace(".", ",")
 
 
+def obscene_metric(text: str) -> Metric:
+    found = find_obscene(text)
+    forms = Counter(item.text.casefold() for item in found)
+    listed = ", ".join(f"«{form}» × {count}" if count > 1 else f"«{form}»"
+                       for form, count in sorted(forms.items(), key=lambda p: (-p[1], p[0])))
+    return Metric(
+        "Обсценная лексика (мат)", str(len(found)),
+        "Словоформы с корнями русского мата: хуй, пизд-, еб-/ёб-, бляд-/бля. Ищется по всему "
+        "тексту, в том числе среди слов, которые LanguageTool знает и не выносит в кандидаты. "
+        "Определение по закрытому списку корней с исключениями («небо», «хлеб», «тихую»); "
+        "намерение и уместность оценивает эксперт."
+        + (f" Найдено: {listed}." if listed else " В тексте не найдено."),
+        "Лексика", tuple(item.span for item in found),
+    )
+
+
 def structural_metrics(text: str) -> list[Metric]:
     paragraphs = [line for line in text.splitlines() if line.strip()]
     return [
+        obscene_metric(text),
         Metric("Символы", str(len(text)), "Символы Unicode, включая пробелы и переносы. Эмодзи может состоять из нескольких символов.", "Количественные показатели"),
         Metric("Абзацы", str(len(paragraphs)), "Непустые строки извлечённого текста; пустые строки не учитываются.", "Структура"),
         Metric("Средняя длина абзаца", number(mean([len(WORD_PATTERN.findall(p)) for p in paragraphs])) + " слова" if paragraphs else "Нет данных",

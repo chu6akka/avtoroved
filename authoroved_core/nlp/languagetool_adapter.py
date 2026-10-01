@@ -33,6 +33,21 @@ def utf16_boundaries(text: str) -> dict[int, int]:
     return boundaries
 
 
+def is_paragraph_indent(text: str, span: Span) -> bool:
+    """Пробелы в начале или в конце абзаца — оформление (красная строка), а не текст автора.
+
+    LanguageTool принимает отступ из пробелов и неразрывных пробелов за «повтор
+    пробела»; такие кандидаты были визуальным мусором и в проверку не выводятся.
+    """
+    fragment = text[span.start:span.end]
+    if not fragment or fragment.strip():
+        return False
+    line_start = max(text.rfind("\n", 0, span.start), text.rfind("\r", 0, span.start)) + 1
+    line_end = min((position for position in (text.find("\n", span.end), text.find("\r", span.end))
+                    if position != -1), default=len(text))
+    return not text[line_start:span.start].strip() or not text[span.end:line_end].strip()
+
+
 def candidates_from_matches(document_id: str, text: str, matches) -> list[Candidate]:
     result = []
     boundaries = utf16_boundaries(text)
@@ -42,6 +57,8 @@ def candidates_from_matches(document_id: str, text: str, matches) -> list[Candid
         if start not in boundaries or start + length not in boundaries or length < 0:
             raise ValueError("LanguageTool вернул некорректный диапазон текста; результат не принят.")
         span = Span(boundaries[start], boundaries[start + length])
+        if is_paragraph_indent(text, span):
+            continue
         rule_id = match["rule"]["id"]
         category = CATEGORY_LABELS.get(match["rule"].get("category", {}).get("id", "").upper(), "Другая рекомендация LanguageTool")
         explanation = match["message"]

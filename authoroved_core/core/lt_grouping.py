@@ -60,6 +60,7 @@ UNKNOWN_WORD_CLASSIFICATIONS = (
     ("authorial", "Авторское образование или окказионализм"),
     ("neologism", "Неологизм или новая лексика"),
     ("professional", "Профессиональная или специальная лексика"),
+    ("obscene", "Обсценная (нецензурная) лексика"),
     ("colloquial", "Разговорная или жаргонная форма"),
     ("dialect", "Диалектная форма"),
     ("name", "Имя, название или заимствование"),
@@ -77,6 +78,7 @@ SPELLING_CLASSIFICATIONS = (
 CLASSIFICATION_HINTS = {
     "spelling_error": "нарушение правила написания; вероятно, автор не знает нормы",
     "typo": "случайный сбой набора: пропуск, перестановка, лишняя или соседняя буква",
+    "obscene": "мат: слова с корнями хуй, пизд-, еб-/ёб-, бляд-; не жаргон и не просторечие",
 }
 UNKNOWN_WORD_CLASSIFICATION_LABELS = dict(UNKNOWN_WORD_CLASSIFICATIONS)
 CLASSIFIED_GROUPS = {"unknown_words", "spelling"}

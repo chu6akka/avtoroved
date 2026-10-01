@@ -169,7 +169,9 @@ def test_spelling_candidate_is_marked_as_error_or_typo_in_one_click(window, app)
     window.typo_button.click()
     assert first.status == ReviewStatus.ACCEPTED
     assert first.expert_classification == "typo"
-    assert not window.typo_button.isVisible()  # у грамматики опечатки нет
+    # «Опечатка» есть и у грамматики: LT принимает перестановку букв за другие ошибки.
+    assert window.typo_button.isVisible()
+    assert window.accept_button.text() == "Подтвердить наблюдение"
 
     window.reject_button.click()
     assert window.current_candidate is third
@@ -569,3 +571,31 @@ def test_evidence_hidden_for_non_unknown_candidates(window):
     select(other)
 
     assert window.evidence_label.isHidden()
+
+
+def test_obscene_unknown_word_gets_obscene_classification_suggested(window, app):
+    text_id = window.material.id
+    candidate = Candidate("o1", text_id, "Слово", "Слово не распознано словарём", "Проверить",
+                          "ебучем", Span(3, 9), "MORFOLOGIK_RULE_RU_RU")
+    window.display_result(AnalysisResult(text_id, candidates=[candidate],
+                                         metadata={"languagetool": {"mode": "local-cli"}}))
+    window.show_stage(2)
+
+    assert window.unknown_classification.currentData() == "obscene"
+    assert candidate.expert_classification == "obscene"
+    assert window.accept_button.isEnabled()
+    assert "Корень мата" in window.evidence_label.text()
+
+
+def test_punctuation_candidate_can_be_marked_as_typo(window, app):
+    text_id = window.material.id
+    candidate = Candidate("p1", text_id, "Пунктуация", "Пунктуация", "Пропущена запятая",
+                          "И но", Span(3, 7), "COMMA_RULE")
+    window.display_result(AnalysisResult(text_id, candidates=[candidate],
+                                         metadata={"languagetool": {"mode": "local-cli"}}))
+    window.show_stage(2)
+
+    window.typo_button.click()
+    assert candidate.status == ReviewStatus.ACCEPTED
+    assert candidate.expert_classification == "typo"
+    assert window.candidate_list.item(0).text().startswith("Опечатка")

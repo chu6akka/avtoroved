@@ -2,12 +2,12 @@ import logging
 import json
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import QSize, Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QApplication, QComboBox, QDialog, QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit,
     QListWidget, QListWidgetItem, QMainWindow, QMessageBox, QProgressBar, QLayout,
-    QPushButton, QScrollArea, QSplitter, QStackedWidget, QTextEdit, QToolBox,
+    QPushButton, QScrollArea, QSizePolicy, QSplitter, QStackedWidget, QTextEdit, QToolBox,
     QVBoxLayout, QWidget,
 )
 
@@ -30,6 +30,7 @@ from authoroved_core.core.lt_grouping import (
     group_candidates,
 )
 from authoroved_core.core.models import ReviewStatus, STATUS_LABELS
+from authoroved_core.core.obscene import obscene_root
 from authoroved_core.core.report_service import ReportError, ReportService
 from authoroved_core.metrics.basic import GLOBAL_NOTE, WORD_PATTERN
 from authoroved_core.metrics.morphology import (
@@ -117,6 +118,17 @@ class AnalysisWorker(QThread):
             import logging
             logging.exception("Analysis worker failed")
             self.failed.emit()
+
+
+class GrowingList(QListWidget):
+    """Список с небольшой естественной высотой, который растёт за счёт свободного места.
+
+    Стандартная подсказка размера QListWidget — 192 px; в прокручиваемой панели проверки
+    она выталкивала кнопки решения за нижний край окна обычного размера.
+    """
+
+    def sizeHint(self):
+        return QSize(super().sizeHint().width(), 100)
 
 
 class ResourceDialog(QDialog):
@@ -440,15 +452,18 @@ class MainWindow(QMainWindow):
         self.candidate_group_help.setMinimumHeight(34)
         self.candidate_group_help.setMaximumHeight(42)
         review_layout.addWidget(self.candidate_group_help)
-        self.candidate_list = QListWidget()
+        self.candidate_list = GrowingList()
         self.candidate_list.setWordWrap(True)
-        self.candidate_list.setFixedHeight(100)
+        # Свободное место на большом экране получает список кандидатов, а не карточка:
+        # иначе карточка растягивалась и текст в ней «плавал» посередине пустоты.
+        self.candidate_list.setMinimumHeight(100)
         self.candidate_list.currentItemChanged.connect(self.select_candidate)
         review_layout.addWidget(self.candidate_list, 1)
         review_card = QFrame()
         review_card.setObjectName("reviewCard")
-        review_card.setMinimumHeight(132)
+        review_card.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
         detail_layout = QVBoxLayout(review_card)
+        detail_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         detail_layout.setContentsMargins(12, 8, 12, 8)
         detail_layout.setSpacing(5)
         self.candidate_detail = label("Выберите кандидата в списке.", "candidateDetail")
@@ -1563,7 +1578,7 @@ class MainWindow(QMainWindow):
             category = (
                 UNKNOWN_WORD_CLASSIFICATION_LABELS.get(
                     candidate.expert_classification, candidate.category,
-                ) if candidate_group_key(candidate) in CLASSIFIED_GROUPS else candidate.category
+                ) if candidate.expert_classification else candidate.category
             )
             item = QListWidgetItem(f"{category} · {STATUS_LABELS[candidate.status]}\n«{fragment}»" if fragment else f"{category} · {STATUS_LABELS[candidate.status]}\nМесто возможной вставки")
             item.setData(Qt.ItemDataRole.UserRole, candidate.id)
@@ -1632,7 +1647,7 @@ class MainWindow(QMainWindow):
         candidate = self.current_candidate
         self.set_candidate_enabled(True)
         group = candidate_group_key(candidate)
-        self.typo_button.setVisible(group == "spelling")
+        self.typo_button.setVisible(group != "unknown_words")
         self.accept_button.setToolTip("")
         if group == "unknown_words":
             self.fill_classifications(group)
@@ -1642,8 +1657,18 @@ class MainWindow(QMainWindow):
             self.unknown_classification.blockSignals(False)
             self.unknown_classification.show()
             self.accept_button.setText("Сохранить особую словоформу")
+            root = obscene_root(candidate.fragment)
+            if root and not candidate.expert_classification:
+                # Корень мата — закрытый список, поэтому классификация предлагается
+                # сразу; сохраняет её всё равно эксперт.
+                self.unknown_classification.setCurrentIndex(
+                    self.unknown_classification.findData("obscene"))
             self.accept_button.setEnabled(bool(candidate.expert_classification))
             self.show_word_evidence(candidate)
+            if root:
+                self.evidence_label.setText(
+                    f"Корень мата «{root}» — предложена классификация «обсценная лексика». "
+                    + self.evidence_label.text())
         elif group == "spelling":
             self.accept_button.setText("Ошибка")
             self.accept_button.setToolTip("Орфографическая ошибка: " + CLASSIFICATION_HINTS["spelling_error"])
@@ -1765,9 +1790,13 @@ class MainWindow(QMainWindow):
             self.mark_dirty()
 
     def decide_spelling(self, classification):
-        """«Ошибка» или «Опечатка»: классификация и принятие одним нажатием."""
+        """«Ошибка» или «Опечатка»: классификация и принятие одним нажатием.
+
+        «Опечатка» доступна для любой рекомендации LT: программа может принять
+        перестановку букв («но» вместо «он») за пунктуацию или грамматику.
+        """
         candidate = self.current_candidate
-        if not candidate or candidate_group_key(candidate) != "spelling":
+        if not candidate or candidate_group_key(candidate) == "unknown_words":
             return
         if candidate.expert_classification != classification:
             self.record_event("candidate_classified", {
@@ -1780,10 +1809,19 @@ class MainWindow(QMainWindow):
 
     def accept_current(self):
         """Кнопка «Принять»: для правописания она означает «Ошибка»."""
-        if self.current_candidate and candidate_group_key(self.current_candidate) == "spelling":
+        candidate = self.current_candidate
+        group = candidate_group_key(candidate) if candidate else None
+        if group == "spelling":
             self.decide_spelling("spelling_error")
-        else:
-            self.decide(ReviewStatus.ACCEPTED)
+            return
+        if candidate and group != "unknown_words" and candidate.expert_classification:
+            # Прежде отмечено как опечатка, теперь подтверждено как есть — пометку снимаем.
+            self.record_event("candidate_classified", {
+                "document_id": candidate.document_id, "candidate_id": candidate.id,
+                "from": candidate.expert_classification, "to": "",
+            })
+            candidate.expert_classification = ""
+        self.decide(ReviewStatus.ACCEPTED)
 
     def decide(self, status):
         if self.current_candidate:

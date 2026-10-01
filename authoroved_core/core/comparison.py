@@ -16,7 +16,7 @@ from authoroved_core.core.russian_word_classes import is_service_word
 _DYNAMIC_LEXICAL_PREFIXES = ("Частотные слова:", "Частотные знаменательные слова:")
 _VOLUME_NAMES = {"Символы", "Слова", "Предложения", "Абзацы", "Уникальные словоформы", "Уникальные леммы"}
 _SENTENCE_RATE_NAMES = {"Предложения с вопросительным знаком", "Предложения с восклицательным знаком"}
-_WORD_RATE_NAMES = {"Многоточия"}
+_WORD_RATE_NAMES = {"Многоточия", "Обсценная лексика (мат)"}
 _STANZA_DEPENDENCY_GROUP = "Служебная синтаксическая разметка Stanza"
 _WORD_CLASS_NAMES = {
     "Существительные": {"Существительные", "Имена собственные"},
@@ -218,7 +218,7 @@ def _function_word_metrics(first: AnalysisResult, second: AnalysisResult) -> lis
 def _accepted_key(candidate: Candidate):
     group = candidate_group_key(candidate)
     fragment = " ".join(candidate.fragment.casefold().split())
-    if fragment and group in CLASSIFIED_GROUPS:
+    if fragment and (group in CLASSIFIED_GROUPS or candidate.expert_classification):
         return (group, "fragment", fragment, candidate.expert_classification)
     return (group, "fragment", fragment) if fragment else (group, "rule", candidate.rule_id)
 
