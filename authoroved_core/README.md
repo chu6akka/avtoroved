@@ -277,8 +277,13 @@ Java, LanguageTool и модели Stanza программа находит са
 authoroved_core/.venv/Scripts/python.exe -X utf8 -m authoroved_core.tools.corpus_tokens
 # расчёт (около 6 минут) и отчёт DOCX с таблицами и графиками
 authoroved_core/.venv/Scripts/python.exe -X utf8 -m authoroved_core.tools.coefficient_validity
+authoroved_core/.venv/Scripts/python.exe -X utf8 -m authoroved_core.tools.feature_combination
 authoroved_core/.venv/Scripts/python.exe -X utf8 -m authoroved_core.tools.coefficient_validity_report
 ```
+
+`feature_combination` сравнивает совокупность показателей с лучшим одиночным при
+перекрёстной проверке по авторам (отбор и веса — на одних авторах, оценка — на других);
+его результат отчёт включает отдельным разделом.
 
 Результат: `authoroved_core/artifacts/coefficient_validity.json` и
 `authoroved_core/artifacts/diploma/Проверка_коэффициентов.docx`. Случайность

@@ -145,7 +145,7 @@ def draw_chart(path: Path, title: str, series: dict[str, list[tuple[int, float]]
     image.save(str(path))
 
 
-def build(report: dict, output: Path, charts_dir: Path) -> Path:
+def build(report: dict, output: Path, charts_dir: Path, combination: dict | None = None) -> Path:
     first, second = report["discrimination"], report["length"]
     metrics = first["by_metric"]
     length_metrics = second["by_metric"]
@@ -275,8 +275,10 @@ def build(report: dict, output: Path, charts_dir: Path) -> Path:
                            "автора (пунктир — 20 %)")
     document.add_picture(str(deviation_chart), width=Cm(16))
 
-    document.add_heading("5. Выводы", level=2)
-    for text in conclusions(report, classic):
+    if combination:
+        add_combination_section(document, combination, charts_dir)
+    document.add_heading("6. Выводы" if combination else "5. Выводы", level=2)
+    for text in conclusions(report, classic, combination):
         document.add_paragraph(text, style="List Number")
 
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -284,7 +286,43 @@ def build(report: dict, output: Path, charts_dir: Path) -> Path:
     return output
 
 
-def conclusions(report: dict, classic: list[str]) -> list[str]:
+def add_combination_section(document, combination: dict, charts_dir: Path) -> None:
+    texts, lengths = combination["texts"], combination["lengths"]
+    methods = texts["methods"]
+    document.add_heading("5. Совокупность признаков", level=2)
+    document.add_paragraph(
+        "Проверялось, различает ли авторов набор показателей лучше, чем самый сильный из них. "
+        "Расстояние между текстами по набору — среднее модулей разностей нормированных значений; "
+        "взвешенный вариант — логистическая регрессия по тем же разностям. Чтобы не подогнать "
+        f"набор под данные, авторы делились на {combination['folds']} групп: отбор показателей, "
+        "нормировка и веса считались на четырёх группах, AUC — на пятой, чьих текстов модель не "
+        f"видела; разбиение повторялось {combination['repeats']} раз. Лучший одиночный показатель "
+        "тоже выбирался только по обучающим авторам.")
+    document.add_paragraph("Таблица 4. AUC наборов показателей на текстах, не участвовавших в отборе "
+                           "(в скобках — 95 % разброс по разбиениям) и на фрагментах разного объёма")
+    shown = sorted(lengths, key=int)
+    rows = []
+    for key, item in methods.items():
+        rows.append([item["title"], f"{number(item['auc'])} ({number(item['low'])}–{number(item['high'])})"]
+                    + [number(lengths[length]["methods"].get(key)) for length in shown])
+    table(document, ["Набор", "Целые тексты"] + [f"{length} сл." for length in shown], rows,
+          widths=[6.0, 2.8] + [1.5] * len(shown))
+    series = {methods[key]["title"].split(" (")[0].split(",")[0]: [(int(length), lengths[length]["methods"][key])
+                                                                    for length in shown]
+              for key in ("single", "classic", "all", "logistic") if key in methods}
+    chart = charts_dir / "combination_by_length.png"
+    draw_chart(chart, "Одиночный показатель и совокупность: AUC по объёму фрагмента", series,
+               "AUC", (0.45, 0.9), reference=0.5)
+    document.add_paragraph("Рисунок 3. AUC лучшего одиночного показателя и наборов показателей на "
+                           "фрагментах разного объёма (пунктир — 0,5)")
+    document.add_picture(str(chart), width=Cm(16))
+    document.add_paragraph(
+        "AUC здесь — не доля верных заключений, а вероятность того, что из двух пар текстов "
+        "(одного автора и разных) пара одного автора окажется ближе. Порога, по которому пару "
+        "можно было бы отнести к «одному автору», из этих данных не следует.")
+
+
+def conclusions(report: dict, classic: list[str], combination: dict | None = None) -> list[str]:
     """Выводы из чисел отчёта: формулировки фиксированы, числа подставляются."""
     metrics = report["discrimination"]["by_metric"]
     length = report["length"]["by_metric"]
@@ -342,6 +380,24 @@ def conclusions(report: dict, classic: list[str]) -> list[str]:
             "опираются на редкие формы (деепричастия, краткие прилагательные, числительные) или, как "
             "соотношение времён глагола, зависят от способа повествования, и на текстах обычного "
             "объёма их значения неустойчивы.")
+    if combination:
+        methods, lengths = combination["texts"]["methods"], combination["lengths"]
+        longest = max(lengths, key=int)
+        items.append(
+            f"Совокупность показателей различает авторов заметно лучше любого из них: на текстах, не "
+            f"участвовавших в отборе, AUC лучшего одиночного показателя — {number(methods['single']['auc'])}, "
+            f"среднего по всем показателям — {number(methods['all']['auc'])}, взвешенной модели — "
+            f"{number(methods['logistic']['auc'])}; на фрагментах {longest} слов — "
+            f"{number(lengths[longest]['methods']['single'])} против {number(lengths[longest]['methods']['all'])}. "
+            "Подбор весов устойчивого выигрыша перед простым средним не даёт, а на малом материале "
+            "уступает ему: для эксперта достаточно правила рассматривать показатели в совокупности.")
+        leading = combination["texts"].get("logistic_leading", [])
+        if any("род: женский" in name for name in leading):
+            items.append(
+                "Среди наиболее весомых признаков взвешенной модели — доля глаголов женского рода: в "
+                "русском языке род прошедшего времени при повествовании от первого лица выдаёт пол "
+                "рассказчика. Морфологические показатели, таким образом, несут и диагностические "
+                "сведения об авторе, а не только сведения об идиостиле.")
     items.append(
         "Для экспертной практики: на материалах объёмом в несколько сотен слов морфологические "
         "коэффициенты допустимо приводить лишь как ориентирующие; при различии материалов по теме "
@@ -362,7 +418,10 @@ def main():
                         default=Path("authoroved_core/artifacts/diploma/Проверка_коэффициентов.docx"))
     args = parser.parse_args()
     report = json.loads(args.input.read_text(encoding="utf-8"))
-    path = build(report, args.output, args.output.parent)
+    combination_path = args.input.with_name("feature_combination.json")
+    combination = (json.loads(combination_path.read_text(encoding="utf-8"))
+                   if combination_path.is_file() else None)
+    path = build(report, args.output, args.output.parent, combination)
     print(f"отчёт: {path}")
 
 
