@@ -307,9 +307,10 @@ def add_combination_section(document, combination: dict, charts_dir: Path) -> No
                     + [number(lengths[length]["methods"].get(key)) for length in shown])
     table(document, ["Набор", "Целые тексты"] + [f"{length} сл." for length in shown], rows,
           widths=[6.0, 2.8] + [1.5] * len(shown))
-    series = {methods[key]["title"].split(" (")[0].split(",")[0]: [(int(length), lengths[length]["methods"][key])
-                                                                    for length in shown]
-              for key in ("single", "classic", "all", "logistic") if key in methods}
+    labels = {"single": "Лучший одиночный показатель", "classic": "Классические коэффициенты, равные веса",
+              "all": "Все показатели, равные веса", "logistic": "Все показатели, логистическая регрессия"}
+    series = {labels[key]: [(int(length), lengths[length]["methods"][key]) for length in shown]
+              for key in labels if key in methods}
     chart = charts_dir / "combination_by_length.png"
     draw_chart(chart, "Одиночный показатель и совокупность: AUC по объёму фрагмента", series,
                "AUC", (0.45, 0.9), reference=0.5)
