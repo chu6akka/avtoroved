@@ -265,6 +265,25 @@ Java, LanguageTool и модели Stanza программа находит са
 Параметры CLI LanguageTool проверены по `java -jar languagetool-commandline.jar --help`
 самой локальной поставки; внешние правила `--remoterules` не задаются.
 
+## Пригодность морфологических коэффициентов (для диплома)
+
+На корпусе Pilot 02c (120 авторов × 6 текстов Pikabu) проверяется, какие коэффициенты
+различают авторов (AUC, перестановочный тест, поправка Бенджамини–Хохберга, контроль
+общих тем) и с какого объёма текста их значения устойчивы. Это проверка пригодности
+признаков, а не точности установления автора программой.
+
+```powershell
+# разбор корпуса Stanza с кешем (можно в 4 процесса: --shard 0/4 … 3/4)
+authoroved_core/.venv/Scripts/python.exe -X utf8 -m authoroved_core.tools.corpus_tokens
+# расчёт (около 6 минут) и отчёт DOCX с таблицами и графиками
+authoroved_core/.venv/Scripts/python.exe -X utf8 -m authoroved_core.tools.coefficient_validity
+authoroved_core/.venv/Scripts/python.exe -X utf8 -m authoroved_core.tools.coefficient_validity_report
+```
+
+Результат: `authoroved_core/artifacts/coefficient_validity.json` и
+`authoroved_core/artifacts/diploma/Проверка_коэффициентов.docx`. Случайность
+зафиксирована (seed 20261002), повторный прогон даёт те же числа.
+
 ## Проверка этапов D и инженерный пилот
 
 ```powershell
