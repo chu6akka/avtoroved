@@ -126,6 +126,11 @@ def _java_version_key(path: Path) -> tuple:
 
 def find_java() -> str:
     java_name = "java.exe" if os.name == "nt" else "java"
+    # Java из переносного комплекта (authoroved_core/.local/java) — первой: на ноутбуке
+    # для защиты она может быть единственной.
+    bundled = CORE_ROOT / ".local" / "java" / "bin" / java_name
+    if bundled.is_file():
+        return str(bundled)
     for variable in ("JAVA_HOME", "JRE_HOME", "JDK_HOME"):
         home = os.environ.get(variable)
         if home and (Path(home) / "bin" / java_name).is_file():

@@ -50,3 +50,13 @@ def test_valid_saved_paths_are_kept(tmp_path, monkeypatch):
     loaded = settings.LocalSettings.load()
 
     assert (loaded.stanza_dir, loaded.languagetool_dir, loaded.java_executable) == (str(stanza), str(lt), str(java))
+
+
+def test_bundled_java_from_portable_kit_comes_first(tmp_path, monkeypatch):
+    java = tmp_path / ".local" / "java" / "bin" / ("java.exe" if settings.os.name == "nt" else "java")
+    java.parent.mkdir(parents=True)
+    java.write_bytes(b"exe")
+    monkeypatch.setattr(settings, "CORE_ROOT", tmp_path)
+    monkeypatch.setenv("JAVA_HOME", str(tmp_path / "другая"))
+
+    assert settings.find_java() == str(java)
