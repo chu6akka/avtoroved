@@ -16,41 +16,14 @@ from authoroved_core.core.feature_models import (
 )
 from authoroved_core.core.feature_registry import FeatureRegistry
 from authoroved_core.core.models import Span, Token
-from authoroved_core.core.russian_word_classes import (
-    CLASS_BY_KEY,
-    is_service_word,
-    russian_word_class_key,
-)
-
-
-NOMINAL_POS = {"NOUN", "PROPN", "ADJ", "PRON", "DET", "NUM"}
+from authoroved_core.nlp.parsed_document import ParsedDocument
+from authoroved_core.nlp.russian.adapter import RussianGrammarAdapter
+from authoroved_core.nlp.russian.enums import RussianPOS
+from authoroved_core.nlp.russian.models import RussianParsedDocument
 WORD_POS_EXCLUDED = {"PUNCT", "SYM"}
 WORD_RE = re.compile(r"[^\W\d_]+(?:[-’'][^\W\d_]+)*", re.UNICODE)
 PUNCT_RE = re.compile(r"\.{3,}|…|[.,;:!?—–()]|[\[\]{}]|(?<!\w)-(?!\w)|[«»„“”\"]")
 EMPHATIC_RE = re.compile(r"[!?]{2,}")
-
-CASE_RU = {
-    "Nom": "именительный", "Gen": "родительный", "Dat": "дательный",
-    "Acc": "винительный", "Ins": "творительный", "Loc": "предложный/местный",
-    "Par": "частичный", "Voc": "звательный",
-}
-FEATURE_VALUE_RU = {
-    "Person": {"1": "1-е лицо", "2": "2-е лицо", "3": "3-е лицо"},
-    "Number": {"Sing": "единственное число", "Plur": "множественное число"},
-    "PronType": {
-        "Prs": "личные", "Rel": "относительные", "Int": "вопросительные",
-        "Dem": "указательные", "Neg": "отрицательные", "Ind": "неопределённые",
-        "Tot": "определительные", "Rcp": "взаимные",
-    },
-    "Tense": {"Past": "прошедшее", "Pres": "настоящее", "Fut": "будущее"},
-    "Aspect": {"Perf": "совершенный вид", "Imp": "несовершенный вид"},
-    "Mood": {"Ind": "изъявительное", "Imp": "повелительное", "Cnd": "условное"},
-}
-FEATURE_NAME_RU = {
-    "Person": "лицо", "Number": "число", "PronType": "тип местоименного слова",
-    "Tense": "время", "Aspect": "вид", "Mood": "наклонение",
-}
-
 
 def _words(tokens: list[Token]) -> list[Token]:
     return [token for token in tokens if token.pos not in WORD_POS_EXCLUDED
@@ -99,35 +72,57 @@ def _minimum_ok(definition: FeatureDefinition, word_count: int) -> bool:
     return definition.minimum_words is None or word_count >= definition.minimum_words
 
 
-def _lex_001(definition: FeatureDefinition, text: str, words: list[Token]):
-    selected = [token for token in words if is_service_word(token)]
-    counts = Counter(token.text.casefold() for token in selected)
+def _lex_001(definition: FeatureDefinition, text: str,
+             russian_document: RussianParsedDocument):
+    words = russian_document.word_annotations
+    selected = [
+        annotation for annotation in words
+        if annotation.russian_category in RUSSIAN_SERVICE_CATEGORIES
+    ]
+    counts = Counter(annotation.source_text.casefold() for annotation in selected)
     normalized = {form: _rate(count, len(words), 1000) for form, count in sorted(counts.items())}
+    evidence = tuple(
+        FeatureEvidence(annotation.source_text, annotation.source_span,
+                        annotation.source_text.casefold())
+        for annotation in selected
+        if annotation.source_span is not None
+        and annotation.source_span.valid_for(text)
+        and text[annotation.source_span.start:annotation.source_span.end]
+        == annotation.source_text
+    )
     return _observation(
         definition,
         {"word_count": len(words), "counts": dict(sorted(counts.items()))},
         {"per_1000_words": normalized},
-        _token_evidence(selected, text, lambda token: token.text.casefold()),
-        ("Части речи назначены Stanza; отсутствие словоформы не является различием без проверки возможности её проявления.",),
+        evidence,
+        ("Служебная русская категория получена Russian Grammar Adapter; отсутствие "
+         "словоформы не является различием без проверки возможности её проявления.",),
     )
 
 
-def _lex_002(definition: FeatureDefinition, text: str, words: list[Token]):
-    selected = [token for token in words if token.pos in {"PRON", "DET"}]
-    forms = Counter(token.text.casefold() for token in selected)
-    profiles: dict[str, Counter] = {name: Counter() for name in ("Person", "Number", "PronType")}
-    for token in selected:
+def _lex_002(definition: FeatureDefinition, text: str,
+             russian_document: RussianParsedDocument):
+    words = russian_document.word_annotations
+    selected = [
+        annotation for annotation in words
+        if annotation.russian_category in RUSSIAN_PRONOUN_CATEGORIES
+    ]
+    forms = Counter(annotation.source_text.casefold() for annotation in selected)
+    profiles: dict[str, Counter] = {
+        name: Counter() for name in RUSSIAN_PRONOUN_FEATURE_NAMES
+    }
+    for annotation in selected:
         for name in profiles:
-            value = token.feats.get(name)
+            value = annotation.russian_features.get(name)
             if value:
-                profiles[name][value] += 1
+                profiles[name][RUSSIAN_PRONOUN_FEATURE_VALUES.get(name, {}).get(value, value)] += 1
     normalized = {
         "словоформы_на_1000_слов": {
             form: _rate(count, len(words), 1000) for form, count in sorted(forms.items())
         },
         "характеристики_на_1000_слов": {
-            FEATURE_NAME_RU[name]: {
-                FEATURE_VALUE_RU.get(name, {}).get(value, value): _rate(count, len(words), 1000)
+            name: {
+                value: _rate(count, len(words), 1000)
                 for value, count in sorted(counts.items())
             } for name, counts in profiles.items()
         },
@@ -136,18 +131,27 @@ def _lex_002(definition: FeatureDefinition, text: str, words: list[Token]):
         definition,
         {"word_count": len(words), "forms": dict(sorted(forms.items())),
          "features": {
-             FEATURE_NAME_RU[name]: {
-                 FEATURE_VALUE_RU.get(name, {}).get(value, value): count
-                 for value, count in sorted(counts.items())
-             } for name, counts in profiles.items()
+             name: dict(sorted(counts.items())) for name, counts in profiles.items()
          }},
         normalized,
-        _token_evidence(selected, text, lambda token: ", ".join(
-            f"{FEATURE_NAME_RU[key]}: {FEATURE_VALUE_RU[key].get(token.feats[key], token.feats[key])}"
-            for key in ("Person", "Number", "PronType")
-            if key in token.feats
-        )),
-        ("Грамматические характеристики местоимений назначены Stanza и требуют проверки экспертом.",),
+        tuple(
+            FeatureEvidence(
+                annotation.source_text,
+                annotation.source_span,
+                ", ".join(
+                    f"{name}: {RUSSIAN_PRONOUN_FEATURE_VALUES.get(name, {}).get(value, value)}"
+                    for name in RUSSIAN_PRONOUN_FEATURE_NAMES
+                    if (value := annotation.russian_features.get(name))
+                ),
+            )
+            for annotation in selected
+            if annotation.source_span is not None
+            and annotation.source_span.valid_for(text)
+            and text[annotation.source_span.start:annotation.source_span.end]
+            == annotation.source_text
+        ),
+        ("Местоименные категории и характеристики получены Russian Grammar Adapter; "
+         "предметная квалификация остаётся доступна для проверки экспертом.",),
     )
 
 
@@ -165,24 +169,109 @@ def _lex_005(definition: FeatureDefinition, text: str, words: list[Token]):
     )
 
 
-def _mor_001(definition: FeatureDefinition, text: str, words: list[Token]):
-    counts = Counter(russian_word_class_key(token) for token in words)
-    display_counts = dict(sorted(
-        (CLASS_BY_KEY[key].title, count) for key, count in counts.items()
-    ))
-    normalized = {title: _rate(count, len(words), 100)
+RUSSIAN_POS_GROUPS = {
+    RussianPOS.NOUN: "Существительные",
+    RussianPOS.PROPER_NOUN: "Существительные",
+    RussianPOS.ADJECTIVE: "Прилагательные",
+    RussianPOS.VERB_FINITE: "Глаголы",
+    RussianPOS.INFINITIVE: "Глаголы",
+    RussianPOS.PARTICIPLE: "Глаголы",
+    RussianPOS.DEEPRICHASTIE: "Глаголы",
+    RussianPOS.PRONOUN: "Местоименные слова",
+    RussianPOS.PRONOMINAL_WORD: "Местоименные слова",
+    RussianPOS.NUMERAL: "Числительные",
+    RussianPOS.ADVERB: "Наречия",
+    RussianPOS.PREPOSITION: "Предлоги",
+    RussianPOS.CONJUNCTION_COORDINATING: "Союзы",
+    RussianPOS.CONJUNCTION_SUBORDINATING: "Союзы",
+    RussianPOS.PARTICLE: "Частицы",
+    RussianPOS.INTERJECTION: "Междометия",
+    RussianPOS.UNKNOWN: "Не классифицировано",
+}
+
+RUSSIAN_NOMINAL_CATEGORIES = {
+    RussianPOS.NOUN,
+    RussianPOS.PROPER_NOUN,
+    RussianPOS.ADJECTIVE,
+    RussianPOS.PRONOUN,
+    RussianPOS.PRONOMINAL_WORD,
+    RussianPOS.NUMERAL,
+}
+
+RUSSIAN_VERB_CATEGORIES = {
+    RussianPOS.VERB_FINITE,
+    RussianPOS.INFINITIVE,
+    RussianPOS.PARTICIPLE,
+    RussianPOS.DEEPRICHASTIE,
+}
+
+RUSSIAN_VERB_FEATURE_NAMES = ("время", "лицо", "вид", "наклонение")
+RUSSIAN_VERB_FEATURE_VALUES = {
+    "лицо": {"первое": "1-е лицо", "второе": "2-е лицо", "третье": "3-е лицо"},
+    "вид": {"совершенный": "совершенный вид", "несовершенный": "несовершенный вид"},
+}
+
+RUSSIAN_SERVICE_CATEGORIES = {
+    RussianPOS.PREPOSITION,
+    RussianPOS.CONJUNCTION_COORDINATING,
+    RussianPOS.CONJUNCTION_SUBORDINATING,
+    RussianPOS.PARTICLE,
+}
+
+RUSSIAN_PRONOUN_CATEGORIES = {
+    RussianPOS.PRONOUN,
+    RussianPOS.PRONOMINAL_WORD,
+}
+RUSSIAN_PRONOUN_FEATURE_NAMES = (
+    "лицо", "число", "тип местоименного слова",
+)
+RUSSIAN_PRONOUN_FEATURE_VALUES = {
+    "лицо": {"первое": "1-е лицо", "второе": "2-е лицо", "третье": "3-е лицо"},
+    "число": {"единственное": "единственное число", "множественное": "множественное число"},
+}
+
+
+def _mor_001(definition: FeatureDefinition, text: str,
+             russian_document: RussianParsedDocument):
+    annotations = russian_document.word_annotations
+    counts = Counter(RUSSIAN_POS_GROUPS[item.russian_category] for item in annotations)
+    display_counts = dict(sorted(counts.items()))
+    normalized = {title: _rate(count, len(annotations), 100)
                   for title, count in display_counts.items()}
+    evidence = tuple(
+        FeatureEvidence(item.source_text, item.source_span,
+                        RUSSIAN_POS_GROUPS[item.russian_category])
+        for item in annotations
+        if item.source_span is not None and item.source_span.valid_for(text)
+        and text[item.source_span.start:item.source_span.end] == item.source_text
+    )
     return _observation(
-        definition, {"word_count": len(words), "counts": dict(sorted(display_counts.items()))},
+        definition, {"word_count": len(annotations), "counts": display_counts},
         {"percent_of_words": normalized},
-        _token_evidence(words, text, lambda token: CLASS_BY_KEY[russian_word_class_key(token)].title),
-        ("Классы укрупнены для русскоязычного представления; это автоматическая, а не ручная разметка.",),
+        evidence,
+        ("Классы получены Russian Grammar Adapter из неизменённой разметки Stanza; "
+         "неоднозначные случаи остаются отдельными случаями экспертной проверки.",),
     )
 
 
-def _mor_003(definition: FeatureDefinition, text: str, words: list[Token]):
-    selected = [token for token in words if token.pos in NOMINAL_POS and token.feats.get("Case")]
-    counts = Counter(CASE_RU.get(token.feats["Case"], token.feats["Case"]) for token in selected)
+def _mor_003(definition: FeatureDefinition, text: str,
+             russian_document: RussianParsedDocument):
+    words = russian_document.word_annotations
+    selected = [
+        annotation for annotation in words
+        if annotation.russian_category in RUSSIAN_NOMINAL_CATEGORIES
+        and annotation.russian_features.get("падеж")
+    ]
+    counts = Counter(annotation.russian_features["падеж"] for annotation in selected)
+    evidence = tuple(
+        FeatureEvidence(annotation.source_text, annotation.source_span,
+                        "падеж: " + annotation.russian_features["падеж"])
+        for annotation in selected
+        if annotation.source_span is not None
+        and annotation.source_span.valid_for(text)
+        and text[annotation.source_span.start:annotation.source_span.end]
+        == annotation.source_text
+    )
     return _observation(
         definition,
         {"word_count": len(words), "case_marked_nominals": len(selected),
@@ -197,45 +286,63 @@ def _mor_003(definition: FeatureDefinition, text: str, words: list[Token]):
                 for value, count in sorted(counts.items())
             },
         },
-        _token_evidence(selected, text, lambda token: (
-            "падеж: " + CASE_RU.get(token.feats["Case"], token.feats["Case"])
-        )),
-        ("Падеж назначен Stanza; формы без метки Case не включаются в знаменатель падежного профиля.",),
+        evidence,
+        ("Падеж перенесён Russian Grammar Adapter из неизменённой разметки Stanza; "
+         "формы без установленного падежа не включаются в знаменатель профиля.",),
     )
 
 
-def _mor_004(definition: FeatureDefinition, text: str, words: list[Token]):
-    selected = [token for token in words if token.pos in {"VERB", "AUX"}]
-    profiles: dict[str, Counter] = {name: Counter() for name in ("Tense", "Person", "Aspect", "Mood")}
-    for token in selected:
+def _mor_004(definition: FeatureDefinition, text: str,
+             russian_document: RussianParsedDocument):
+    words = russian_document.word_annotations
+    selected = [
+        annotation for annotation in words
+        if annotation.russian_category in RUSSIAN_VERB_CATEGORIES
+    ]
+    profiles: dict[str, Counter] = {
+        name: Counter() for name in RUSSIAN_VERB_FEATURE_NAMES
+    }
+    for annotation in selected:
         for name in profiles:
-            if token.feats.get(name):
-                profiles[name][token.feats[name]] += 1
+            value = annotation.russian_features.get(name)
+            if value:
+                profiles[name][RUSSIAN_VERB_FEATURE_VALUES.get(name, {}).get(value, value)] += 1
     normalized = {}
     denominators = {}
     for name, counts in profiles.items():
         denominator = sum(counts.values())
         denominators[name] = denominator
-        normalized[FEATURE_NAME_RU[name]] = {
-            FEATURE_VALUE_RU.get(name, {}).get(value, value): _rate(count, denominator, 100)
+        normalized[name] = {
+            value: _rate(count, denominator, 100)
             for value, count in sorted(counts.items())
         }
+    evidence = tuple(
+        FeatureEvidence(
+            annotation.source_text,
+            annotation.source_span,
+            ", ".join(
+                f"{name}: {RUSSIAN_VERB_FEATURE_VALUES.get(name, {}).get(value, value)}"
+                for name in RUSSIAN_VERB_FEATURE_NAMES
+                if (value := annotation.russian_features.get(name))
+            ),
+        )
+        for annotation in selected
+        if annotation.source_span is not None
+        and annotation.source_span.valid_for(text)
+        and text[annotation.source_span.start:annotation.source_span.end]
+        == annotation.source_text
+    )
     return _observation(
         definition,
         {"word_count": len(words), "verb_forms": len(selected),
-         "denominators": {FEATURE_NAME_RU[name]: value for name, value in denominators.items()},
+         "denominators": denominators,
          "counts": {
-             FEATURE_NAME_RU[name]: {
-                 FEATURE_VALUE_RU.get(name, {}).get(value, value): count
-                 for value, count in sorted(counts.items())
-             } for name, counts in profiles.items()
+             name: dict(sorted(counts.items())) for name, counts in profiles.items()
          }},
         {"percent_within_each_marked_feature": normalized},
-        _token_evidence(selected, text, lambda token: ", ".join(
-            f"{FEATURE_NAME_RU[name]}: {FEATURE_VALUE_RU[name].get(token.feats[name], token.feats[name])}"
-            for name in profiles if name in token.feats
-        )),
-        ("Каждая доля рассчитывается только среди глагольных форм с соответствующей меткой Stanza.",),
+        evidence,
+        ("Глагольные категории и характеристики получены Russian Grammar Adapter; "
+         "каждая доля рассчитывается только среди форм с установленной характеристикой.",),
     )
 
 
@@ -341,32 +448,54 @@ CALCULATORS = {
 class FeatureExtractionService:
     """Вычисляет зарегистрированные AUTO-показатели без экспертного вывода."""
 
-    def __init__(self, registry: FeatureRegistry):
+    def __init__(self, registry: FeatureRegistry,
+                 grammar_adapter: RussianGrammarAdapter | None = None):
         self.registry = registry
+        self.grammar_adapter = grammar_adapter or RussianGrammarAdapter()
 
     @classmethod
-    def from_default_registry(cls) -> "FeatureExtractionService":
-        return cls(FeatureRegistry.load())
+    def from_default_registry(cls, *,
+                              grammar_adapter: RussianGrammarAdapter | None = None) -> "FeatureExtractionService":
+        return cls(FeatureRegistry.load(), grammar_adapter=grammar_adapter)
 
-    def analyze_object(self, document: Document, tokens: list[Token]) -> list[FeatureObservation]:
+    def analyze_object(self, document: Document, tokens: list[Token], *,
+                       russian_document: RussianParsedDocument | None = None) -> list[FeatureObservation]:
         words = _words(tokens)
+        if russian_document is None:
+            russian_document = self.grammar_adapter.adapt(
+                ParsedDocument.from_tokens(document.text, tokens)
+            )
         observations = []
         for definition in self.registry.by_mode(AutomationMode.AUTO):
             if definition.id not in CALCULATORS:
                 raise ValueError(f"Для {definition.id} нет вычислителя.")
-            if not words:
+            word_count = (len(russian_document.word_annotations)
+                          if definition.id in {"LEX_001", "LEX_002", "MOR_001", "MOR_003", "MOR_004"}
+                          else len(words))
+            if not word_count:
                 observations.append(_insufficient(
                     definition, 0,
                     "Нет слов с проверенными координатами Stanza; показатель не вычислен.",
                 ))
-            elif not _minimum_ok(definition, len(words)):
+            elif not _minimum_ok(definition, word_count):
                 observations.append(_insufficient(
-                    definition, len(words),
+                    definition, word_count,
                     f"Для алгоритма нужно не менее {definition.minimum_words} слов; "
                     "это техническое условие вычисления, а не норматив пригодности.",
                 ))
             else:
-                observation = CALCULATORS[definition.id](definition, document.text, words)
+                if definition.id == "LEX_001":
+                    observation = _lex_001(definition, document.text, russian_document)
+                elif definition.id == "LEX_002":
+                    observation = _lex_002(definition, document.text, russian_document)
+                elif definition.id == "MOR_001":
+                    observation = _mor_001(definition, document.text, russian_document)
+                elif definition.id == "MOR_003":
+                    observation = _mor_003(definition, document.text, russian_document)
+                elif definition.id == "MOR_004":
+                    observation = _mor_004(definition, document.text, russian_document)
+                else:
+                    observation = CALCULATORS[definition.id](definition, document.text, words)
                 self._verify_evidence(document.text, observation)
                 observations.append(observation)
         return observations

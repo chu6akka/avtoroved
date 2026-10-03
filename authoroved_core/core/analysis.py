@@ -8,6 +8,8 @@ from authoroved_core.core.document import Document
 from authoroved_core.core.models import AnalysisResult
 from authoroved_core.metrics.basic import calculate_metrics, structural_metrics
 from authoroved_core.nlp.languagetool_adapter import LanguageToolAdapter
+from authoroved_core.nlp.parsed_document import ParsedDocument
+from authoroved_core.nlp.russian.adapter import RussianGrammarAdapter
 from authoroved_core.nlp.settings import LocalSettings
 from authoroved_core.nlp.stanza_adapter import StanzaAdapter
 
@@ -16,7 +18,10 @@ class AnalysisService:
     def __init__(self, settings: LocalSettings):
         self.stanza = StanzaAdapter(settings.stanza_dir)
         self.lt = LanguageToolAdapter(settings)
-        self.features = FeatureExtractionService.from_default_registry()
+        self.grammar = RussianGrammarAdapter()
+        self.features = FeatureExtractionService.from_default_registry(
+            grammar_adapter=self.grammar,
+        )
 
     def analyze(self, document: Document, progress=lambda message: None) -> AnalysisResult:
         started = perf_counter()
@@ -32,11 +37,23 @@ class AnalysisService:
             logging.exception("Stanza analysis failed")
             result.errors.append("Stanza: анализ не выполнен. Проверьте локальные модели в настройках. Подробности записаны в технический журнал.")
         try:
-            result.feature_observations = self.features.analyze_object(document, result.tokens)
+            russian_document = self.grammar.adapt(
+                ParsedDocument.from_tokens(document.text, result.tokens)
+            )
+            result.feature_observations = self.features.analyze_object(
+                document, result.tokens, russian_document=russian_document,
+            )
             result.metadata["feature_registry"] = {
                 "id": self.features.registry.registry_id,
                 "version": self.features.registry.version,
                 "status": self.features.registry.status,
+            }
+            result.metadata["russian_grammar_adapter"] = {
+                "version": russian_document.adapter_version,
+                "rules_version": russian_document.rules_version,
+                "rules_sha256": russian_document.rules_hash,
+                "ambiguity_cases": len(russian_document.ambiguity_cases),
+                "constructions": len(russian_document.constructions),
             }
         except Exception:
             logging.exception("AUTO feature extraction failed")

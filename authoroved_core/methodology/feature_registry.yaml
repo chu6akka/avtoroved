@@ -1,6 +1,6 @@
 registry:
   id: authoroved-core-auto
-  version: "0.1.0"
+  version: "0.2.0"
   status: research_engineering_profile
   language: ru
   notice: >-
@@ -15,8 +15,8 @@ features:
     name_ru: Частоты служебных слов
     group: Лексика
     automation_mode: AUTO
-    definition: Частоты словоформ, отнесённых автоматической разметкой к предлогам, союзам или частицам.
-    criteria: [буквенный токен, русскоязычная группа предлогов, союзов или частиц]
+    definition: Частоты словоформ, отнесённых Russian Grammar Adapter к предлогам, союзам или частицам русского представления.
+    criteria: [буквенная единица, русская категория предлога, союза или частицы]
     exclusions: [пунктуация, символы, числовые токены, местоименные и глагольные формы]
     unit: количество и употребления на 1000 слов
     normalization: count / all_words * 1000
@@ -24,28 +24,30 @@ features:
     minimum_volume_status: engineering_only
     evidence_method: все реализации словоформы с точными координатами
     dependency_group: lexical_function_distribution
-    method_version: auto-0.1.0
+    method_version: auto-0.2.0
     sources:
       - {title: "Методика Минюста", locator: "с. 13", role: "методический контекст частот служебных слов", verification: "checked_local_primary"}
       - {title: "Universal Dependencies v2 / Stanza", locator: "UPOS: ADP, CCONJ, SCONJ, PART", role: "техническая разметка с русскоязычным укрупнением", verification: "checked_technical_primary"}
+      - {title: "Russian Grammar Adapter", locator: "rules 0.1.1", role: "трассируемое выделение русских служебных категорий", verification: "internal_versioned_mapping"}
 
   - id: LEX_002
     name_ru: Профиль местоименных слов
     group: Лексика
     automation_mode: AUTO
-    definition: Распределение местоименных слов по словоформам и доступным грамматическим характеристикам лица, числа и типа.
-    criteria: [буквенный токен с технической меткой PRON или DET]
+    definition: Распределение местоименных слов русского представления по словоформам и доступным характеристикам лица, числа и типа.
+    criteria: [буквенная единица с русской категорией местоимения или местоименного слова]
     exclusions: [токены без букв]
     unit: количество и употребления на 1000 слов
     normalization: count / all_words * 1000
     minimum_words: 1
     minimum_volume_status: engineering_only
-    evidence_method: все местоимения с точными координатами и метками Stanza
+    evidence_method: все местоименные единицы с координатами и русскими названиями характеристик
     dependency_group: lexical_pronoun_distribution
-    method_version: auto-0.1.0
+    method_version: auto-0.2.0
     sources:
       - {title: "Методика Минюста", locator: "с. 22", role: "общая рамка частных языковых признаков", verification: "checked_local_primary"}
       - {title: "Universal Dependencies v2 / Stanza", locator: "UPOS PRON, DET; features Person, Number, PronType", role: "техническая разметка, объединённая в русскоязычную группу", verification: "checked_technical_primary"}
+      - {title: "Russian Grammar Adapter", locator: "adapter 0.1.2; rules 0.1.1", role: "трассируемая русская интерпретация местоименных слов и характеристик", verification: "internal_versioned_mapping"}
 
   - id: LEX_005
     name_ru: Лексическое разнообразие MATTR
@@ -69,8 +71,8 @@ features:
     name_ru: Укрупнённые классы слов
     group: Морфология
     automation_mode: AUTO
-    definition: Распределение слов по русскоязычным укрупнённым группам на основе технических меток Stanza.
-    criteria: [буквенный токен с UPOS]
+    definition: Распределение слов по укрупнённым группам Russian Grammar Adapter, полученным из сохранённой технической разметки Stanza.
+    criteria: [буквенная единица с русской грамматической интерпретацией либо явным статусом неоднозначности]
     exclusions: [PUNCT, SYM, чисто числовые токены]
     unit: количество и доля слов в процентах
     normalization: count / all_words * 100
@@ -78,17 +80,18 @@ features:
     minimum_volume_status: engineering_only
     evidence_method: все токены каждой укрупнённой группы с точными координатами
     dependency_group: morphology_distribution
-    method_version: auto-0.1.0
+    method_version: auto-0.2.0
     sources:
       - {title: "Методика Минюста", locator: "с. 20–22", role: "грамматические признаки в раздельном исследовании", verification: "checked_local_primary"}
       - {title: "Universal Dependencies v2 / Stanza", locator: "UPOS; NOUN+PROPN, VERB+AUX, PRON+DET, CCONJ+SCONJ", role: "техническая основа русскоязычного укрупнения", verification: "checked_technical_primary"}
+      - {title: "Russian Grammar Adapter", locator: "rules 0.1.1", role: "трассируемая предметная интерпретация технической разметки", verification: "internal_versioned_mapping"}
 
   - id: MOR_003
     name_ru: Профиль падежей именных форм
     group: Морфология
     automation_mode: AUTO
-    definition: Распределение значений Case среди именных форм, для которых Stanza указала падеж.
-    criteria: [UPOS NOUN, PROPN, ADJ, PRON, DET или NUM, наличие Case]
+    definition: Распределение падежей среди именных форм по русскому представлению Russian Grammar Adapter.
+    criteria: [именная русская категория, наличие интерпретированного признака падежа]
     exclusions: [формы без значения Case]
     unit: количество, доля размеченных именных форм и употребления на 1000 слов
     normalization: count / case_marked_nominals * 100; count / all_words * 1000
@@ -96,28 +99,30 @@ features:
     minimum_volume_status: engineering_only
     evidence_method: все падежно размеченные именные формы с координатами
     dependency_group: morphology_distribution
-    method_version: auto-0.1.0
+    method_version: auto-0.2.0
     sources:
       - {title: "Методика Минюста", locator: "с. 20–22", role: "общая рамка грамматических признаков", verification: "checked_local_primary"}
       - {title: "Universal Dependencies v2 / Stanza", locator: "feature Case", role: "техническая разметка", verification: "checked_technical_primary"}
+      - {title: "Russian Grammar Adapter", locator: "rules 0.1.1", role: "трассируемая предметная интерпретация падежа", verification: "internal_versioned_mapping"}
 
   - id: MOR_004
     name_ru: Профиль глагольных форм
     group: Морфология
     automation_mode: AUTO
-    definition: Распределение времени, лица, вида и наклонения среди форм, отображаемых в программе как глаголы.
-    criteria: [глагольная форма; технические метки VERB и AUX объединяются и не образуют в интерфейсе двух частей речи]
+    definition: Распределение времени, лица, вида и наклонения среди глагольных форм русского представления Russian Grammar Adapter.
+    criteria: [личная форма глагола, инфинитив, причастие или деепричастие; форма быть во вспомогательной функции остаётся глагольной формой]
     exclusions: [неразмеченная характеристика не считается её отсутствием]
     unit: количество и доля размеченных глагольных форм в процентах
     normalization: count / verb_forms_with_corresponding_feature * 100
     minimum_words: 1
     minimum_volume_status: engineering_only
-    evidence_method: все глагольные формы с координатами и метками Stanza
+    evidence_method: все русские глагольные формы с координатами и интерпретированными характеристиками
     dependency_group: morphology_distribution
-    method_version: auto-0.1.0
+    method_version: auto-0.2.0
     sources:
       - {title: "Методика Минюста", locator: "с. 20–22", role: "общая рамка грамматических признаков", verification: "checked_local_primary"}
       - {title: "Universal Dependencies v2 / Stanza", locator: "features Tense, Person, Aspect, Mood", role: "техническая разметка", verification: "checked_technical_primary"}
+      - {title: "Russian Grammar Adapter", locator: "rules 0.1.1", role: "трассируемая предметная интерпретация глагольных форм", verification: "internal_versioned_mapping"}
 
   - id: SYN_001
     name_ru: Длина предложений
