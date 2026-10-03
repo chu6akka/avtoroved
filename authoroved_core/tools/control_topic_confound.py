@@ -28,7 +28,7 @@ import json
 from pathlib import Path
 
 from authoroved_core.tools.validate_features_on_blind_pairs import (
-    DIFFERENT, SAME, separation, significance_threshold, summarize,
+    DIFFERENT, SAME, family_threshold, separation, significance_threshold, summarize,
 )
 
 
@@ -95,6 +95,7 @@ def compare(before: dict, after: dict) -> dict:
 def control(features: dict, topics: dict, max_overlap: float = 0.0) -> dict:
     overlaps = overlap_by_case(topics)
     kept, unknown = select_topic_neutral(features, overlaps, max_overlap)
+    by_feature = compare(features.get("by_feature", {}), summarize(kept))
     same = sum(case["relation"] == SAME for case in kept)
     different = sum(case["relation"] == DIFFERENT for case in kept)
     return {
@@ -110,7 +111,9 @@ def control(features: dict, topics: dict, max_overlap: float = 0.0) -> dict:
         "topic_separation_before": topics.get("topic_separation"),
         "topic_separation_after": residual_topic_separation(kept, overlaps),
         "significance_threshold": significance_threshold(same, different),
-        "by_feature": compare(features.get("by_feature", {}), summarize(kept)),
+        "family_threshold": family_threshold(same, different, len(by_feature)),
+        "tests": len(by_feature),
+        "by_feature": by_feature,
         "measure": ("Та же мера, что и в проверке признаков, на подвыборке, где "
                     "тема групп не различает. Порогов отсюда не выводится."),
     }
@@ -123,7 +126,9 @@ def print_report(report: dict) -> None:
         print(f"пар с неизвестными метками, исключено: {report['pairs_without_known_tags']}")
     print(f"тематическое разделение было {report['topic_separation_before']}, "
           f"стало {report['topic_separation_after']}")
-    print(f"порог случайного разброса на этой подвыборке: {report['significance_threshold']}\n")
+    print(f"порог случайного разброса на этой подвыборке: {report['significance_threshold']}")
+    print(f"он же с поправкой на {report['tests']} одновременных проверок: "
+          f"{report['family_threshold']}\n")
     print(f"  {'признак':10} {'все пары':>10} {'без общих тем':>15}")
     for name, row in report["by_feature"].items():
         after = row["separation_topic_neutral"]
@@ -131,6 +136,14 @@ def print_report(report: dict) -> None:
                                          else "   <-- порог не пройден")
         print(f"  {name:10} {str(row['separation_all_pairs'] or '—'):>10} "
               f"{str(after or '—'):>15}{mark}")
+    survived = [name for name, row in report["by_feature"].items()
+                if row["above_chance_topic_neutral"]]
+    strict = [name for name in survived
+              if report["family_threshold"] is not None
+              and report["by_feature"][name]["separation_topic_neutral"]
+              >= report["family_threshold"]]
+    print(f"\nвыше одиночного порога: {', '.join(survived) if survived else 'ни одного'}")
+    print(f"выше строгого порога: {', '.join(strict) if strict else 'ни одного'}")
     print("\nЧто осталось выше порога, то теме приписать нельзя. "
           "Это проверка пригодности\nпризнаков, а не вывод об авторстве: "
           "порогов отсюда не выводится.")

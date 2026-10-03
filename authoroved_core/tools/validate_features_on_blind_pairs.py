@@ -99,6 +99,31 @@ def significance_threshold(same_count: int, different_count: int) -> float | Non
     return round(0.5 + 1.96 * error, 4)
 
 
+# Квантили нормального распределения для двустороннего уровня 0,05, делённого
+# на число одновременных проверок. Больше десяти признаков реестр не содержит.
+_FAMILY_QUANTILE = {1: 1.960, 2: 2.241, 3: 2.394, 4: 2.498, 5: 2.576,
+                    6: 2.638, 7: 2.690, 8: 2.734, 9: 2.773, 10: 2.807}
+
+
+def family_threshold(same_count: int, different_count: int, tests: int) -> float | None:
+    """Порог с поправкой на то, что признаков проверяется несколько сразу.
+
+    При десяти проверках на уровне 0,05 примерно раз в два прогона какой-то
+    признак превысит одиночный порог, ничего собой не представляя. Поэтому
+    рядом с одиночным порогом сообщается строгий: уровень 0,05, делённый на
+    число проверенных признаков.
+
+    Одиночный порог отвечает на вопрос об одном заранее названном признаке,
+    строгий — о таблице целиком. Который из них уместен, решает постановка
+    вопроса, поэтому сообщаются оба.
+    """
+    if not same_count or not different_count or tests < 1:
+        return None
+    quantile = _FAMILY_QUANTILE.get(min(tests, 10), 2.807)
+    error = sqrt((same_count + different_count + 1) / (12 * same_count * different_count))
+    return round(0.5 + quantile * error, 4)
+
+
 def _rows(path: Path) -> list[dict]:
     with path.open(encoding="utf-8-sig", newline="") as handle:
         return list(csv.DictReader(handle))

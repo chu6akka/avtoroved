@@ -9,7 +9,7 @@ from authoroved_core.core.feature_models import (
 from authoroved_core.core.models import AnalysisResult
 from authoroved_core.tools.validate_features_on_blind_pairs import (
     feature_distance, flatten_numeric, observations_by_feature, read_cases,
-    run, separation, significance_threshold, summarize,
+    family_threshold, run, separation, significance_threshold, summarize,
 )
 
 
@@ -65,9 +65,18 @@ def test_eighty_pairs_against_eighty_lower_the_threshold_to_point_five_nine():
     assert significance_threshold(80, 80) == 0.5897
 
 
+def test_the_strict_threshold_accounts_for_ten_features_tested_at_once():
+    """При десяти проверках одиночного порога для суждения о таблице мало."""
+    assert family_threshold(12, 37, 1) == significance_threshold(12, 37)
+    assert family_threshold(12, 37, 10) == 0.7719
+    assert family_threshold(12, 37, 10) > significance_threshold(12, 37)
+
+
 def test_threshold_is_absent_without_both_groups():
     assert significance_threshold(0, 10) is None
     assert significance_threshold(10, 0) is None
+    assert family_threshold(0, 10, 5) is None
+    assert family_threshold(10, 10, 0) is None
 
 
 def test_summary_marks_a_value_the_sample_cannot_support():
