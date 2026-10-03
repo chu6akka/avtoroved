@@ -25,7 +25,8 @@ FREQUENCY = Path("avtoroved-main/data/freq/freqrnc.json")
 MARKER = "АВТОРОВЕД_КОМПЛЕКТ.txt"
 CPU_INDEX = "https://download.pytorch.org/whl/cpu"
 
-INSTALL_PS1 = r'''$ErrorActionPreference = 'Stop'
+INSTALL_PS1 = r'''param([switch]$NoShortcut)
+$ErrorActionPreference = 'Stop'
 $kit = $PSScriptRoot
 $core = Join-Path $kit 'app\authoroved_core'
 Write-Host 'Авторовед Core — установка без интернета' -ForegroundColor Cyan
@@ -57,6 +58,7 @@ $status = $LASTEXITCODE
 Pop-Location
 if ($status -ne 0) { Write-Host 'Самопроверка не пройдена — см. сообщения выше.' -ForegroundColor Red; exit 1 }
 
+if ($NoShortcut) { Write-Host 'Готово (ярлык не создавался).' -ForegroundColor Green; exit 0 }
 $shell = New-Object -ComObject WScript.Shell
 $link = $shell.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Desktop')) 'Авторовед Core.lnk'))
 $link.TargetPath = Join-Path $kit 'app\Запустить_Авторовед_Core.cmd'
