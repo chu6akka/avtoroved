@@ -128,7 +128,8 @@ QScrollBar:vertical { background: transparent; width: 9px; margin: 2px; border-r
 QScrollBar::handle:vertical { background: #c3cad9; min-height: 28px; border-radius: 3px; }
 QScrollBar::handle:vertical:hover { background: #95a3c0; }
 QScrollBar:horizontal { background: transparent; height: 8px; margin: 1px 6px; }
-QScrollBar::handle:horizontal { background: #3a4466; min-width: 28px; border-radius: 3px; }
+QScrollBar::handle:horizontal { background: #c3cad9; min-width: 28px; border-radius: 3px; }
+QFrame#ribbon QScrollBar::handle:horizontal { background: #3a4466; }
 QScrollBar::add-line, QScrollBar::sub-line { width: 0px; height: 0px; }
 QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
 QSplitter::handle { background: transparent; }

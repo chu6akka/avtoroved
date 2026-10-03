@@ -16,6 +16,7 @@ from authoroved_core.core.analysis import AnalysisService
 from authoroved_core.core.case_repository import (
     CaseError, CaseIntegrityError, CasePasswordError, CaseRepository,
 )
+from authoroved_core.core.coefficient_profile import default_profile
 from authoroved_core.core.comparison import compare_results
 from authoroved_core.core.document import EncodingChoiceRequired, load_document
 from authoroved_core.core.feature_models import (
@@ -137,6 +138,12 @@ STATUS_COLORS = {
     ReviewStatus.REJECTED: ("#232a45", "#8d95ad"),
     ReviewStatus.NEW: ("#1f2747", "#e3e7f2"),
 }
+
+
+def validity_tag(name: str) -> str:
+    """Короткая метка в списке — только для показателей, которые нельзя читать как обычно."""
+    status = default_profile().status(name)
+    return {"topic": "  ·  зависит от темы", "uninformative": "  ·  неинформативен"}.get(status, "")
 
 
 def elevated(widget, shadow_name, blur=36, offset=10, alpha=55):
@@ -709,6 +716,7 @@ class MainWindow(QMainWindow):
         metrics_layout.addWidget(self.comparison_group)
         self.comparison_metric_list = QListWidget()
         self.comparison_metric_list.setWordWrap(True)
+        self.comparison_metric_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.comparison_metric_list.currentItemChanged.connect(self.select_comparison_metric)
         metrics_layout.addWidget(self.comparison_metric_list, 1)
         lower.addWidget(metrics_panel)
@@ -722,6 +730,7 @@ class MainWindow(QMainWindow):
         accepted_layout.addWidget(self.comparison_review_note)
         self.comparison_candidate_list = QListWidget()
         self.comparison_candidate_list.setWordWrap(True)
+        self.comparison_candidate_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.comparison_candidate_list.currentItemChanged.connect(self.select_comparison_candidate_group)
         accepted_layout.addWidget(self.comparison_candidate_list, 1)
         self.comparison_help = label(
@@ -1366,6 +1375,7 @@ class MainWindow(QMainWindow):
             item = QListWidgetItem(
                 f"{metric.name}\nТекст 1: {metric.value_first} · Текст 2: {metric.value_second}\n"
                 f"Разница: {metric.difference} · {metric.direction}"
+                + (f"\nПригодность: {metric.validity}" if metric.validity else "")
             )
             item.setData(Qt.ItemDataRole.UserRole, metric)
             self.comparison_metric_list.addItem(item)
@@ -1514,7 +1524,7 @@ class MainWindow(QMainWindow):
             page.setWordWrap(True)
             for metric in self.result.metrics:
                 if metric.group == group:
-                    item = QListWidgetItem(f"{metric.name}\n{metric.value}")
+                    item = QListWidgetItem(f"{metric.name}\n{metric.value}{validity_tag(metric.name)}")
                     item.setData(Qt.ItemDataRole.UserRole, metric)
                     page.addItem(item)
             page.currentItemChanged.connect(self.select_metric)
@@ -1590,7 +1600,7 @@ class MainWindow(QMainWindow):
                 selected = [(m.name, m) for m in sections.get(section.currentData(), [])]
             for name, metric in selected:
                 # Одна строка на показатель: в разделе их десятки.
-                item = QListWidgetItem(f"{name} — {metric.value}")
+                item = QListWidgetItem(f"{name} — {metric.value}{validity_tag(metric.name)}")
                 item.setData(Qt.ItemDataRole.UserRole, metric)
                 metrics_list.addItem(item)
 
@@ -1614,9 +1624,14 @@ class MainWindow(QMainWindow):
             return
         self.current_feature = None
         self.feature_review_panel.hide()
-        self.metric_help.setText(metric.explanation)
+        note = default_profile().note(metric.name, self.current_word_count())
+        self.metric_help.setText(metric.explanation + (f"\n\nПригодность: {note}" if note else ""))
         self.text_view.highlight(metric.spans, METRIC_HIGHLIGHT)
         self.highlight_note.setText(f"Связанных фрагментов: {len(metric.spans)}" if metric.spans else GLOBAL_NOTE)
+
+    def current_word_count(self) -> int | None:
+        metric = next((item for item in self.result.metrics if item.name == "Слова"), None) if self.result else None
+        return int(metric.value) if metric and metric.value.isdigit() else None
 
     def select_feature(self, observation):
         self.current_feature = observation

@@ -1,0 +1,1465 @@
+{
+ "profile": "coefficient_validity",
+ "version": "2026-10-02",
+ "source": "Проверка пригодности на корпусе Pilot 02c: 120 авторов, 480 основных текстов Pikabu; seed 20261002",
+ "max_tested_words": 1300,
+ "notice": "Оценки описывают пригодность признаков на текстах интернет-публикаций и не являются нормативами или порогами вывода об авторстве.",
+ "metrics": {
+  "Возвратное местоимение «себя»": {
+   "status": "uninformative",
+   "auc": 0.5139,
+   "auc_topic_neutral": 0.5571,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Вопросительно-относительные местоимения": {
+   "status": "topic",
+   "auc": 0.5296,
+   "auc_topic_neutral": 0.5075,
+   "min_words_20": 1000,
+   "min_words_10": null
+  },
+  "Все части речи · вид: несовершенный": {
+   "status": "weak",
+   "auc": 0.5597,
+   "auc_topic_neutral": 0.5413,
+   "min_words_20": 200,
+   "min_words_10": 500
+  },
+  "Все части речи · вид: совершенный": {
+   "status": "weak",
+   "auc": 0.5597,
+   "auc_topic_neutral": 0.5413,
+   "min_words_20": 200,
+   "min_words_10": 1000
+  },
+  "Все части речи · возвратные формы (-ся/-сь)": {
+   "status": "weak",
+   "auc": 0.5435,
+   "auc_topic_neutral": 0.5591,
+   "min_words_20": 500,
+   "min_words_10": 1300
+  },
+  "Все части речи · время: будущее": {
+   "status": "topic",
+   "auc": 0.5267,
+   "auc_topic_neutral": 0.5001,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Все части речи · время: настоящее": {
+   "status": "weak",
+   "auc": 0.5963,
+   "auc_topic_neutral": 0.5451,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Все части речи · время: прошедшее": {
+   "status": "weak",
+   "auc": 0.5946,
+   "auc_topic_neutral": 0.5418,
+   "min_words_20": 300,
+   "min_words_10": 1000
+  },
+  "Все части речи · залог: возвратная форма на -ся (средний залог)": {
+   "status": "weak",
+   "auc": 0.5394,
+   "auc_topic_neutral": 0.5673,
+   "min_words_20": 500,
+   "min_words_10": 1300
+  },
+  "Все части речи · залог: действительный": {
+   "status": "weak",
+   "auc": 0.5624,
+   "auc_topic_neutral": 0.5819,
+   "min_words_20": 100,
+   "min_words_10": 100
+  },
+  "Все части речи · залог: страдательный": {
+   "status": "weak",
+   "auc": 0.5967,
+   "auc_topic_neutral": 0.5832,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Все части речи · лицо: 1-е лицо": {
+   "status": "weak",
+   "auc": 0.5899,
+   "auc_topic_neutral": 0.6065,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Все части речи · лицо: 2-е лицо": {
+   "status": "topic",
+   "auc": 0.5657,
+   "auc_topic_neutral": 0.525,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Все части речи · лицо: 3-е лицо": {
+   "status": "stable",
+   "auc": 0.6076,
+   "auc_topic_neutral": 0.6352,
+   "min_words_20": 500,
+   "min_words_10": 1300
+  },
+  "Все части речи · наклонение: изъявительное": {
+   "status": "topic",
+   "auc": 0.536,
+   "auc_topic_neutral": 0.4806,
+   "min_words_20": 100,
+   "min_words_10": 100
+  },
+  "Все части речи · наклонение: повелительное": {
+   "status": "topic",
+   "auc": 0.5444,
+   "auc_topic_neutral": 0.4959,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Все части речи · наклонение: сослагательное": {
+   "status": "topic",
+   "auc": 0.5278,
+   "auc_topic_neutral": 0.4935,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Все части речи · одушевлённость: неодушевлённые": {
+   "status": "weak",
+   "auc": 0.5826,
+   "auc_topic_neutral": 0.608,
+   "min_words_20": 100,
+   "min_words_10": 100
+  },
+  "Все части речи · одушевлённость: одушевлённые": {
+   "status": "weak",
+   "auc": 0.5826,
+   "auc_topic_neutral": 0.6079,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Все части речи · падеж: винительный": {
+   "status": "topic",
+   "auc": 0.5431,
+   "auc_topic_neutral": 0.5083,
+   "min_words_20": 200,
+   "min_words_10": 750
+  },
+  "Все части речи · падеж: второй родительный (частичный)": {
+   "status": "uninformative",
+   "auc": 0.5013,
+   "auc_topic_neutral": 0.5107,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Все части речи · падеж: дательный": {
+   "status": "uninformative",
+   "auc": 0.5092,
+   "auc_topic_neutral": 0.5354,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Все части речи · падеж: звательная форма": {
+   "status": "topic",
+   "auc": 0.5007,
+   "auc_topic_neutral": 0.5009,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Все части речи · падеж: именительный": {
+   "status": "weak",
+   "auc": 0.5783,
+   "auc_topic_neutral": 0.6301,
+   "min_words_20": 100,
+   "min_words_10": 500
+  },
+  "Все части речи · падеж: предложный": {
+   "status": "weak",
+   "auc": 0.5287,
+   "auc_topic_neutral": 0.538,
+   "min_words_20": 500,
+   "min_words_10": 1300
+  },
+  "Все части речи · падеж: родительный": {
+   "status": "weak",
+   "auc": 0.5951,
+   "auc_topic_neutral": 0.5635,
+   "min_words_20": 200,
+   "min_words_10": 750
+  },
+  "Все части речи · падеж: творительный": {
+   "status": "weak",
+   "auc": 0.5191,
+   "auc_topic_neutral": 0.5302,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Все части речи · род: женский": {
+   "status": "topic",
+   "auc": 0.5381,
+   "auc_topic_neutral": 0.4992,
+   "min_words_20": 200,
+   "min_words_10": 750
+  },
+  "Все части речи · род: мужской": {
+   "status": "topic",
+   "auc": 0.5446,
+   "auc_topic_neutral": 0.4997,
+   "min_words_20": 100,
+   "min_words_10": 500
+  },
+  "Все части речи · род: средний": {
+   "status": "weak",
+   "auc": 0.5583,
+   "auc_topic_neutral": 0.5709,
+   "min_words_20": 300,
+   "min_words_10": 1000
+  },
+  "Все части речи · степень сравнения: положительная": {
+   "status": "uninformative",
+   "auc": 0.5106,
+   "auc_topic_neutral": 0.4897,
+   "min_words_20": 100,
+   "min_words_10": 100
+  },
+  "Все части речи · степень сравнения: превосходная": {
+   "status": "uninformative",
+   "auc": 0.5006,
+   "auc_topic_neutral": 0.5104,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Все части речи · степень сравнения: сравнительная": {
+   "status": "uninformative",
+   "auc": 0.51,
+   "auc_topic_neutral": 0.4886,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Все части речи · форма глагола: деепричастие": {
+   "status": "weak",
+   "auc": 0.5238,
+   "auc_topic_neutral": 0.5341,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Все части речи · форма глагола: инфинитив (начальная форма)": {
+   "status": "topic",
+   "auc": 0.5497,
+   "auc_topic_neutral": 0.5256,
+   "min_words_20": 500,
+   "min_words_10": null
+  },
+  "Все части речи · форма глагола: личная форма": {
+   "status": "weak",
+   "auc": 0.5851,
+   "auc_topic_neutral": 0.5816,
+   "min_words_20": 100,
+   "min_words_10": 200
+  },
+  "Все части речи · форма глагола: причастие": {
+   "status": "weak",
+   "auc": 0.5969,
+   "auc_topic_neutral": 0.6301,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Все части речи · число: единственное": {
+   "status": "topic",
+   "auc": 0.5398,
+   "auc_topic_neutral": 0.4991,
+   "min_words_20": 100,
+   "min_words_10": 100
+  },
+  "Все части речи · число: множественное": {
+   "status": "topic",
+   "auc": 0.5398,
+   "auc_topic_neutral": 0.4991,
+   "min_words_20": 300,
+   "min_words_10": 1300
+  },
+  "Глаголы": {
+   "status": "stable",
+   "auc": 0.6055,
+   "auc_topic_neutral": 0.5906,
+   "min_words_20": 100,
+   "min_words_10": 500
+  },
+  "Глаголы · вид: несовершенный": {
+   "status": "weak",
+   "auc": 0.5558,
+   "auc_topic_neutral": 0.5324,
+   "min_words_20": 200,
+   "min_words_10": 500
+  },
+  "Глаголы · вид: совершенный": {
+   "status": "weak",
+   "auc": 0.5558,
+   "auc_topic_neutral": 0.5324,
+   "min_words_20": 300,
+   "min_words_10": 1000
+  },
+  "Глаголы · возвратные формы (-ся/-сь)": {
+   "status": "weak",
+   "auc": 0.5431,
+   "auc_topic_neutral": 0.5522,
+   "min_words_20": 500,
+   "min_words_10": 1300
+  },
+  "Глаголы · время: будущее": {
+   "status": "topic",
+   "auc": 0.5266,
+   "auc_topic_neutral": 0.4999,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Глаголы · время: настоящее": {
+   "status": "stable",
+   "auc": 0.6013,
+   "auc_topic_neutral": 0.5377,
+   "min_words_20": 1000,
+   "min_words_10": null
+  },
+  "Глаголы · время: прошедшее": {
+   "status": "stable",
+   "auc": 0.6002,
+   "auc_topic_neutral": 0.5353,
+   "min_words_20": 500,
+   "min_words_10": 1300
+  },
+  "Глаголы · залог: возвратная форма на -ся (средний залог)": {
+   "status": "weak",
+   "auc": 0.5364,
+   "auc_topic_neutral": 0.5651,
+   "min_words_20": 500,
+   "min_words_10": 1300
+  },
+  "Глаголы · залог: действительный": {
+   "status": "weak",
+   "auc": 0.5463,
+   "auc_topic_neutral": 0.5543,
+   "min_words_20": 100,
+   "min_words_10": 100
+  },
+  "Глаголы · залог: страдательный": {
+   "status": "topic",
+   "auc": 0.5317,
+   "auc_topic_neutral": 0.5093,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Глаголы · лицо: 1-е лицо": {
+   "status": "weak",
+   "auc": 0.5685,
+   "auc_topic_neutral": 0.5976,
+   "min_words_20": 1300,
+   "min_words_10": null
+  },
+  "Глаголы · лицо: 2-е лицо": {
+   "status": "weak",
+   "auc": 0.5712,
+   "auc_topic_neutral": 0.5502,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Глаголы · лицо: 3-е лицо": {
+   "status": "weak",
+   "auc": 0.5969,
+   "auc_topic_neutral": 0.6111,
+   "min_words_20": 300,
+   "min_words_10": 1000
+  },
+  "Глаголы · наклонение: изъявительное": {
+   "status": "topic",
+   "auc": 0.5442,
+   "auc_topic_neutral": 0.4955,
+   "min_words_20": 100,
+   "min_words_10": 100
+  },
+  "Глаголы · наклонение: повелительное": {
+   "status": "topic",
+   "auc": 0.5442,
+   "auc_topic_neutral": 0.4955,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Глаголы · род: женский": {
+   "status": "topic",
+   "auc": 0.5759,
+   "auc_topic_neutral": 0.522,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Глаголы · род: мужской": {
+   "status": "topic",
+   "auc": 0.5475,
+   "auc_topic_neutral": 0.5034,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Глаголы · род: средний": {
+   "status": "topic",
+   "auc": 0.5408,
+   "auc_topic_neutral": 0.5016,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Глаголы · форма глагола: инфинитив (начальная форма)": {
+   "status": "topic",
+   "auc": 0.5535,
+   "auc_topic_neutral": 0.5269,
+   "min_words_20": 500,
+   "min_words_10": null
+  },
+  "Глаголы · форма глагола: личная форма": {
+   "status": "topic",
+   "auc": 0.5535,
+   "auc_topic_neutral": 0.5269,
+   "min_words_20": 100,
+   "min_words_10": 100
+  },
+  "Глаголы · число: единственное": {
+   "status": "topic",
+   "auc": 0.5236,
+   "auc_topic_neutral": 0.5226,
+   "min_words_20": 100,
+   "min_words_10": 500
+  },
+  "Глаголы · число: множественное": {
+   "status": "topic",
+   "auc": 0.5236,
+   "auc_topic_neutral": 0.5226,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Глаголы: в т. ч. инфинитив (начальная форма)": {
+   "status": "weak",
+   "auc": 0.541,
+   "auc_topic_neutral": 0.5325,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Деепричастия": {
+   "status": "weak",
+   "auc": 0.5226,
+   "auc_topic_neutral": 0.5421,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Знаменательные / служебные слова": {
+   "status": "weak",
+   "auc": 0.5633,
+   "auc_topic_neutral": 0.5536,
+   "min_words_20": 100,
+   "min_words_10": 200
+  },
+  "Знаменательные слова": {
+   "status": "weak",
+   "auc": 0.5617,
+   "auc_topic_neutral": 0.5475,
+   "min_words_20": 100,
+   "min_words_10": 100
+  },
+  "Имена собственные (в составе существительных)": {
+   "status": "topic",
+   "auc": 0.5911,
+   "auc_topic_neutral": 0.5161,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Индекс 01. Существительные / объём текста": {
+   "status": "stable",
+   "auc": 0.6303,
+   "auc_topic_neutral": 0.6054,
+   "min_words_20": 100,
+   "min_words_10": 300
+  },
+  "Индекс 02. Местоимения / объём текста": {
+   "status": "stable",
+   "auc": 0.6084,
+   "auc_topic_neutral": 0.5738,
+   "min_words_20": 200,
+   "min_words_10": 1000
+  },
+  "Индекс 03. Глаголы (все формы) / объём текста": {
+   "status": "weak",
+   "auc": 0.5745,
+   "auc_topic_neutral": 0.573,
+   "min_words_20": 100,
+   "min_words_10": 300
+  },
+  "Индекс 04. Местоимения-существительные / незнаменательные слова": {
+   "status": "weak",
+   "auc": 0.5966,
+   "auc_topic_neutral": 0.5945,
+   "min_words_20": 500,
+   "min_words_10": 1300
+  },
+  "Индекс 05. Личные местоимения / все местоимения": {
+   "status": "weak",
+   "auc": 0.578,
+   "auc_topic_neutral": 0.5576,
+   "min_words_20": 300,
+   "min_words_10": 1000
+  },
+  "Индекс 06. Имена собственные / все существительные": {
+   "status": "topic",
+   "auc": 0.5894,
+   "auc_topic_neutral": 0.5249,
+   "min_words_20": 1300,
+   "min_words_10": null
+  },
+  "Индекс 08. Глаголы настоящего и будущего времени / прошедшего времени": {
+   "status": "topic",
+   "auc": 0.5614,
+   "auc_topic_neutral": 0.499,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Индекс 09. Существительные / (прилагательные + местоимения-прилагательные + частицы)": {
+   "status": "weak",
+   "auc": 0.579,
+   "auc_topic_neutral": 0.5637,
+   "min_words_20": 200,
+   "min_words_10": 750
+  },
+  "Индекс 10. Существительные / местоимения": {
+   "status": "stable",
+   "auc": 0.6071,
+   "auc_topic_neutral": 0.5821,
+   "min_words_20": 500,
+   "min_words_10": null
+  },
+  "Индекс 11. Прилагательные / объём текста": {
+   "status": "weak",
+   "auc": 0.5766,
+   "auc_topic_neutral": 0.5572,
+   "min_words_20": 300,
+   "min_words_10": 1000
+  },
+  "Индекс 12. Причастия / объём текста": {
+   "status": "weak",
+   "auc": 0.5795,
+   "auc_topic_neutral": 0.6135,
+   "min_words_20": 1300,
+   "min_words_10": null
+  },
+  "Индекс 13. Деепричастия / объём текста": {
+   "status": "weak",
+   "auc": 0.5236,
+   "auc_topic_neutral": 0.5432,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Индекс 14. Наречия / объём текста": {
+   "status": "weak",
+   "auc": 0.5739,
+   "auc_topic_neutral": 0.5935,
+   "min_words_20": 300,
+   "min_words_10": 1000
+  },
+  "Индекс 15. Незнаменательные слова / число предложений": {
+   "status": "stable",
+   "auc": 0.6316,
+   "auc_topic_neutral": 0.6052,
+   "min_words_20": 200,
+   "min_words_10": 1000
+  },
+  "Индекс 16. Именные части речи / (глаголы + слова категории состояния)": {
+   "status": "weak",
+   "auc": 0.5722,
+   "auc_topic_neutral": 0.5772,
+   "min_words_20": 100,
+   "min_words_10": 500
+  },
+  "Индекс 17. Служебные слова / объём текста": {
+   "status": "weak",
+   "auc": 0.5708,
+   "auc_topic_neutral": 0.5562,
+   "min_words_20": 100,
+   "min_words_10": 200
+  },
+  "Индекс 18. Союзы / предлоги": {
+   "status": "weak",
+   "auc": 0.5649,
+   "auc_topic_neutral": 0.5718,
+   "min_words_20": 300,
+   "min_words_10": 1300
+  },
+  "Индекс 19. (Именительный + родительный падежи) / все падежные формы существительных и местоимений": {
+   "status": "topic",
+   "auc": 0.5514,
+   "auc_topic_neutral": 0.5144,
+   "min_words_20": 100,
+   "min_words_10": 200
+  },
+  "Индекс 20. (Глаголы + существительные) / объём текста": {
+   "status": "stable",
+   "auc": 0.6065,
+   "auc_topic_neutral": 0.5688,
+   "min_words_20": 100,
+   "min_words_10": 100
+  },
+  "Индекс динамичности: глаголы (все формы) / объём текста": {
+   "status": "weak",
+   "auc": 0.5745,
+   "auc_topic_neutral": 0.573,
+   "min_words_20": 100,
+   "min_words_10": 300
+  },
+  "Индекс качественности: (прилагательные + наречия) / (существительные + глаголы)": {
+   "status": "weak",
+   "auc": 0.5561,
+   "auc_topic_neutral": 0.5572,
+   "min_words_20": 200,
+   "min_words_10": 750
+  },
+  "Индекс местоименности: местоимения / существительные": {
+   "status": "stable",
+   "auc": 0.6296,
+   "auc_topic_neutral": 0.6016,
+   "min_words_20": 500,
+   "min_words_10": null
+  },
+  "Индекс номинативности: существительные / глаголы (все формы)": {
+   "status": "stable",
+   "auc": 0.6036,
+   "auc_topic_neutral": 0.597,
+   "min_words_20": 200,
+   "min_words_10": 750
+  },
+  "Индекс предметности: (существительные + прилагательные) / (глаголы + наречия)": {
+   "status": "stable",
+   "auc": 0.6109,
+   "auc_topic_neutral": 0.5971,
+   "min_words_20": 200,
+   "min_words_10": 750
+  },
+  "Индекс связности: (предлоги + союзы) / число предложений": {
+   "status": "stable",
+   "auc": 0.6281,
+   "auc_topic_neutral": 0.5924,
+   "min_words_20": 200,
+   "min_words_10": 1000
+  },
+  "Коэффициент 01. Местоимения / текст": {
+   "status": "stable",
+   "auc": 0.6084,
+   "auc_topic_neutral": 0.5738,
+   "min_words_20": 200,
+   "min_words_10": 1000
+  },
+  "Коэффициент 02. Глаголы / текст": {
+   "status": "stable",
+   "auc": 0.6054,
+   "auc_topic_neutral": 0.59,
+   "min_words_20": 100,
+   "min_words_10": 500
+  },
+  "Коэффициент 03. Прилагательные / текст": {
+   "status": "weak",
+   "auc": 0.5766,
+   "auc_topic_neutral": 0.5572,
+   "min_words_20": 300,
+   "min_words_10": 1000
+  },
+  "Коэффициент 04. Наречия / текст": {
+   "status": "weak",
+   "auc": 0.5739,
+   "auc_topic_neutral": 0.5935,
+   "min_words_20": 300,
+   "min_words_10": 1000
+  },
+  "Коэффициент 05. Краткие прилагательные / все прилагательные": {
+   "status": "topic",
+   "auc": 0.5185,
+   "auc_topic_neutral": 0.5027,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Коэффициент 06. Притяжательные местоимения / все местоимения": {
+   "status": "topic",
+   "auc": 0.5411,
+   "auc_topic_neutral": 0.454,
+   "min_words_20": 1000,
+   "min_words_10": null
+  },
+  "Коэффициент 07. Прилагательные / существительные": {
+   "status": "topic",
+   "auc": 0.5418,
+   "auc_topic_neutral": 0.5067,
+   "min_words_20": 300,
+   "min_words_10": 1000
+  },
+  "Коэффициент 08. Местоимения / прилагательные": {
+   "status": "weak",
+   "auc": 0.5993,
+   "auc_topic_neutral": 0.5344,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Коэффициент 09. Существительные / глаголы": {
+   "status": "stable",
+   "auc": 0.6139,
+   "auc_topic_neutral": 0.5944,
+   "min_words_20": 200,
+   "min_words_10": 1000
+  },
+  "Коэффициент 10. Местоимения / глаголы": {
+   "status": "topic",
+   "auc": 0.5561,
+   "auc_topic_neutral": 0.5191,
+   "min_words_20": 300,
+   "min_words_10": 1000
+  },
+  "Коэффициент 11. Числительные / текст": {
+   "status": "uninformative",
+   "auc": 0.5014,
+   "auc_topic_neutral": 0.4626,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Коэффициент 12. Предлоги / текст": {
+   "status": "weak",
+   "auc": 0.5547,
+   "auc_topic_neutral": 0.5603,
+   "min_words_20": 100,
+   "min_words_10": 500
+  },
+  "Коэффициент 13. Частицы / текст": {
+   "status": "topic",
+   "auc": 0.5811,
+   "auc_topic_neutral": 0.5136,
+   "min_words_20": 500,
+   "min_words_10": 1300
+  },
+  "Коэффициент 14. Союзы / текст": {
+   "status": "weak",
+   "auc": 0.5787,
+   "auc_topic_neutral": 0.5967,
+   "min_words_20": 200,
+   "min_words_10": 750
+  },
+  "Коэффициент 15. Наречия / прилагательные": {
+   "status": "weak",
+   "auc": 0.57,
+   "auc_topic_neutral": 0.5464,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Коэффициент 16. Причастия / текст": {
+   "status": "weak",
+   "auc": 0.5795,
+   "auc_topic_neutral": 0.6135,
+   "min_words_20": 1300,
+   "min_words_10": null
+  },
+  "Коэффициент 17. Деепричастия / текст": {
+   "status": "weak",
+   "auc": 0.5236,
+   "auc_topic_neutral": 0.5432,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Коэффициент 18. Глаголы / наречия": {
+   "status": "weak",
+   "auc": 0.5348,
+   "auc_topic_neutral": 0.5325,
+   "min_words_20": 300,
+   "min_words_10": 1000
+  },
+  "Коэффициент 20. (Прилагательные + числительные) / текст": {
+   "status": "weak",
+   "auc": 0.5738,
+   "auc_topic_neutral": 0.5575,
+   "min_words_20": 200,
+   "min_words_10": 1000
+  },
+  "Краткие прилагательные": {
+   "status": "uninformative",
+   "auc": 0.5023,
+   "auc_topic_neutral": 0.4959,
+   "min_words_20": 1300,
+   "min_words_10": null
+  },
+  "Краткие причастия": {
+   "status": "weak",
+   "auc": 0.5372,
+   "auc_topic_neutral": 0.5646,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Личные местоимения": {
+   "status": "weak",
+   "auc": 0.578,
+   "auc_topic_neutral": 0.5576,
+   "min_words_20": 300,
+   "min_words_10": 1000
+  },
+  "Междометия": {
+   "status": "topic",
+   "auc": 0.5306,
+   "auc_topic_neutral": 0.4671,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Местоимения": {
+   "status": "stable",
+   "auc": 0.6083,
+   "auc_topic_neutral": 0.5738,
+   "min_words_20": 200,
+   "min_words_10": 1000
+  },
+  "Местоимения · лицо: 1-е лицо": {
+   "status": "weak",
+   "auc": 0.5825,
+   "auc_topic_neutral": 0.62,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Местоимения · лицо: 2-е лицо": {
+   "status": "topic",
+   "auc": 0.5577,
+   "auc_topic_neutral": 0.5212,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Местоимения · лицо: 3-е лицо": {
+   "status": "weak",
+   "auc": 0.5677,
+   "auc_topic_neutral": 0.6093,
+   "min_words_20": 1000,
+   "min_words_10": null
+  },
+  "Местоимения · падеж: винительный": {
+   "status": "uninformative",
+   "auc": 0.4999,
+   "auc_topic_neutral": 0.4676,
+   "min_words_20": 500,
+   "min_words_10": null
+  },
+  "Местоимения · падеж: дательный": {
+   "status": "uninformative",
+   "auc": 0.5124,
+   "auc_topic_neutral": 0.543,
+   "min_words_20": 1000,
+   "min_words_10": null
+  },
+  "Местоимения · падеж: именительный": {
+   "status": "weak",
+   "auc": 0.5353,
+   "auc_topic_neutral": 0.5569,
+   "min_words_20": 200,
+   "min_words_10": 750
+  },
+  "Местоимения · падеж: предложный": {
+   "status": "topic",
+   "auc": 0.5376,
+   "auc_topic_neutral": 0.4967,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Местоимения · падеж: родительный": {
+   "status": "topic",
+   "auc": 0.5332,
+   "auc_topic_neutral": 0.4547,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Местоимения · падеж: творительный": {
+   "status": "topic",
+   "auc": 0.518,
+   "auc_topic_neutral": 0.5026,
+   "min_words_20": 1300,
+   "min_words_10": null
+  },
+  "Местоимения · род: женский": {
+   "status": "topic",
+   "auc": 0.5264,
+   "auc_topic_neutral": 0.5139,
+   "min_words_20": 1000,
+   "min_words_10": null
+  },
+  "Местоимения · род: мужской": {
+   "status": "topic",
+   "auc": 0.5344,
+   "auc_topic_neutral": 0.5003,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Местоимения · род: средний": {
+   "status": "topic",
+   "auc": 0.5354,
+   "auc_topic_neutral": 0.5203,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Местоимения · число: единственное": {
+   "status": "uninformative",
+   "auc": 0.5129,
+   "auc_topic_neutral": 0.4568,
+   "min_words_20": 100,
+   "min_words_10": 500
+  },
+  "Местоимения · число: множественное": {
+   "status": "uninformative",
+   "auc": 0.5129,
+   "auc_topic_neutral": 0.4568,
+   "min_words_20": 1000,
+   "min_words_10": null
+  },
+  "Местоимения без определённого разряда": {
+   "status": "uninformative",
+   "auc": 0.4992,
+   "auc_topic_neutral": 0.4919,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Наречия": {
+   "status": "weak",
+   "auc": 0.5738,
+   "auc_topic_neutral": 0.5934,
+   "min_words_20": 300,
+   "min_words_10": 1000
+  },
+  "Наречия · степень сравнения: положительная": {
+   "status": "uninformative",
+   "auc": 0.5064,
+   "auc_topic_neutral": 0.4729,
+   "min_words_20": 100,
+   "min_words_10": 100
+  },
+  "Наречия · степень сравнения: сравнительная": {
+   "status": "uninformative",
+   "auc": 0.5063,
+   "auc_topic_neutral": 0.4729,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Неопределённые местоимения": {
+   "status": "uninformative",
+   "auc": 0.499,
+   "auc_topic_neutral": 0.5171,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Определительные местоимения": {
+   "status": "uninformative",
+   "auc": 0.5127,
+   "auc_topic_neutral": 0.4649,
+   "min_words_20": 1300,
+   "min_words_10": null
+  },
+  "Отрицательные местоимения": {
+   "status": "uninformative",
+   "auc": 0.5065,
+   "auc_topic_neutral": 0.4452,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Предлоги": {
+   "status": "weak",
+   "auc": 0.5545,
+   "auc_topic_neutral": 0.5606,
+   "min_words_20": 100,
+   "min_words_10": 300
+  },
+  "Предложения до 5 слов": {
+   "status": "stable",
+   "auc": 0.6392,
+   "auc_topic_neutral": 0.5631,
+   "min_words_20": 1000,
+   "min_words_10": null
+  },
+  "Предложения от 20 слов": {
+   "status": "stable",
+   "auc": 0.6276,
+   "auc_topic_neutral": 0.6176,
+   "min_words_20": 1300,
+   "min_words_10": null
+  },
+  "Прилагательные": {
+   "status": "weak",
+   "auc": 0.5766,
+   "auc_topic_neutral": 0.5582,
+   "min_words_20": 300,
+   "min_words_10": 1000
+  },
+  "Прилагательные · падеж: винительный": {
+   "status": "topic",
+   "auc": 0.5225,
+   "auc_topic_neutral": 0.4739,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Прилагательные · падеж: дательный": {
+   "status": "uninformative",
+   "auc": 0.5119,
+   "auc_topic_neutral": 0.5132,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Прилагательные · падеж: именительный": {
+   "status": "weak",
+   "auc": 0.5394,
+   "auc_topic_neutral": 0.5896,
+   "min_words_20": 500,
+   "min_words_10": 1300
+  },
+  "Прилагательные · падеж: предложный": {
+   "status": "uninformative",
+   "auc": 0.5073,
+   "auc_topic_neutral": 0.4953,
+   "min_words_20": 1300,
+   "min_words_10": null
+  },
+  "Прилагательные · падеж: родительный": {
+   "status": "topic",
+   "auc": 0.5345,
+   "auc_topic_neutral": 0.5004,
+   "min_words_20": 1000,
+   "min_words_10": null
+  },
+  "Прилагательные · падеж: творительный": {
+   "status": "uninformative",
+   "auc": 0.5041,
+   "auc_topic_neutral": 0.4873,
+   "min_words_20": 1300,
+   "min_words_10": null
+  },
+  "Прилагательные · род: женский": {
+   "status": "topic",
+   "auc": 0.5211,
+   "auc_topic_neutral": 0.4823,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Прилагательные · род: мужской": {
+   "status": "uninformative",
+   "auc": 0.5111,
+   "auc_topic_neutral": 0.5228,
+   "min_words_20": 500,
+   "min_words_10": 1300
+  },
+  "Прилагательные · род: средний": {
+   "status": "topic",
+   "auc": 0.5175,
+   "auc_topic_neutral": 0.5264,
+   "min_words_20": 1000,
+   "min_words_10": null
+  },
+  "Прилагательные · степень сравнения: положительная": {
+   "status": "topic",
+   "auc": 0.5149,
+   "auc_topic_neutral": 0.5109,
+   "min_words_20": 100,
+   "min_words_10": 100
+  },
+  "Прилагательные · степень сравнения: превосходная": {
+   "status": "uninformative",
+   "auc": 0.5006,
+   "auc_topic_neutral": 0.5104,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Прилагательные · степень сравнения: сравнительная": {
+   "status": "topic",
+   "auc": 0.5159,
+   "auc_topic_neutral": 0.5087,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Прилагательные · число: единственное": {
+   "status": "topic",
+   "auc": 0.5173,
+   "auc_topic_neutral": 0.4554,
+   "min_words_20": 100,
+   "min_words_10": 500
+  },
+  "Прилагательные · число: множественное": {
+   "status": "topic",
+   "auc": 0.5173,
+   "auc_topic_neutral": 0.4554,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Притяжательные местоимения": {
+   "status": "topic",
+   "auc": 0.5411,
+   "auc_topic_neutral": 0.4538,
+   "min_words_20": 1000,
+   "min_words_10": null
+  },
+  "Причастия": {
+   "status": "weak",
+   "auc": 0.5797,
+   "auc_topic_neutral": 0.6115,
+   "min_words_20": 1300,
+   "min_words_10": null
+  },
+  "Причастия · вид: несовершенный": {
+   "status": "weak",
+   "auc": 0.5363,
+   "auc_topic_neutral": 0.5353,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Причастия · вид: совершенный": {
+   "status": "weak",
+   "auc": 0.5362,
+   "auc_topic_neutral": 0.5354,
+   "min_words_20": 500,
+   "min_words_10": 1300
+  },
+  "Причастия · время: настоящее": {
+   "status": "topic",
+   "auc": 0.5417,
+   "auc_topic_neutral": 0.5254,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Причастия · время: прошедшее": {
+   "status": "topic",
+   "auc": 0.5416,
+   "auc_topic_neutral": 0.5254,
+   "min_words_20": 300,
+   "min_words_10": 1000
+  },
+  "Причастия · залог: возвратная форма на -ся (средний залог)": {
+   "status": "weak",
+   "auc": 0.5127,
+   "auc_topic_neutral": 0.5266,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Причастия · залог: действительный": {
+   "status": "topic",
+   "auc": 0.5202,
+   "auc_topic_neutral": 0.5265,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Причастия · залог: страдательный": {
+   "status": "weak",
+   "auc": 0.5277,
+   "auc_topic_neutral": 0.5524,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Причастия · падеж: винительный": {
+   "status": "topic",
+   "auc": 0.5224,
+   "auc_topic_neutral": 0.5141,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Причастия · падеж: дательный": {
+   "status": "uninformative",
+   "auc": 0.507,
+   "auc_topic_neutral": 0.5466,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Причастия · падеж: именительный": {
+   "status": "topic",
+   "auc": 0.5208,
+   "auc_topic_neutral": 0.5053,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Причастия · падеж: предложный": {
+   "status": "uninformative",
+   "auc": 0.5007,
+   "auc_topic_neutral": 0.4871,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Причастия · падеж: родительный": {
+   "status": "topic",
+   "auc": 0.531,
+   "auc_topic_neutral": 0.4971,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Причастия · падеж: творительный": {
+   "status": "topic",
+   "auc": 0.5136,
+   "auc_topic_neutral": 0.5274,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Причастия · род: женский": {
+   "status": "uninformative",
+   "auc": 0.5067,
+   "auc_topic_neutral": 0.5072,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Причастия · род: мужской": {
+   "status": "topic",
+   "auc": 0.5215,
+   "auc_topic_neutral": 0.5131,
+   "min_words_20": 1300,
+   "min_words_10": null
+  },
+  "Причастия · род: средний": {
+   "status": "topic",
+   "auc": 0.5214,
+   "auc_topic_neutral": 0.4996,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Причастия · число: единственное": {
+   "status": "uninformative",
+   "auc": 0.5101,
+   "auc_topic_neutral": 0.4803,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Причастия · число: множественное": {
+   "status": "uninformative",
+   "auc": 0.5105,
+   "auc_topic_neutral": 0.4809,
+   "min_words_20": 1300,
+   "min_words_10": null
+  },
+  "Слова категории состояния": {
+   "status": "topic",
+   "auc": 0.5199,
+   "auc_topic_neutral": 0.4473,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Служебные слова": {
+   "status": "weak",
+   "auc": 0.5705,
+   "auc_topic_neutral": 0.5552,
+   "min_words_20": 100,
+   "min_words_10": 200
+  },
+  "Совершенный / несовершенный вид глаголов": {
+   "status": "topic",
+   "auc": 0.5551,
+   "auc_topic_neutral": 0.5275,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Союзы": {
+   "status": "weak",
+   "auc": 0.5791,
+   "auc_topic_neutral": 0.5967,
+   "min_words_20": 200,
+   "min_words_10": 750
+  },
+  "Средняя длина предложения": {
+   "status": "stable",
+   "auc": 0.6467,
+   "auc_topic_neutral": 0.6229,
+   "min_words_20": 100,
+   "min_words_10": 750
+  },
+  "Существительные": {
+   "status": "stable",
+   "auc": 0.63,
+   "auc_topic_neutral": 0.6048,
+   "min_words_20": 100,
+   "min_words_10": 300
+  },
+  "Существительные · одушевлённость: неодушевлённые": {
+   "status": "weak",
+   "auc": 0.5843,
+   "auc_topic_neutral": 0.6045,
+   "min_words_20": 100,
+   "min_words_10": 200
+  },
+  "Существительные · одушевлённость: одушевлённые": {
+   "status": "weak",
+   "auc": 0.5843,
+   "auc_topic_neutral": 0.6045,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Существительные · падеж: винительный": {
+   "status": "weak",
+   "auc": 0.5514,
+   "auc_topic_neutral": 0.5539,
+   "min_words_20": 300,
+   "min_words_10": 1000
+  },
+  "Существительные · падеж: второй родительный (частичный)": {
+   "status": "uninformative",
+   "auc": 0.5014,
+   "auc_topic_neutral": 0.5106,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Существительные · падеж: дательный": {
+   "status": "uninformative",
+   "auc": 0.5066,
+   "auc_topic_neutral": 0.5246,
+   "min_words_20": 1000,
+   "min_words_10": null
+  },
+  "Существительные · падеж: звательная форма": {
+   "status": "topic",
+   "auc": 0.5007,
+   "auc_topic_neutral": 0.5009,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Существительные · падеж: именительный": {
+   "status": "weak",
+   "auc": 0.5514,
+   "auc_topic_neutral": 0.5791,
+   "min_words_20": 200,
+   "min_words_10": 750
+  },
+  "Существительные · падеж: предложный": {
+   "status": "weak",
+   "auc": 0.5201,
+   "auc_topic_neutral": 0.5336,
+   "min_words_20": 500,
+   "min_words_10": 1300
+  },
+  "Существительные · падеж: родительный": {
+   "status": "weak",
+   "auc": 0.5919,
+   "auc_topic_neutral": 0.5635,
+   "min_words_20": 200,
+   "min_words_10": 750
+  },
+  "Существительные · падеж: творительный": {
+   "status": "topic",
+   "auc": 0.5344,
+   "auc_topic_neutral": 0.5274,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Существительные · прямые падежи (именительный и винительный)": {
+   "status": "weak",
+   "auc": 0.5922,
+   "auc_topic_neutral": 0.6022,
+   "min_words_20": 100,
+   "min_words_10": 300
+  },
+  "Существительные · род: женский": {
+   "status": "topic",
+   "auc": 0.5315,
+   "auc_topic_neutral": 0.4921,
+   "min_words_20": 200,
+   "min_words_10": 750
+  },
+  "Существительные · род: мужской": {
+   "status": "weak",
+   "auc": 0.5449,
+   "auc_topic_neutral": 0.5383,
+   "min_words_20": 100,
+   "min_words_10": 300
+  },
+  "Существительные · род: средний": {
+   "status": "weak",
+   "auc": 0.5507,
+   "auc_topic_neutral": 0.562,
+   "min_words_20": 500,
+   "min_words_10": 1300
+  },
+  "Существительные · число: единственное": {
+   "status": "topic",
+   "auc": 0.5446,
+   "auc_topic_neutral": 0.5223,
+   "min_words_20": 100,
+   "min_words_10": 100
+  },
+  "Существительные · число: множественное": {
+   "status": "topic",
+   "auc": 0.5446,
+   "auc_topic_neutral": 0.5223,
+   "min_words_20": 300,
+   "min_words_10": 1300
+  },
+  "Указательные местоимения": {
+   "status": "weak",
+   "auc": 0.5483,
+   "auc_topic_neutral": 0.544,
+   "min_words_20": 750,
+   "min_words_10": null
+  },
+  "Частицы": {
+   "status": "topic",
+   "auc": 0.5813,
+   "auc_topic_neutral": 0.5134,
+   "min_words_20": 500,
+   "min_words_10": 1300
+  },
+  "Числительные": {
+   "status": "uninformative",
+   "auc": 0.503,
+   "auc_topic_neutral": 0.4652,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Числительные · падеж: винительный": {
+   "status": "uninformative",
+   "auc": 0.5049,
+   "auc_topic_neutral": 0.4915,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Числительные · падеж: дательный": {
+   "status": "uninformative",
+   "auc": 0.5028,
+   "auc_topic_neutral": 0.4921,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Числительные · падеж: именительный": {
+   "status": "uninformative",
+   "auc": 0.5034,
+   "auc_topic_neutral": 0.4682,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Числительные · падеж: предложный": {
+   "status": "uninformative",
+   "auc": 0.503,
+   "auc_topic_neutral": 0.5032,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Числительные · падеж: родительный": {
+   "status": "uninformative",
+   "auc": 0.4997,
+   "auc_topic_neutral": 0.4469,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Числительные · падеж: творительный": {
+   "status": "uninformative",
+   "auc": 0.5003,
+   "auc_topic_neutral": 0.5211,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Числительные · род: женский": {
+   "status": "weak",
+   "auc": 0.5215,
+   "auc_topic_neutral": 0.5507,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Числительные · род: мужской": {
+   "status": "uninformative",
+   "auc": 0.5179,
+   "auc_topic_neutral": 0.4957,
+   "min_words_20": null,
+   "min_words_10": null
+  },
+  "Числительные · род: средний": {
+   "status": "topic",
+   "auc": 0.5127,
+   "auc_topic_neutral": 0.5125,
+   "min_words_20": null,
+   "min_words_10": null
+  }
+ }
+}

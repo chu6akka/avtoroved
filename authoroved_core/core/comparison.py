@@ -9,6 +9,7 @@ from authoroved_core.core.lt_grouping import (
     UNKNOWN_WORD_CLASSIFICATION_LABELS,
     candidate_group_key,
 )
+from authoroved_core.core.coefficient_profile import CoefficientProfile, default_profile
 from authoroved_core.core.models import AnalysisResult, Candidate, Metric, ReviewStatus, Span
 from authoroved_core.core.russian_word_classes import is_service_word
 
@@ -41,6 +42,7 @@ class MetricComparison:
     caution: str
     spans_first: tuple[Span, ...]
     spans_second: tuple[Span, ...]
+    validity: str = ""   # краткая оценка пригодности по профилю проверки, если показатель в нём есть
 
 
 @dataclass(frozen=True)
@@ -114,7 +116,8 @@ def _total(result: AnalysisResult, name: str) -> float:
 
 
 def _compare_metric(first: Metric, second: Metric,
-                    first_result: AnalysisResult, second_result: AnalysisResult) -> MetricComparison:
+                    first_result: AnalysisResult, second_result: AnalysisResult,
+                    profile: CoefficientProfile | None = None) -> MetricComparison:
     name = first.name
     group = first.group
     basis = "одноимённое значение"
@@ -173,11 +176,18 @@ def _compare_metric(first: Metric, second: Metric,
         difference, direction = "не рассчитана", "недостаточно данных"
     else:
         difference, direction = _difference(numeric_first, numeric_second, unit)
+    validity = ""
+    if profile is not None:
+        words = [value for value in (_total(first_result, "Слова"), _total(second_result, "Слова")) if value]
+        note = profile.note(name, int(min(words)) if words else None)
+        if note:
+            caution = f"{caution} {note}"
+        validity = profile.label(name) or ""
     return MetricComparison(
         name=name, group=group, value_first=value_first, value_second=value_second,
         difference=difference, direction=direction, basis=basis,
         explanation=first.explanation, caution=caution,
-        spans_first=first.spans, spans_second=second.spans,
+        spans_first=first.spans, spans_second=second.spans, validity=validity,
     )
 
 
@@ -266,11 +276,17 @@ def _accepted_groups(first: AnalysisResult, second: AnalysisResult) -> tuple[Acc
     return tuple(groups)
 
 
-def compare_results(first: AnalysisResult, second: AnalysisResult) -> ComparisonResult:
-    """Сопоставляет значения и принятые наблюдения, не вычисляя сходство авторов."""
+def compare_results(first: AnalysisResult, second: AnalysisResult,
+                    profile: CoefficientProfile | None = None) -> ComparisonResult:
+    """Сопоставляет значения и принятые наблюдения, не вычисляя сходство авторов.
+
+    Профиль пригодности (по умолчанию — встроенный) добавляет к ограничению каждого
+    показателя пометку из проверки на корпусе; значения и порядок он не меняет.
+    """
+    profile = default_profile() if profile is None else profile
     first_metrics, second_metrics = _metric_map(first), _metric_map(second)
     common_names = sorted(first_metrics.keys() & second_metrics.keys())
-    metrics = [_compare_metric(first_metrics[name], second_metrics[name], first, second)
+    metrics = [_compare_metric(first_metrics[name], second_metrics[name], first, second, profile)
                for name in common_names]
     metrics.extend(_function_word_metrics(first, second))
     group_order = {
@@ -287,6 +303,9 @@ def compare_results(first: AnalysisResult, second: AnalysisResult) -> Comparison
     words_first, words_second = _total(first, "Слова"), _total(second, "Слова")
     if min(words_first, words_second) and max(words_first, words_second) / min(words_first, words_second) > 1.5:
         limitations.append("Объёмы текстов различаются более чем в полтора раза; абсолютные количества напрямую не сопоставимы.")
+    summary = profile.volume_summary(int(min(words_first, words_second)) if min(words_first, words_second) else None)
+    if summary:
+        limitations.append(summary)
     remaining = [sum(item.status == ReviewStatus.NEW for item in result.candidates)
                  for result in (first, second)]
     if any(remaining):
