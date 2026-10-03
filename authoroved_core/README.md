@@ -1,4 +1,25 @@
-# Авторовед Core — этап D.5
+# Авторовед Core 1.0.0 — дипломный MVP
+
+Версия 1.0.0 заморожена для защиты (метка `diploma-mvp-1.0`). Дипломный проект — это
+каталог `authoroved_core/` и проверка пригодности коэффициентов
+(`tools/coefficient_validity*`, `tools/feature_combination.py`). Каталоги
+`avtoroved-main/`, `avtoroved2/` и `legacy/` — предыдущие версии; они в диплом не входят
+и кодом Core не используются (кроме чтения текстов корпусов Pilot для проверки).
+Платформа «Авторовед-ИК» (`ikcore`) — отдельная программа и в этот репозиторий не входит.
+
+## Точные версии, на которых проверен MVP
+
+| Компонент | Версия |
+|---|---|
+| Python | 3.13.14 (на этом компьютере — из Microsoft Store; 3.12 тоже совместим) |
+| Stanza | 1.14.0, модели `ru` SynTagRus в `authoroved_core/.local/stanza_resources` |
+| PyTorch | 2.14.0, сборка для CPU (`pip install ... --extra-index-url https://download.pytorch.org/whl/cpu`) |
+| PyQt6 | 6.11.0 |
+| LanguageTool | 6.6, командный запуск, в `authoroved_core/.local/languagetool/LanguageTool-6.6` |
+| Java | OpenJDK 25.0.3 |
+| Шрифты | Golos Text, PT Serif (SIL OFL), встроены в `ui/assets/fonts` |
+
+Тесты: 301, все проходят (`python -m pytest authoroved_core/tests -q`).
 
 Архитектура русской интерпретации Stanza/UD описана в
 [`docs/RUSSIAN_GRAMMAR_ADAPTER.md`](../docs/RUSSIAN_GRAMMAR_ADAPTER.md).
